@@ -1,8 +1,10 @@
 package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.web.view;
 
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetReceivableHistoryUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetReceivableStatusUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.RecordReceivablePaymentUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.ReceivableRepository;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.ReceivableHistoryDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.ReceivableStatusDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.mapper.ReceivableMapper;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.model.CreateReceivableReq;
@@ -12,6 +14,9 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -23,17 +28,20 @@ public class ReceivableViewController {
     private final ReceivableMapper receivableMapper;
     private final GetReceivableStatusUseCase getReceivableStatusUseCase;
     private final RecordReceivablePaymentUseCase recordReceivablePaymentUseCase;
+    private final GetReceivableHistoryUseCase getReceivableHistoryUseCase;
     private final ActivityLogHelper activityLogHelper;
 
     public ReceivableViewController(ReceivableRepository receivableRepository,
                                     ReceivableMapper receivableMapper,
                                     GetReceivableStatusUseCase getReceivableStatusUseCase,
                                     RecordReceivablePaymentUseCase recordReceivablePaymentUseCase,
+                                    GetReceivableHistoryUseCase getReceivableHistoryUseCase,
                                     ActivityLogHelper activityLogHelper) {
         this.receivableRepository = receivableRepository;
         this.receivableMapper = receivableMapper;
         this.getReceivableStatusUseCase = getReceivableStatusUseCase;
         this.recordReceivablePaymentUseCase = recordReceivablePaymentUseCase;
+        this.getReceivableHistoryUseCase = getReceivableHistoryUseCase;
         this.activityLogHelper = activityLogHelper;
     }
 
@@ -56,7 +64,53 @@ public class ReceivableViewController {
         model.addAttribute("activeCount", activeCount);
         model.addAttribute("newReceivable", new CreateReceivableReq());
         model.addAttribute("email", email);
+        model.addAttribute("today", LocalDate.now());
         return "receivables/list";
+    }
+
+    @GetMapping("/{id}")
+    public String detail(@PathVariable Integer id, HttpSession session, Model model) {
+        String email = (String) session.getAttribute("userEmail");
+        if (email == null) return "redirect:/ui";
+
+        ReceivableHistoryDto history = getReceivableHistoryUseCase.getHistory(id);
+        var owner = history.getStatus().getReceivable().getDebtSysUser();
+        if (owner != null && !email.equalsIgnoreCase(owner.getEmail())) return "redirect:/ui/receivables";
+
+        model.addAttribute("history", history);
+        model.addAttribute("status", history.getStatus());
+        model.addAttribute("receivable", history.getStatus().getReceivable());
+        addChartData(model, history);
+        model.addAttribute("today", LocalDate.now());
+        model.addAttribute("email", email);
+        return "receivables/detail";
+    }
+
+    private void addChartData(Model model, ReceivableHistoryDto history) {
+        var receivable = history.getStatus().getReceivable();
+        List<String> balanceLabels = new ArrayList<>();
+        List<BigDecimal> balanceValues = new ArrayList<>();
+        List<BigDecimal> repaidValues = new ArrayList<>();
+
+        // Starting point: the full principal outstanding on the day it was lent
+        LocalDate start = receivable.getLentDate() != null ? receivable.getLentDate()
+                : history.getFirstPaymentDate();
+        if (start != null) {
+            balanceLabels.add(start.toString());
+            balanceValues.add(receivable.getPrincipalAmount());
+            repaidValues.add(BigDecimal.ZERO);
+        }
+        history.getEntries().forEach(entry -> {
+            balanceLabels.add(entry.getPaymentDate().toString());
+            balanceValues.add(entry.getRemainingBalance());
+            repaidValues.add(entry.getCumulativeRepaid());
+        });
+
+        model.addAttribute("balanceLabels", balanceLabels);
+        model.addAttribute("balanceValues", balanceValues);
+        model.addAttribute("repaidValues", repaidValues);
+        model.addAttribute("monthLabels", history.getMonthlyTotals().stream().map(ReceivableHistoryDto.MonthlyTotal::getMonth).toList());
+        model.addAttribute("monthAmounts", history.getMonthlyTotals().stream().map(ReceivableHistoryDto.MonthlyTotal::getAmount).toList());
     }
 
     @PostMapping
@@ -70,12 +124,13 @@ public class ReceivableViewController {
     }
 
     @PostMapping("/{id}/payment")
-    public String registerPayment(@PathVariable Integer id, @ModelAttribute ReceivablePaymentReq req, HttpSession session) {
+    public String registerPayment(@PathVariable Integer id, @ModelAttribute ReceivablePaymentReq req,
+                                  @RequestParam(required = false) String returnTo, HttpSession session) {
         if (session.getAttribute("userEmail") == null) return "redirect:/ui";
 
         var status = recordReceivablePaymentUseCase.registerPayment(id, req);
         activityLogHelper.log(session, "Register Receivable Payment", status);
-        return "redirect:/ui/receivables";
+        return "detail".equals(returnTo) ? "redirect:/ui/receivables/" + id : "redirect:/ui/receivables";
     }
 
     @DeleteMapping("/{id}")

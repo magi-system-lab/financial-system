@@ -8,6 +8,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Table(name = "receivable_payment")
 @Entity
@@ -20,6 +21,8 @@ public class ReceivablePaymentEntity implements Serializable {
     @CreationTimestamp
     @Column(name = "created_at")
     private Instant createdAt;
+    @Column(name = "payment_date")
+    private LocalDate paymentDate;
     private BigDecimal amount;
     private String note;
     @ManyToOne(fetch = FetchType.EAGER)
