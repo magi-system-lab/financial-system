@@ -1,5 +1,6 @@
 package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.web.view;
 
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllUpcomingDebtsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.MarkDebtAsIgnorableUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.PreviewStatementDiffUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.SyncStatementDiffUseCase;
@@ -36,6 +37,7 @@ class StatementDiffViewControllerTest {
     @MockBean MarkDebtAsIgnorableUseCase markIgnorableUseCase;
     @MockBean DebtAccountRepository debtAccountRepository;
     @MockBean ActivityLogHelper activityLogHelper;
+    @MockBean FindAllUpcomingDebtsUseCase findAllUpcomingDebtsUseCase;
 
     private static Debt debt(String desc, int current, int max) {
         Debt d = new Debt();
@@ -64,5 +66,28 @@ class StatementDiffViewControllerTest {
                 .andExpect(content().string(containsString("Phone")))
                 .andExpect(content().string(containsString(".row-new")))
                 .andExpect(content().string(containsString("Mark as ignorable")));
+    }
+
+    @Test
+    void preview_reminds_about_card_upcoming_debts() throws Exception {
+        StatementDiffResult diff = new StatementDiffResult("VISA", AccountStatementType.UNIVERSAL,
+                List.of(), List.of(), List.of(), List.of(), List.of());
+        com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.UpcomingDebt tv =
+                new com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.UpcomingDebt();
+        tv.setId(9);
+        tv.setDescription("TV Liverpool");
+        tv.setMonthlyPayment(new BigDecimal("1000.00"));
+        tv.setInstallments(12);
+        tv.setFirstPaymentDate(java.time.LocalDate.of(2027, 1, 1));
+        org.mockito.Mockito.when(findAllUpcomingDebtsUseCase.getPendingByDebtAccount("VISA")).thenReturn(List.of(tv));
+
+        mockMvc.perform(get("/ui/v2/statements/VISA/preview")
+                        .sessionAttr("userEmail", "user@test.com")
+                        .sessionAttr("v2StatementDiff", diff))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("on your upcoming pile")))
+                .andExpect(content().string(containsString("TV Liverpool")))
+                .andExpect(content().string(containsString("/ui/upcoming-debts/9/start")))
+                .andExpect(content().string(containsString("value=\"/ui/v2/statements/VISA/preview\"")));
     }
 }

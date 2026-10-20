@@ -223,6 +223,9 @@
 
         <!-- Extracted: explain what will happen + diff -->
         <th:block th:unless="${item.hasError()}">
+            <div class="px-3 pt-3" th:if="${upcomingByAccount != null and upcomingByAccount[item.debtAccountCode] != null and !upcomingByAccount[item.debtAccountCode].empty}">
+                <div th:replace="~{fragments/upcoming-reminder :: reminder(${upcomingByAccount[item.debtAccountCode]}, ${'/ui/bulk-statements/preview#item-' + st.index})}"></div>
+            </div>
             <div class="card-body py-2 small border-bottom">
                 <div th:if="${item.action.name() == 'UPDATE'}">
                     <i class="bi bi-info-circle me-1 text-primary"></i>

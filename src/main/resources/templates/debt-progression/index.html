@@ -12,6 +12,7 @@
         .detail-row td { background-color: #f8f9fa; padding: 0; }
         .chevron-icon { transition: transform 0.2s; }
         .summary-row[aria-expanded="true"] .chevron-icon { transform: rotate(180deg); }
+        .summary-row.upcoming-start td:first-child { border-left: 4px solid #fd7e14; }
     </style>
 </head>
 <body class="bg-light">
@@ -29,7 +30,8 @@
             <h2 class="fw-bold mb-0">
                 <i class="bi bi-calendar2-range me-2 text-primary"></i>Progresión de Deudas
             </h2>
-            <small class="text-muted">Simulación mes a mes hasta la fecha objetivo</small>
+            <small class="text-muted">Simulación mes a mes hasta la fecha objetivo · incluye las
+                <a th:href="@{/ui/upcoming-debts}">compras diferidas</a> pendientes</small>
         </div>
     </div>
 
@@ -81,12 +83,22 @@
 
                         <!-- Summary row (clickable) -->
                         <tr class="summary-row"
-                            th:classappend="${entry.hasClosingDebts()} ? 'table-success' : ''"
+                            th:classappend="${(entry.hasClosingDebts() ? 'table-success' : '') + (entry.hasStartingUpcomingDebts() ? ' upcoming-start' : '')}"
                             data-bs-toggle="collapse"
                             th:attr="data-bs-target='#detail-' + ${iterStat.index}, aria-expanded='false', aria-controls='detail-' + ${iterStat.index}">
-                            <td class="fw-semibold text-capitalize" th:text="${entry.displayName}">Mes</td>
-                            <td class="fw-bold"
-                                th:text="${'$' + #numbers.formatDecimal(entry.totalPayment, 1, 'COMMA', 2, 'POINT')}">$0.00</td>
+                            <td class="fw-semibold">
+                                <span class="text-capitalize" th:text="${entry.displayName}">Mes</span>
+                                <span th:if="${entry.hasStartingUpcomingDebts()}" class="badge bg-warning text-dark ms-2"
+                                      th:title="${'Inicia: ' + #strings.listJoin(entry.startingUpcomingDebts().![description], ', ')}">
+                                    <i class="bi bi-hourglass-split me-1"></i>Inicia diferida
+                                </span>
+                            </td>
+                            <td>
+                                <span class="fw-bold"
+                                      th:text="${'$' + #numbers.formatDecimal(entry.totalPayment, 1, 'COMMA', 2, 'POINT')}">$0.00</span>
+                                <small class="text-muted ms-2" th:if="${entry.totalUpcomingPayment().signum() > 0}"
+                                       th:text="${'(incl. $' + #numbers.formatDecimal(entry.totalUpcomingPayment(), 1, 'COMMA', 2, 'POINT') + ' de compras diferidas)'}"></small>
+                            </td>
                             <td class="text-center">
                                 <i class="bi bi-chevron-down chevron-icon text-secondary"></i>
                             </td>
@@ -112,6 +124,18 @@
                                             </div>
                                         </div>
 
+                                        <!-- Section 1b: Upcoming (deferred) purchases starting this month -->
+                                        <div class="mb-3" th:if="${entry.hasStartingUpcomingDebts()}">
+                                            <span class="fw-semibold">
+                                                <i class="bi bi-hourglass-split text-warning me-1"></i>Compras diferidas que empiezan a cobrarse:
+                                            </span>
+                                            <div class="d-flex flex-wrap gap-1 mt-1">
+                                                <span th:each="u : ${entry.startingUpcomingDebts()}"
+                                                      class="badge bg-warning text-dark"
+                                                      th:text="${u.description + ' · $' + #numbers.formatDecimal(u.monthlyPayment, 1, 'COMMA', 2, 'POINT') + ' x ' + u.installments}">Compra</span>
+                                            </div>
+                                        </div>
+
                                         <!-- Section 2: Remaining debts count -->
                                         <div class="mb-3">
                                             <span class="fw-semibold">Deudas restantes: </span>
@@ -121,11 +145,12 @@
                                         <!-- Section 3: Card payments breakdown -->
                                         <div>
                                             <span class="fw-semibold d-block mb-2">Pagos por tarjeta:</span>
-                                            <table class="table table-sm table-borderless mb-0 bg-white" style="max-width: 550px;">
+                                            <table class="table table-sm table-borderless mb-0 bg-white" style="max-width: 700px;">
                                                 <thead>
                                                     <tr class="text-muted small">
                                                         <th>Tarjeta</th>
                                                         <th class="text-end">Pago mensual</th>
+                                                        <th class="text-end">Diferidas</th>
                                                         <th class="text-end">Restante para terminar</th>
                                                     </tr>
                                                 </thead>
@@ -134,6 +159,9 @@
                                                         <td th:text="${card.accountName}">Tarjeta</td>
                                                         <td class="text-end fw-semibold"
                                                             th:text="${'$' + #numbers.formatDecimal(card.cardPayment, 1, 'COMMA', 2, 'POINT')}">$0.00</td>
+                                                        <td class="text-end text-warning-emphasis"
+                                                            th:title="${#strings.listJoin(card.upcomingDebts().![description], ', ')}"
+                                                            th:text="${card.upcomingPayment().signum() > 0 ? '$' + #numbers.formatDecimal(card.upcomingPayment(), 1, 'COMMA', 2, 'POINT') : '—'}">—</td>
                                                         <td class="text-end fw-semibold text-primary"
                                                             th:text="${'$' + #numbers.formatDecimal(card.remainingAmount, 1, 'COMMA', 2, 'POINT')}">$0.00</td>
                                                     </tr>
@@ -143,6 +171,8 @@
                                                         <td class="fw-bold">Total</td>
                                                         <td class="text-end fw-bold"
                                                             th:text="${'$' + #numbers.formatDecimal(entry.totalPayment, 1, 'COMMA', 2, 'POINT')}">$0.00</td>
+                                                        <td class="text-end fw-bold text-warning-emphasis"
+                                                            th:text="${'$' + #numbers.formatDecimal(entry.totalUpcomingPayment(), 1, 'COMMA', 2, 'POINT')}">$0.00</td>
                                                         <td class="text-end fw-bold text-primary"
                                                             th:text="${'$' + #numbers.formatDecimal(entry.totalRemainingAmount(), 1, 'COMMA', 2, 'POINT')}">$0.00</td>
                                                     </tr>

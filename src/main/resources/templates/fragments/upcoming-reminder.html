@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<body>
+<!--
+  Reminder shown while reviewing a statement: the card's purchases still on the upcoming pile.
+  Nothing is matched automatically — the user recognises the purchase and marks it as started.
+  Params: upcoming (List<UpcomingDebt>), returnTo (UI path to come back to).
+-->
+<div th:fragment="reminder(upcoming, returnTo)" th:if="${upcoming != null and !upcoming.empty}"
+     class="alert alert-warning py-2 mb-3">
+    <div class="fw-semibold mb-1">
+        <i class="bi bi-hourglass-split me-1"></i>
+        This card has <span th:text="${upcoming.size()}"></span> purchase(s) on your upcoming pile.
+        If one of them appears in this statement (and is being charged), mark it as started:
+    </div>
+    <ul class="list-unstyled mb-0">
+        <li th:each="u : ${upcoming}" class="d-flex flex-wrap align-items-center gap-2 py-1">
+            <span class="fw-semibold" th:text="${u.description}"></span>
+            <small class="text-muted"
+                   th:text="${u.installments + ' x $' + #numbers.formatDecimal(u.monthlyPayment, 1, 'COMMA', 2, 'POINT') + ' · first payment ' + u.firstPaymentLabel()}"></small>
+            <form th:action="@{/ui/upcoming-debts/{id}/start(id=${u.id})}" method="post" class="d-inline ms-auto">
+                <input type="hidden" name="returnTo" th:value="${returnTo}">
+                <button type="submit" class="btn btn-sm btn-success"
+                        onclick="return confirm('Mark as started? It leaves the upcoming pile; the debt itself comes from this statement.')">
+                    <i class="bi bi-check2-circle me-1"></i>It started — remove from pile
+                </button>
+            </form>
+        </li>
+    </ul>
+</div>
+</body>
+</html>

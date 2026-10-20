@@ -219,6 +219,25 @@ A `Receivable` auto-closes (`active=false`) once accumulated repayments cover th
 re-opens automatically if repayments are ever removed/adjusted below the principal. Repayments are
 dynamic amounts (no fixed installment schedule) — a single payment can cover several months at once.
 
+### Upcoming Debts (deferred purchases — "buy now, first payment in N months")
+```
+POST   /upcoming/debt/{userEmail}            Add a purchase to the upcoming pile (total OR monthlyPayment + installments + firstPaymentMonth "yyyy-MM")
+PUT    /upcoming/debt/{id}                   Update it
+PATCH  /upcoming/debt/{id}/start             It now shows on a statement → STARTED (leaves the pile)
+PATCH  /upcoming/debt/{id}/cancel            Purchase returned / cancelled → CANCELLED
+PATCH  /upcoming/debt/{id}/reopen            Put it back on the pile (PENDING)
+DELETE /upcoming/debt/{id}                   Soft-delete
+GET    /upcoming/debt/all/{userEmail}        Every upcoming debt (any status)
+GET    /upcoming/debt/pending/{userEmail}    Only the pile (PENDING)
+GET    /upcoming/debt/projection/{userEmail}?months=12   Month-by-month charges: current debts + upcoming + fixed expenses
+```
+Upcoming debts live in their own `upcoming_debt` table and **never write to `debt`** — they are a planning
+reminder only. The real debt arrives through the normal statement import; nothing is matched automatically.
+While reviewing a statement (single v2 flow and bulk import) the card's pending upcoming debts are listed so
+the user can recognise the purchase and mark it as started. PENDING items are added to the Progression tab
+(per card, plus "starts this month" markers), to the projection on `/ui/upcoming-debts` (with a client-side
+"what if I buy X" simulator) and to a dashboard KPI — they are NOT included in the dashboard's current totals.
+
 ### Spring Data REST (HAL-JSON)
 ```
 /jpa/*   Auto-generated CRUD for all JPA entities (HAL format with _embedded collections)
@@ -236,6 +255,7 @@ GET    /ui/statements        Statement upload interface
 GET    /ui/payments          Payment history
 GET    /ui/providers         Provider management
 GET    /ui/receivables       Money lent out (e.g. to relatives) + repayment tracking
+GET    /ui/upcoming-debts    Upcoming (deferred) purchases pile + month-by-month projection + what-if simulator
 GET    /ui/bulk-statements   Bulk statement import (many files → many cards, see below)
 ```
 
@@ -274,6 +294,7 @@ debt_sys_user (PK: email)
 │                   ├── 1:N → debt
 │                   └── 1:N → payment
 ├── 1:N → fixed_expense
+├── 1:N → upcoming_debt (M:1 optional → debt_account; status PENDING | STARTED | CANCELLED)
 └── 1:N → receivable
           └── 1:N → receivable_payment
 
@@ -431,6 +452,7 @@ The Tesseract installation in Docker is required for `LIVERPOOL` statement parsi
 | `application/service/FinancialStatusService.java` | Dashboard aggregation |
 | `application/service/PaymentService.java` | Payment recording + installment increment |
 | `application/service/BulkStatementService.java` | Bulk statement import: per-file extraction/diff + single-transaction sync |
+| `application/service/UpcomingDebtService.java` | Upcoming (deferred) purchases pile + payment projection |
 | `application/service/ReceivableService.java` | Money lent out: pending-balance calculation, auto open/close on repayment |
 | `infrastructure/web/AccountStatementController.java` | Statement extraction endpoints |
 | `domain/utils/DebtComparatorUtil.java` | Diff logic: new vs. existing debts |

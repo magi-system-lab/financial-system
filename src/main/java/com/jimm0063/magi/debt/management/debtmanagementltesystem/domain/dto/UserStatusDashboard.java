@@ -42,4 +42,10 @@ public class UserStatusDashboard {
     private Double totalPendingReceivables;
     private Integer activeReceivableCount;
     private List<ReceivableStatusDto> userReceivables;
+
+    // Upcoming (deferred) purchases — NOT included in the totals above, which only cover debts already charging
+    private Integer upcomingDebtCount;
+    private Double upcomingMonthlyTotal;
+    private String nextUpcomingStart;
+    private Integer dueUpcomingCount;
 }

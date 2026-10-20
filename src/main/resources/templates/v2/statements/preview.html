@@ -57,6 +57,9 @@
         </div>
     </div>
 
+    <!-- Upcoming (deferred) purchases on this card -->
+    <div th:replace="~{fragments/upcoming-reminder :: reminder(${upcomingDebts}, ${'/ui/v2/statements/' + debtAccountCode + '/preview'})}"></div>
+
     <!-- Error alert -->
     <div class="alert alert-danger mb-3" th:if="${syncError != null}">
         <div class="d-flex align-items-center gap-2 mb-2">
