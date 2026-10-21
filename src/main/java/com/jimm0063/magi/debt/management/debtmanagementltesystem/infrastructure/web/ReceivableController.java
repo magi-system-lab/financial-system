@@ -1,9 +1,11 @@
 package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.web;
 
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllReceivablesUseCase;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetReceivableHistoryUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetReceivableStatusUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.RecordReceivablePaymentUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.ReceivableRepository;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.ReceivableHistoryDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.ReceivableStatusDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.Receivable;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.mapper.ReceivableMapper;
@@ -22,16 +24,19 @@ public class ReceivableController {
     private final FindAllReceivablesUseCase findAllReceivablesUseCase;
     private final RecordReceivablePaymentUseCase recordReceivablePaymentUseCase;
     private final GetReceivableStatusUseCase getReceivableStatusUseCase;
+    private final GetReceivableHistoryUseCase getReceivableHistoryUseCase;
 
     public ReceivableController(ReceivableRepository receivableRepository, ReceivableMapper receivableMapper,
                                 FindAllReceivablesUseCase findAllReceivablesUseCase,
                                 RecordReceivablePaymentUseCase recordReceivablePaymentUseCase,
-                                GetReceivableStatusUseCase getReceivableStatusUseCase) {
+                                GetReceivableStatusUseCase getReceivableStatusUseCase,
+                                GetReceivableHistoryUseCase getReceivableHistoryUseCase) {
         this.receivableRepository = receivableRepository;
         this.receivableMapper = receivableMapper;
         this.findAllReceivablesUseCase = findAllReceivablesUseCase;
         this.recordReceivablePaymentUseCase = recordReceivablePaymentUseCase;
         this.getReceivableStatusUseCase = getReceivableStatusUseCase;
+        this.getReceivableHistoryUseCase = getReceivableHistoryUseCase;
     }
 
     @PostMapping("/{userEmail}")
@@ -64,6 +69,11 @@ public class ReceivableController {
     @GetMapping("/status/{receivableId}")
     public ResponseEntity<ReceivableStatusDto> getStatus(@PathVariable Integer receivableId) {
         return ResponseEntity.ok(getReceivableStatusUseCase.getStatus(receivableId));
+    }
+
+    @GetMapping("/history/{receivableId}")
+    public ResponseEntity<ReceivableHistoryDto> getHistory(@PathVariable Integer receivableId) {
+        return ResponseEntity.ok(getReceivableHistoryUseCase.getHistory(receivableId));
     }
 
     @GetMapping("/status/all/{userEmail}")

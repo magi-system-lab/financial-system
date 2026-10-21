@@ -1,0 +1,13 @@
+# .github/workflows/pipeline.yml — identical in every app repo.
+# It only triggers; all the logic lives in the pipelines repo.
+name: pipeline
+
+on:
+  push:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+jobs:
+  run:
+    uses: magi-system-lab/pipelines/.github/workflows/entry.yml@main
+    secrets: inherit

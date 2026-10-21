@@ -1,0 +1,19 @@
+# launch.yml - financial-system
+# Only what differs from the pipeline convention: app name, TZ, prod from main
+# and OpenBao secrets at <environment>/financial-system.
+profile: spring-boot
+port: 666
+host: finance                    # finance.lab.home.arpa once local DNS exists
+
+# Statement parsing needs Tesseract OCR with Spanish language data.
+packages: [tesseract-ocr, tesseract-ocr-spa]
+env:
+  # Where the tesseract-ocr package puts its language data on Debian.
+  TESSDATA_PREFIX: /usr/share/tesseract-ocr/5/tessdata
+  # The UI logs this user in automatically; the code default is an address
+  # that has no account in the database.
+  APP_DEFAULT_USER_EMAIL: jimm0063@gmail.com
+
+environments:
+  prod:
+    host-port: 666               # balthazar.local:666, the address it always had
