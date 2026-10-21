@@ -211,13 +211,16 @@ POST   /receivable/{userEmail}               Create receivable (record money len
 PUT    /receivable                           Update receivable
 DELETE /receivable/{receivableId}            Soft-delete receivable
 GET    /receivable/all/{userEmail}           List user's receivables
-POST   /receivable/{receivableId}/payment    Register a repayment (irregular/partial amounts allowed)
+POST   /receivable/{receivableId}/payment    Register a repayment (irregular/partial amounts allowed; optional paymentDate, defaults to today)
 GET    /receivable/status/{receivableId}     Pending balance + repayment history for one receivable
+GET    /receivable/history/{receivableId}    Chronological history with running balance + zero-filled monthly totals
 GET    /receivable/status/all/{userEmail}    Pending balance + repayment history for all receivables
 ```
 A `Receivable` auto-closes (`active=false`) once accumulated repayments cover the principal, and
 re-opens automatically if repayments are ever removed/adjusted below the principal. Repayments are
 dynamic amounts (no fixed installment schedule) — a single payment can cover several months at once.
+Each repayment stores the `paymentDate` the money actually arrived (separate from `created_at`, the moment it
+was entered); payments recorded before that column existed fall back to their `created_at` date.
 
 ### Spring Data REST (HAL-JSON)
 ```
@@ -236,6 +239,7 @@ GET    /ui/statements        Statement upload interface
 GET    /ui/payments          Payment history
 GET    /ui/providers         Provider management
 GET    /ui/receivables       Money lent out (e.g. to relatives) + repayment tracking
+GET    /ui/receivables/{id}  One receivable: KPIs, balance-over-time + monthly charts, dated payment history
 GET    /ui/bulk-statements   Bulk statement import (many files → many cards, see below)
 ```
 
