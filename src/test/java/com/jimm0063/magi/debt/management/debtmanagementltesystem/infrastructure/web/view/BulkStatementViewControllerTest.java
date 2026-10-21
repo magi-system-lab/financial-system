@@ -1,5 +1,6 @@
 package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.web.view;
 
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllUpcomingDebtsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllDebtAccountUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllFinancialProviderUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.MarkDebtAsIgnorableUseCase;
@@ -61,6 +62,7 @@ class BulkStatementViewControllerTest {
     @MockBean FindAllFinancialProviderUseCase findAllFinancialProviderUseCase;
     @MockBean FindAllDebtAccountUseCase findAllDebtAccountUseCase;
     @MockBean ActivityLogHelper activityLogHelper;
+    @MockBean FindAllUpcomingDebtsUseCase findAllUpcomingDebtsUseCase;
 
     private static final String EMAIL = "user@test.com";
 

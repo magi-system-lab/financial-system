@@ -14,8 +14,10 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.De
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.DebtAccount;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.DebtSysUser;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.FixedExpense;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.UpcomingDebt;
 import org.springframework.stereotype.Service;
 
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -32,16 +34,19 @@ public class FinancialStatusService implements GetFinancialStatusUseCase {
     private final DebtRepository debtRepository;
     private final FixedExpenseRepository fixedExpenseRepository;
     private final GetReceivableStatusUseCase getReceivableStatusUseCase;
+    private final UpcomingDebtRepository upcomingDebtRepository;
 
     public FinancialStatusService(UserRepository userRepository, FinancialProviderRepository financialProviderRepository,
                                   DebtAccountRepository debtAccountRepository, DebtRepository debtRepository,
-                                  FixedExpenseRepository fixedExpenseRepository, GetReceivableStatusUseCase getReceivableStatusUseCase) {
+                                  FixedExpenseRepository fixedExpenseRepository, GetReceivableStatusUseCase getReceivableStatusUseCase,
+                                  UpcomingDebtRepository upcomingDebtRepository) {
         this.userRepository = userRepository;
         this.financialProviderRepository = financialProviderRepository;
         this.debtAccountRepository = debtAccountRepository;
         this.debtRepository = debtRepository;
         this.fixedExpenseRepository = fixedExpenseRepository;
         this.getReceivableStatusUseCase = getReceivableStatusUseCase;
+        this.upcomingDebtRepository = upcomingDebtRepository;
     }
 
     @Override
@@ -228,6 +233,19 @@ public class FinancialStatusService implements GetFinancialStatusUseCase {
                 .mapToDouble(dto -> dto.getPendingAmount().doubleValue())
                 .sum();
 
+        // Upcoming (deferred) purchases — planning info only, kept out of the totals above
+        List<UpcomingDebt> pendingUpcoming = upcomingDebtRepository.findAllPendingByUser(email);
+        YearMonth currentMonth = YearMonth.now();
+        double upcomingMonthly = pendingUpcoming.stream()
+                .filter(u -> u.getMonthlyPayment() != null)
+                .mapToDouble(u -> u.getMonthlyPayment().doubleValue())
+                .sum();
+        String nextUpcomingStart = pendingUpcoming.stream()
+                .filter(u -> u.firstPaymentMonth() != null && u.firstPaymentMonth().isAfter(currentMonth))
+                .min(Comparator.comparing(UpcomingDebt::firstPaymentMonth))
+                .map(UpcomingDebt::firstPaymentLabel)
+                .orElse(null);
+
         UserStatusDashboard response = new UserStatusDashboard();
         response.setSalary(user.getSalary());
         response.setSavings(user.getSavings());
@@ -258,6 +276,11 @@ public class FinancialStatusService implements GetFinancialStatusUseCase {
         response.setUserReceivables(userReceivables);
         response.setTotalPendingReceivables(Math.round(totalPendingReceivables * 100.0) / 100.0);
         response.setActiveReceivableCount(activeReceivables.size());
+
+        response.setUpcomingDebtCount(pendingUpcoming.size());
+        response.setUpcomingMonthlyTotal(Math.round(upcomingMonthly * 100.0) / 100.0);
+        response.setNextUpcomingStart(nextUpcomingStart);
+        response.setDueUpcomingCount((int) pendingUpcoming.stream().filter(u -> u.isDue(currentMonth)).count());
 
         return response;
     }

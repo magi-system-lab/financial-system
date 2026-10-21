@@ -1,5 +1,6 @@
 package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.web.view;
 
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllUpcomingDebtsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.MarkDebtAsIgnorableUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.PreviewStatementDiffUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.SyncStatementDiffUseCase;
@@ -37,18 +38,21 @@ public class StatementDiffViewController {
     private final MarkDebtAsIgnorableUseCase markIgnorableUseCase;
     private final DebtAccountRepository debtAccountRepository;
     private final ActivityLogHelper activityLogHelper;
+    private final FindAllUpcomingDebtsUseCase findAllUpcomingDebtsUseCase;
 
     public StatementDiffViewController(
             PreviewStatementDiffUseCase previewUseCase,
             SyncStatementDiffUseCase syncUseCase,
             MarkDebtAsIgnorableUseCase markIgnorableUseCase,
             DebtAccountRepository debtAccountRepository,
-            ActivityLogHelper activityLogHelper) {
+            ActivityLogHelper activityLogHelper,
+            FindAllUpcomingDebtsUseCase findAllUpcomingDebtsUseCase) {
         this.previewUseCase = previewUseCase;
         this.syncUseCase = syncUseCase;
         this.markIgnorableUseCase = markIgnorableUseCase;
         this.debtAccountRepository = debtAccountRepository;
         this.activityLogHelper = activityLogHelper;
+        this.findAllUpcomingDebtsUseCase = findAllUpcomingDebtsUseCase;
     }
 
     /** Upload form — shows the account name and which parser is linked to it. */
@@ -103,6 +107,7 @@ public class StatementDiffViewController {
             return "redirect:/ui/v2/statements/" + enc(debtAccountCode);
         model.addAttribute("diff", diff);
         model.addAttribute("debtAccountCode", debtAccountCode);
+        model.addAttribute("upcomingDebts", findAllUpcomingDebtsUseCase.getPendingByDebtAccount(debtAccountCode));
         return "v2/statements/preview";
     }
 

@@ -2,6 +2,7 @@ package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure
 
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllDebtAccountUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllFinancialProviderUseCase;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllUpcomingDebtsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.MarkDebtAsIgnorableUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.PreviewBulkStatementUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.SyncBulkStatementUseCase;
@@ -12,6 +13,7 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.Bu
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.BulkSyncResult;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.DebtAccount;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.FinancialProvider;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.UpcomingDebt;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.model.BulkStatementUploadForm;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
@@ -46,6 +48,7 @@ public class BulkStatementViewController {
     private final FindAllFinancialProviderUseCase findAllFinancialProviderUseCase;
     private final FindAllDebtAccountUseCase findAllDebtAccountUseCase;
     private final ActivityLogHelper activityLogHelper;
+    private final FindAllUpcomingDebtsUseCase findAllUpcomingDebtsUseCase;
 
     public BulkStatementViewController(
             PreviewBulkStatementUseCase previewUseCase,
@@ -53,13 +56,15 @@ public class BulkStatementViewController {
             MarkDebtAsIgnorableUseCase markIgnorableUseCase,
             FindAllFinancialProviderUseCase findAllFinancialProviderUseCase,
             FindAllDebtAccountUseCase findAllDebtAccountUseCase,
-            ActivityLogHelper activityLogHelper) {
+            ActivityLogHelper activityLogHelper,
+            FindAllUpcomingDebtsUseCase findAllUpcomingDebtsUseCase) {
         this.previewUseCase = previewUseCase;
         this.syncUseCase = syncUseCase;
         this.markIgnorableUseCase = markIgnorableUseCase;
         this.findAllFinancialProviderUseCase = findAllFinancialProviderUseCase;
         this.findAllDebtAccountUseCase = findAllDebtAccountUseCase;
         this.activityLogHelper = activityLogHelper;
+        this.findAllUpcomingDebtsUseCase = findAllUpcomingDebtsUseCase;
     }
 
     /** Step 1 — pick the files and associate each one with a card. */
@@ -111,6 +116,14 @@ public class BulkStatementViewController {
         if (batch == null) return "redirect:" + BASE;
         model.addAttribute("batch", batch);
         model.addAttribute("email", email);
+        // Purchases still on the upcoming pile, per card, so the user can recognise them in each statement
+        Map<String, List<UpcomingDebt>> upcomingByAccount = new LinkedHashMap<>();
+        for (BulkStatementItem item : batch.items()) {
+            String code = item.getDebtAccountCode();
+            if (code != null && !code.isBlank() && !upcomingByAccount.containsKey(code))
+                upcomingByAccount.put(code, findAllUpcomingDebtsUseCase.getPendingByDebtAccount(code));
+        }
+        model.addAttribute("upcomingByAccount", upcomingByAccount);
         return "bulk-statements/preview";
     }
 
