@@ -8,5 +8,6 @@ public record AccountStatementPreviewDto(
         List<Debt> newDebts,
         List<DebtInstallmentUpdateDto> installmentUpdates,
         List<Debt> completedDebts,
-        List<IgnoredDebtPreviewDto> ignoredDebts
+        List<IgnoredDebtPreviewDto> ignoredDebts,
+        List<FuzzyDuplicateDto> potentialDuplicates
 ) {}

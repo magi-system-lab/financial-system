@@ -99,7 +99,7 @@ class AccountStatementViewControllerTest {
                 .thenReturn(List.of(debt));
         when(debtDuplicationPreventUseCase.getHashSum(any(), any())).thenReturn("hash-1");
         when(filterDebtsUseCase.previewAccountStatement(any(), eq(ACC)))
-                .thenReturn(new AccountStatementPreviewDto(List.of(debt), List.of(), List.of(), List.of()));
+                .thenReturn(new AccountStatementPreviewDto(List.of(debt), List.of(), List.of(), List.of(), List.of()));
 
         MockMultipartFile file = new MockMultipartFile("file", "debts.csv", "text/csv",
                 "description,operationDate,originalAmount,monthlyPayment,currentInstallment,maxFinancingTerm,debtType\n"

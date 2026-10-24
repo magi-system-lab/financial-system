@@ -6,6 +6,7 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.applicat
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.IgnorableDebtRepository;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.AccountStatementPreviewDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.DebtInstallmentUpdateDto;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.FuzzyDuplicateDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.IgnoredDebtPreviewDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.exceptions.EntityNotFoundException;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.Debt;
@@ -89,7 +90,9 @@ public class DebtService implements FilterDebtsUseCase, PayOffDebtAccountUseCase
                 .filter(Objects::nonNull)
                 .toList();
 
-        return new AccountStatementPreviewDto(newDebts, installmentUpdates, completedDebts, ignoredDebts);
+        List<FuzzyDuplicateDto> potentialDuplicates = DebtComparatorUtil.findFuzzyDuplicates(newDebts, dbDebts);
+
+        return new AccountStatementPreviewDto(newDebts, installmentUpdates, completedDebts, ignoredDebts, potentialDuplicates);
     }
 
     @Override

@@ -1,9 +1,11 @@
 package com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.utils;
 
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.FuzzyDuplicateDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.Debt;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -28,5 +30,30 @@ public class DebtComparatorUtil {
                     candidates.remove(statementDebt);
 
         return candidates;
+    }
+
+    public static List<FuzzyDuplicateDto> findFuzzyDuplicates(List<Debt> newDebts, List<Debt> dbDebts) {
+        List<FuzzyDuplicateDto> result = new ArrayList<>();
+        for (Debt incoming : newDebts) {
+            String normIncoming = normalizeDescription(incoming.getDescription());
+            if (normIncoming.isEmpty()) continue;
+            for (Debt existing : dbDebts) {
+                String normExisting = normalizeDescription(existing.getDescription());
+                boolean descSimilar = normIncoming.equals(normExisting)
+                        || normIncoming.contains(normExisting)
+                        || normExisting.contains(normIncoming);
+                boolean sameTerm = Objects.equals(incoming.getMaxFinancingTerm(), existing.getMaxFinancingTerm());
+                if (descSimilar && sameTerm) {
+                    result.add(new FuzzyDuplicateDto(incoming, existing));
+                    break;
+                }
+            }
+        }
+        return result;
+    }
+
+    private static String normalizeDescription(String s) {
+        if (s == null) return "";
+        return s.toLowerCase().replaceAll("[^a-z0-9]", " ").trim().replaceAll("\\s+", " ");
     }
 }
