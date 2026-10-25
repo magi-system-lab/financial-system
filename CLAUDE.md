@@ -251,12 +251,15 @@ the user can recognise the purchase and mark it as started. PENDING items are ad
 GET    /ui                   Home / email login (?switch = show the form, skip the default-email auto-login)
 POST   /ui/session           Set user email in HTTP session + long-lived `fm_user` cookie
 POST   /ui/session/end       "Switch user": forget the session user and the cookie
-GET    /ui/dashboard         Main dashboard
+GET    /ui/insights          Insights tab (home after login): month-by-month payments (?months=6|12|24), finishing soon,
+                             per card, payoff advisor, spending by category, salary & savings sheet
+PUT    /ui/financials        Update salary & savings (returns to Insights)
+GET    /ui/dashboard         Old dashboard URL → redirects to /ui/insights
 GET    /ui/more              "More" tab: secondary sections + settings (language, switch user)
 GET    /ui/activity          Activity log of the current session
 GET    /ui/fixed-expenses    Fixed expenses management
 GET    /ui/debt-accounts     Debt account management
-GET    /ui/debt-progression  Charts and progression tracking
+GET    /ui/progression       Old month-by-month page → redirects to /ui/insights?months=24
 GET    /ui/statements        Statement upload interface
 GET    /ui/payments          Payment history
 GET    /ui/providers         Provider management
@@ -283,6 +286,10 @@ The UI is being redesigned section by section (iPhone first, also iPad and Mac; 
 - **Offline:** `static/sw.js` saves each `/ui` page you open (network first, 6s timeout) and shows the saved copy with an
   "Offline · updated …" banner when there is no connection; forms are blocked offline; the copies are deleted on login /
   switch user. Service workers need HTTPS (or localhost).
+- **Done:** shell + login + More/Activity (phase 1), Insights (phase 2: `InsightsViewController`, view model
+  `InsightsView` built from `GetDebtProgressionUseCase` over a 120-month horizon for the debt-free date; month
+  panels switch client-side via `data-select` / `data-select-panel`). Money/month formatting for templates:
+  `@fmt` (`UiFormat`). Next: Cards → Import → Plan → More (receivables, fixed expenses, ignored debts).
 - **Static files** are fingerprinted (`app-<hash>.css`) through `@{...}` and cached for 7 days.
 
 ### Bulk Statement Import (Web UI)

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<body>
+<!-- Card row content, shared by the linked and the plain variant -->
+<th:block th:fragment="cardRow(c)">
+    <span class="list-row-title" style="gap: 7px">
+        <span th:text="${c.name()}">BBVA Azul</span>
+        <span class="meter"><span th:style="${'width:' + c.barPercent() + '%'}"></span></span>
+    </span>
+    <span style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px; padding-left: 8px">
+        <span class="tabular" style="font-weight: 600; color: var(--text)" th:text="${@fmt.money(c.amount())}">$4,773.75</span>
+        <span class="small muted" th:text="${#messages.msg('insights.debts', c.activeDebts()) + (c.hasUpcoming() ? ' ' + #messages.msg('insights.plusUpcoming') : '')}">4 debts</span>
+    </span>
+    <th:block th:if="${c.linkable()}"><svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg></th:block>
+</th:block>
+</body>
+</html>

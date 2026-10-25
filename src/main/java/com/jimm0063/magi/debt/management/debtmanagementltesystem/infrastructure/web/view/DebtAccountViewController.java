@@ -90,7 +90,7 @@ public class DebtAccountViewController {
         activityLogHelper.log(session, "Delete Debt Account", Map.of("deleted", true, "code", code));
         return providerCode != null
                 ? "redirect:/ui/debt-accounts?providerCode=" + enc(providerCode)
-                : "redirect:/ui/dashboard";
+                : "redirect:/ui/insights";
     }
 
     @GetMapping("/csv-template")

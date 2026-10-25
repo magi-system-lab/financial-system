@@ -86,6 +86,20 @@ function copyEl(btn, el) {
         if (closer) closer.closest('dialog')?.close();
     });
 
+    // Selectable groups (e.g. the Insights month bars): <button data-select="g" data-value="3">
+    // shows every [data-select-panel="g"][data-value="3"] and hides the rest of that group.
+    document.addEventListener('click', (event) => {
+        const btn = event.target.closest('[data-select]');
+        if (!btn) return;
+        const group = btn.dataset.select;
+        const value = btn.dataset.value;
+        document.querySelectorAll(`[data-select="${group}"]`).forEach((b) =>
+            b.setAttribute('aria-pressed', String(b.dataset.value === value)));
+        document.querySelectorAll(`[data-select-panel="${group}"]`).forEach((p) => {
+            p.hidden = p.dataset.value !== value;
+        });
+    });
+
     // Tap outside a bottom sheet closes it.
     document.querySelectorAll('dialog.sheet').forEach((sheet) => {
         sheet.addEventListener('click', (event) => {
