@@ -1,446 +1,313 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Upcoming Debts – Financial Manager</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <style>
-        .proj-start td:first-child { border-left: 4px solid #fd7e14; }
-        .whatif-col { display: none; }
-        .whatif-on .whatif-col { display: table-cell; }
-        .negative { color: #dc3545; font-weight: 600; }
-    </style>
-</head>
-<body class="bg-light">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{layout/app :: head(#{plan.title})}"></head>
+<body class="app">
+<div th:replace="~{layout/app :: nav}"></div>
+<main class="app-main" th:with="loc=${#locale}, salary=${projection.salary},
+        showLine=${salary != null and salary <= projection.peakCommitments * 1.5},
+        scale=${showLine and salary > projection.peakCommitments ? salary * 1.04 : projection.peakCommitments * 1.04}">
 
-<div th:replace="~{layout/navbar :: navbar}"></div>
-
-<div class="container">
-    <div class="d-flex align-items-center mb-4">
-        <h2 class="fw-bold mb-0">
-            <i class="bi bi-hourglass-split me-2 text-warning"></i>
-            Upcoming Debts
-            <small class="fs-6 text-muted fw-normal ms-2">purchases whose first payment is in a future month</small>
-        </h2>
+    <div class="title-block">
+        <div>
+            <span class="eyebrow" th:text="#{plan.eyebrow}">Projection</span>
+            <h1 class="large-title" th:text="#{plan.title}">Plan</h1>
+        </div>
+        <button type="button" class="btn btn-glass btn-icon" data-open-sheet="add-sheet" th:aria-label="#{plan.add}">
+            <svg th:replace="~{layout/app :: icon('plus', '')}"></svg>
+        </button>
     </div>
 
-    <div class="alert alert-danger" th:if="${formError != null}">
-        <i class="bi bi-exclamation-triangle me-1"></i><span th:text="${formError}"></span>
-    </div>
+    <div class="notice notice-error" role="alert" th:if="${formError != null}" th:text="${formError}">Enter the total amount or the monthly payment</div>
+    <div class="notice notice-warn" th:if="${dueCount > 0}" th:text="#{plan.due(${dueCount})}">1 purchase reached its first payment month.</div>
 
-    <!-- Summary -->
-    <div class="row g-3 mb-4">
-        <div class="col-sm-6 col-lg-3">
-            <div class="card shadow-sm border-0 bg-warning-subtle h-100">
-                <div class="card-body">
-                    <div class="text-muted small">On the pile</div>
-                    <div class="fs-3 fw-bold" th:text="${pending.size()}">0</div>
-                </div>
+    <!-- ── Month by month: current debts + upcoming purchases + fixed expenses (+ what-if) ── -->
+    <section class="card hero" id="projection" th:if="${!projection.months.isEmpty()}"
+             th:attr="data-salary=${salary}">
+        <div th:each="m, st : ${projection.months}" data-select-panel="pm" th:attr="data-value=${st.index}"
+             th:hidden="${st.index != 0}" class="plan-panel">
+            <div class="hero-top">
+                <span class="hero-label" th:text="${@fmt.month(m.month, loc)}">January 2027</span>
+                <span class="chip chip-orange" style="height: 26px; padding: 0 10px; font-size: 13px"
+                      th:if="${projection.peakMonth != null and projection.peakMonth.month == m.month and projection.months.size() > 1}"
+                      th:text="#{plan.peak(${@fmt.monthShort(m.month, loc)}, ${@fmt.money0(m.totalCommitments)})}">Busiest month</span>
+            </div>
+            <div class="hero-amount" data-wi-total th:attr="data-base=${m.totalCommitments}"><span th:text="${@fmt.whole(m.totalCommitments)}">$23,500</span><small th:text="${@fmt.cents(m.totalCommitments)}">.00</small></div>
+            <div class="plan-breakdown">
+                <span><span class="dot dot-lg" style="background: var(--accent)"></span><span th:text="#{plan.debts}">Current debts</span><span class="tabular" th:text="${@fmt.money(m.currentDebts)}">$18,000.00</span></span>
+                <span th:if="${m.upcomingDebts > 0}"><span class="dot dot-lg" style="background: var(--orange)"></span><span th:text="#{plan.upcoming}">Upcoming purchases</span><span class="tabular" th:text="${@fmt.money(m.upcomingDebts)}">$1,000.00</span></span>
+                <span th:if="${m.fixedExpenses > 0}"><span class="dot dot-lg" style="background: var(--fixed)"></span><span th:text="#{plan.fixed}">Fixed expenses</span><span class="tabular" th:text="${@fmt.money(m.fixedExpenses)}">$4,500.00</span></span>
+                <span data-wi-row hidden><span class="dot dot-lg" style="background: var(--purple)"></span><span th:text="#{plan.whatIf}">What-if purchase</span><span class="tabular" data-wi-add></span></span>
+                <span class="plan-left" th:if="${m.availableIncome != null}" data-wi-left th:attr="data-base=${m.availableIncome}">
+                    <span></span><span th:text="#{plan.leftFromSalary}">Left from salary</span>
+                    <span th:class="${'tabular ' + (m.availableIncome < 0 ? 'text-orange' : 'text-green')}" th:text="${@fmt.money(m.availableIncome)}">$6,500.00</span>
+                </span>
+            </div>
+            <div class="hero-sub">
+                <span th:unless="${m.startingThisMonth.isEmpty()}" th:text="#{plan.starts(${#strings.listJoin(m.startingThisMonth, ', ')})}">Starts: TV Liverpool</span>
+                <span th:if="${m.relief > 0}" class="text-green" th:text="#{plan.relief(${@fmt.money0(m.relief)})}">$1,200 less: a debt finished</span>
             </div>
         </div>
-        <div class="col-sm-6 col-lg-3">
-            <div class="card shadow-sm border-0 bg-secondary-subtle h-100">
-                <div class="card-body">
-                    <div class="text-muted small">Monthly once all started</div>
-                    <div class="fs-3 fw-bold" th:text="${'$' + #numbers.formatDecimal(pendingMonthlyTotal, 1, 'COMMA', 2, 'POINT')}">$0.00</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-sm-6 col-lg-3">
-            <div class="card shadow-sm border-0 bg-secondary-subtle h-100">
-                <div class="card-body">
-                    <div class="text-muted small">Total committed</div>
-                    <div class="fs-3 fw-bold" th:text="${'$' + #numbers.formatDecimal(pendingTotal, 1, 'COMMA', 2, 'POINT')}">$0.00</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-sm-6 col-lg-3">
-            <div class="card shadow-sm border-0 h-100" th:classappend="${dueCount > 0 ? 'bg-danger-subtle' : 'bg-success-subtle'}">
-                <div class="card-body">
-                    <div class="text-muted small">Should already be on a statement</div>
-                    <div class="fs-3 fw-bold" th:text="${dueCount}">0</div>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Due reminder -->
-    <div class="alert alert-warning" th:if="${dueCount > 0}">
-        <i class="bi bi-bell me-1"></i>
-        <strong th:text="${dueCount}"></strong> upcoming debt(s) reached their first payment month.
-        Once the purchase shows on your statement (and you imported it as a regular debt), click
-        <span class="badge bg-success"><i class="bi bi-check2-circle"></i> Started</span> to take it off the pile —
-        otherwise it is counted twice in the projection.
-    </div>
-
-    <!-- Add form -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-white">
-            <h6 class="mb-0 fw-semibold"><i class="bi bi-plus-circle me-2"></i>Add a deferred purchase</h6>
+        <div th:class="${'bars' + (months > 12 ? ' bars-24' : '') + (showLine ? ' has-line' : '')}" id="planBars">
+            <span class="salary-line" th:if="${showLine and scale > 0}" th:style="${'--p:' + #numbers.formatDecimal(salary / scale, 1, 'NONE', 3, 'POINT')}"></span>
+            <button type="button" class="bar-btn" th:each="m, st : ${projection.months}"
+                    data-select="pm" th:attr="data-value=${st.index}, aria-pressed=${st.index == 0},
+                        data-month=${#temporals.format(m.month.atDay(1), 'yyyy-MM')}, data-label=${@fmt.monthShort(m.month, loc) + ' ' + m.month.year},
+                        data-debts=${m.currentDebts}, data-up=${m.upcomingDebts}, data-fix=${m.fixedExpenses}"
+                    th:aria-label="${@fmt.month(m.month, loc) + ': ' + @fmt.money(m.totalCommitments)}">
+                <span class="bar-track">
+                    <span class="bar" th:style="${'height:' + (scale > 0 ? #numbers.formatDecimal(m.totalCommitments / scale * 100, 1, 'NONE', 1, 'POINT') : '0') + '%'}">
+                        <span class="bar-new"></span>
+                        <span class="bar-up" th:style="${'height:' + (m.totalCommitments > 0 ? #numbers.formatDecimal(m.upcomingDebts / m.totalCommitments * 100, 1, 'NONE', 1, 'POINT') : '0') + '%'}"></span>
+                        <span class="bar-rest"></span>
+                        <span class="bar-fix" th:style="${'height:' + (m.totalCommitments > 0 ? #numbers.formatDecimal(m.fixedExpenses / m.totalCommitments * 100, 1, 'NONE', 1, 'POINT') : '0') + '%'}"></span>
+                    </span>
+                </span>
+                <span class="bar-label" th:text="${months <= 12 or st.index % 3 == 0} ? ${@fmt.monthInitial(m.month, loc)} : ''">J</span>
+            </button>
         </div>
-        <div class="card-body">
-            <form th:action="@{/ui/upcoming-debts}" th:object="${newUpcomingDebt}" method="post">
-                <div class="row g-2 align-items-end">
-                    <div class="col-md-3">
-                        <label class="form-label small mb-1">What did you buy?</label>
-                        <input type="text" th:field="*{description}" class="form-control" placeholder="e.g. TV Liverpool" required>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label small mb-1">Card</label>
-                        <select th:field="*{debtAccountCode}" class="form-select">
-                            <option value="">— no card —</option>
-                            <optgroup th:each="group : ${accountsByProvider}" th:label="${group.key}">
-                                <option th:each="acc : ${group.value}" th:value="${acc.code}" th:text="${acc.name}"></option>
-                            </optgroup>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small mb-1">Total amount</label>
-                        <input type="number" th:field="*{totalAmount}" step="0.01" min="0" class="form-control" placeholder="12000.00">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small mb-1">or Monthly payment</label>
-                        <input type="number" th:field="*{monthlyPayment}" step="0.01" min="0" class="form-control" placeholder="1000.00">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small mb-1">Installments</label>
-                        <input type="number" th:field="*{installments}" min="1" class="form-control" placeholder="12" required>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label small mb-1">First payment month</label>
-                        <input type="month" name="firstPaymentMonth" class="form-control" required
-                               th:value="${currentMonth.plusMonths(1)}">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label small mb-1">Purchase date</label>
-                        <input type="date" th:field="*{purchaseDate}" class="form-control">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label small mb-1">Type</label>
-                        <select th:field="*{debtType}" class="form-select">
-                            <option th:each="t : ${debtTypes}" th:value="${t.name()}" th:text="${t.name()}"></option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <button type="submit" class="btn btn-warning w-100"><i class="bi bi-plus-lg me-1"></i>Add to pile</button>
-                    </div>
+
+        <div class="legend">
+            <span><span class="dot" style="background: var(--accent)"></span><span th:text="#{plan.debts}">Current debts</span></span>
+            <span><span class="dot" style="background: var(--orange)"></span><span th:text="#{plan.upcoming}">Upcoming</span></span>
+            <span><span class="dot" style="background: var(--fixed)"></span><span th:text="#{plan.fixed}">Fixed</span></span>
+            <span data-wi-legend hidden><span class="dot" style="background: var(--purple)"></span><span th:text="#{plan.whatIf}">What-if</span></span>
+            <nav class="seg seg-inline" style="margin-left: auto" th:aria-label="#{plan.months}">
+                <a th:each="n : ${ {6, 12, 24, 36} }" th:href="@{/ui/upcoming-debts(months=${n})}"
+                   th:aria-current="${months == n} ? 'true'" th:text="${n + 'M'}">12M</a>
+            </nav>
+        </div>
+        <p class="small muted" th:if="${salary == null}">
+            <a th:href="@{/ui/insights}" th:text="#{plan.noSalary}">Set your salary in Insights to see what’s left each month.</a>
+        </p>
+    </section>
+
+    <div class="row-wrap">
+    <!-- ── What if I buy… (also answers "can I afford it?") ─────────────────── -->
+    <section class="section">
+        <h2 class="section-title" th:text="#{plan.whatIfTitle}">What if I buy…</h2>
+        <div class="card form-stack" id="whatIf"
+             th:attr="data-t-result=#{plan.whatIfResult('{0}', '{1}', '{2}', '{3}', '{4}')},
+                      data-t-left=#{plan.whatIfLeft('{0}', '{1}')}, data-t-short=#{plan.whatIfShort('{0}', '{1}')},
+                      data-t-empty=#{plan.whatIfEmpty}">
+            <div class="field-row">
+                <div>
+                    <label class="field-label" for="wiTotal" th:text="#{plan.whatIfTotal}">Total price</label>
+                    <input class="field tabular" type="number" inputmode="decimal" step="0.01" min="0" id="wiTotal" placeholder="0.00">
                 </div>
-                <small class="text-muted d-block mt-2">Fill in the total or the monthly payment; the other one is calculated from the installments.
-                    Nothing is added to your debts — when the purchase appears on a statement, import it as usual and mark it as started here.</small>
+                <div>
+                    <label class="field-label" for="wiMonths" th:text="#{plan.whatIfMonths}">Months</label>
+                    <input class="field tabular" type="number" inputmode="numeric" min="1" max="120" id="wiMonths" value="12">
+                </div>
+            </div>
+            <div>
+                <label class="field-label" for="wiFirst" th:text="#{plan.whatIfFirst}">First payment</label>
+                <input class="field" type="month" id="wiFirst" th:value="${#temporals.format(currentMonth.plusMonths(1).atDay(1), 'yyyy-MM')}">
+            </div>
+            <p class="small muted" id="wiSummary" aria-live="polite" th:text="#{plan.whatIfEmpty}">Enter a price…</p>
+            <p class="small" id="wiVerdict" hidden></p>
+        </div>
+    </section>
+
+    <!-- ── The pile ───────────────────────────────────────────────────────── -->
+    <section class="section">
+        <h2 class="section-title" th:text="#{plan.pile}">Upcoming purchases</h2>
+        <div class="list" th:unless="${pending.isEmpty()}">
+            <button type="button" class="list-row" th:each="u : ${pending}" th:with="left=${u.monthsUntilFirstPayment(currentMonth)}"
+                    data-open-sheet="edit-sheet"
+                        th:attr="data-action=@{/ui/upcoming-debts/{id}(id=${u.id})},
+                                 data-start-action=@{/ui/upcoming-debts/{id}/start(id=${u.id})},
+                                 data-cancel-action=@{/ui/upcoming-debts/{id}/cancel(id=${u.id})},
+                                 data-delete-action=@{/ui/upcoming-debts/{id}(id=${u.id})},
+                                 data-f-description=${u.description},
+                                 data-f-debt-account-code=${u.debtAccount != null ? u.debtAccount.code : ''},
+                                 data-f-total-amount=${u.totalAmount},
+                                 data-f-monthly-payment=${u.monthlyPayment},
+                                 data-f-installments=${u.installments},
+                                 data-f-first-payment-month=${u.firstPaymentMonth() != null ? #temporals.format(u.firstPaymentMonth().atDay(1), 'yyyy-MM') : ''},
+                                 data-f-purchase-date=${u.purchaseDate},
+                                 data-f-debt-type=${u.debtType}">
+                <span class="row-icon" th:classappend="${u.isDue(currentMonth)} ? 'bg-orange' : 'bg-indigo'">
+                    <svg th:replace="~{layout/app :: icon('hourglass', '')}"></svg>
+                </span>
+                <span class="list-row-body">
+                    <span class="list-row-title">
+                        <span th:text="${u.description}">TV Liverpool</span>
+                        <span><th:block th:text="${u.debtAccount != null} ? ${u.debtAccount.name} : #{plan.noCard}">Visa Oro</th:block> · <th:block
+                              th:text="#{plan.row(${@fmt.money(u.monthlyPayment)}, ${u.installments}, ${@fmt.monthYear(u.firstPaymentMonth(), loc)}, ${@fmt.monthYear(u.lastPaymentMonth(), loc)})}">$1,000.00 × 12 · Jan 2027 → Dec 2027</th:block></span>
+                    </span>
+                    <span class="chip" th:classappend="${u.isDue(currentMonth)} ? 'chip-orange' : 'chip-blue'"
+                          th:text="${u.isDue(currentMonth)} ? #{plan.dueChip} : #{plan.inMonths(${left})}">in 3 months</span>
+                </span>
+            </button>
+        </div>
+        <p class="list-footer" th:unless="${pending.isEmpty()}"
+           th:text="#{plan.pileSummary(${#messages.msg('plan.count', pending.size())}, ${@fmt.money0(pendingMonthlyTotal)}, ${@fmt.money0(pendingTotal)})}">2 purchases · $1,500/month · $18,000 committed</p>
+        <div class="card" th:if="${pending.isEmpty()}">
+            <div class="empty">
+                <svg th:replace="~{layout/app :: icon('hourglass', '')}"></svg>
+                <span th:text="#{plan.pileEmpty}">Nothing on the pile.</span>
+                <button type="button" class="btn btn-tinted btn-sm" data-open-sheet="add-sheet" th:text="#{plan.add}">Add purchase</button>
+            </div>
+        </div>
+        <p class="list-footer" th:text="#{plan.pileHelp}">A reminder only.</p>
+
+        <details class="disclosure list" th:unless="${history.isEmpty()}">
+            <summary>
+                <span class="list-row-body">
+                    <span class="list-row-title"><span th:text="#{plan.history}">Started or cancelled</span></span>
+                    <span class="list-row-value" th:text="${history.size()}">1</span>
+                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+                </span>
+            </summary>
+            <div>
+                <div class="list-row" th:each="u : ${history}">
+                    <span class="list-row-body">
+                        <span class="list-row-title">
+                            <span th:text="${u.description}">Fridge</span>
+                            <span><th:block th:if="${u.debtAccount != null}" th:text="${u.debtAccount.name + ' · '}">Visa Oro · </th:block><th:block
+                                  th:text="#{plan.row(${@fmt.money(u.monthlyPayment)}, ${u.installments}, ${@fmt.monthYear(u.firstPaymentMonth(), loc)}, ${@fmt.monthYear(u.lastPaymentMonth(), loc)})}">$1,000.00 × 12</th:block></span>
+                        </span>
+                        <span class="chip" th:classappend="${u.status.name() == 'STARTED'} ? 'chip-green' : 'chip-gray'"
+                              th:text="#{${'plan.status.' + u.status.name()}}">Started</span>
+                    </span>
+                    <form th:action="@{/ui/upcoming-debts/{id}/reopen(id=${u.id})}" method="post">
+                        <button type="submit" class="btn btn-plain btn-sm" th:text="#{plan.backToPile}">Back to pile</button>
+                    </form>
+                </div>
+            </div>
+        </details>
+    </section>
+    </div>
+</main>
+
+<!-- Add purchase -->
+<dialog class="sheet" id="add-sheet" th:aria-label="#{plan.add}">
+    <form th:action="@{/ui/upcoming-debts}" method="post">
+        <div class="sheet-head">
+            <button type="button" class="btn btn-plain btn-sm" data-close-sheet th:text="#{common.cancel}">Cancel</button>
+            <strong th:text="#{plan.add}">Add purchase</strong>
+            <button type="submit" class="btn btn-plain btn-sm" style="font-weight: 700" th:text="#{common.add}">Add</button>
+        </div>
+        <div class="sheet-body">
+            <th:block th:replace="~{upcoming-debts/fragments :: fields('add')}"></th:block>
+        </div>
+    </form>
+</dialog>
+
+<!-- Edit purchase (+ started / cancelled / delete) -->
+<dialog class="sheet" id="edit-sheet" th:aria-label="#{plan.edit}">
+    <form method="post">
+        <div class="sheet-head">
+            <button type="button" class="btn btn-plain btn-sm" data-close-sheet th:text="#{common.cancel}">Cancel</button>
+            <strong th:text="#{plan.edit}">Edit purchase</strong>
+            <button type="submit" class="btn btn-plain btn-sm" style="font-weight: 700" th:text="#{common.save}">Save</button>
+        </div>
+        <div class="sheet-body">
+            <th:block th:replace="~{upcoming-debts/fragments :: fields('edit')}"></th:block>
+        </div>
+    </form>
+    <div class="sheet-body" style="padding-top: 0">
+        <div class="list">
+            <form class="list-row" method="post" data-action-from="startAction" th:attr="data-confirm=#{plan.startedConfirm}">
+                <button type="submit" class="link-button list-row-body" style="color: var(--accent)" th:text="#{plan.started}">Started</button>
+            </form>
+            <form class="list-row" method="post" data-action-from="cancelAction" th:attr="data-confirm=#{plan.cancelConfirm}">
+                <button type="submit" class="link-button list-row-body" style="color: var(--accent)" th:text="#{plan.cancelPurchase}">Cancelled or returned</button>
+            </form>
+            <form class="list-row" method="post" data-action-from="deleteAction" th:attr="data-confirm=#{plan.deleteConfirm}">
+                <input type="hidden" name="_method" value="DELETE">
+                <button type="submit" class="link-button list-row-body text-danger-ios" th:text="#{plan.delete}">Delete</button>
             </form>
         </div>
     </div>
+</dialog>
 
-    <!-- Pending pile -->
-    <div class="card shadow-sm mb-4" th:if="${!pending.empty}">
-        <div class="card-header bg-white">
-            <h6 class="mb-0 fw-semibold"><i class="bi bi-stack me-2"></i>The pile</h6>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover mb-0 align-middle">
-                <thead class="table-dark">
-                <tr>
-                    <th>Purchase</th>
-                    <th>Card</th>
-                    <th class="text-end">Total</th>
-                    <th class="text-end">Monthly</th>
-                    <th>Payments</th>
-                    <th>Starts</th>
-                    <th class="text-end">Actions</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="u : ${pending}" th:classappend="${u.isDue(currentMonth)} ? 'table-warning' : ''">
-                    <td>
-                        <div class="fw-semibold" th:text="${u.description}"></div>
-                        <small class="text-muted" th:if="${u.purchaseDate != null}" th:text="${'Bought ' + u.purchaseDate}"></small>
-                    </td>
-                    <td th:text="${u.debtAccount != null ? u.debtAccount.name : '—'}"></td>
-                    <td class="text-end" th:text="${'$' + #numbers.formatDecimal(u.totalAmount, 1, 'COMMA', 2, 'POINT')}"></td>
-                    <td class="text-end fw-semibold" th:text="${'$' + #numbers.formatDecimal(u.monthlyPayment, 1, 'COMMA', 2, 'POINT')}"></td>
-                    <td th:text="${u.installments + ' · ' + u.firstPaymentLabel() + ' → ' + u.lastPaymentLabel()}"></td>
-                    <td>
-                        <span th:if="${u.isDue(currentMonth)}" class="badge bg-danger">Due — check your statement</span>
-                        <span th:unless="${u.isDue(currentMonth)}" class="badge bg-info text-dark"
-                              th:text="${'in ' + u.monthsUntilFirstPayment(currentMonth) + ' month(s)'}"></span>
-                    </td>
-                    <td class="text-end text-nowrap">
-                        <form th:action="@{/ui/upcoming-debts/{id}/start(id=${u.id})}" method="post" class="d-inline">
-                            <button type="submit" class="btn btn-sm btn-success" title="It is on my statement now — take it off the pile"
-                                    onclick="return confirm('Mark as started? It will leave the pile (import the debt from your statement as usual).')">
-                                <i class="bi bi-check2-circle"></i> Started
-                            </button>
-                        </form>
-                        <button type="button" class="btn btn-sm btn-outline-primary" title="Edit"
-                                data-bs-toggle="modal" data-bs-target="#editModal"
-                                th:attr="data-id=${u.id}, data-description=${u.description},
-                                         data-account=${u.debtAccount != null ? u.debtAccount.code : ''},
-                                         data-total=${u.totalAmount}, data-monthly=${u.monthlyPayment},
-                                         data-installments=${u.installments}, data-first=${u.firstPaymentMonth()},
-                                         data-purchase=${u.purchaseDate}, data-type=${u.debtType}">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <form th:action="@{/ui/upcoming-debts/{id}/cancel(id=${u.id})}" method="post" class="d-inline">
-                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Cancelled / returned"
-                                    onclick="return confirm('Mark this purchase as cancelled?')">
-                                <i class="bi bi-x-circle"></i>
-                            </button>
-                        </form>
-                        <form th:action="@{/ui/upcoming-debts/{id}(id=${u.id})}" method="post" class="d-inline">
-                            <input type="hidden" name="_method" value="DELETE">
-                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"
-                                    onclick="return confirm('Delete this upcoming debt?')">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <div class="alert alert-info" th:if="${pending.empty}">
-        <i class="bi bi-info-circle me-2"></i>The pile is empty — add purchases whose first payment is in a future month above.
-    </div>
+<script th:inline="none">
+(function () {
+    var chart = document.getElementById('projection');
+    var box = document.getElementById('whatIf');
+    if (!box) return;
+    var t = box.dataset;
+    var bars = chart ? Array.prototype.slice.call(chart.querySelectorAll('.bar-btn')) : [];
+    var panels = chart ? Array.prototype.slice.call(chart.querySelectorAll('[data-select-panel="pm"]')) : [];
+    var salary = chart && chart.dataset.salary ? parseFloat(chart.dataset.salary) : null;
+    var nf = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    var nf0 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+    function money(v) { return (v < 0 ? '-$' : '$') + nf.format(Math.abs(v)); }
+    function money0(v) { return (v < 0 ? '-$' : '$') + nf0.format(Math.abs(v)); }
+    function idx(ym) { var p = ym.split('-'); return +p[0] * 12 + (+p[1] - 1); }
+    function fill(tpl, args) { return tpl.replace(/\{(\d)\}/g, function (_, i) { return args[+i]; }); }
+    function pct(v) { return Math.max(0, Math.min(100, v)).toFixed(1) + '%'; }
 
-    <!-- Projection + what-if -->
-    <div class="card shadow-sm mb-4" id="projectionCard">
-        <div class="card-header bg-white d-flex flex-wrap align-items-center justify-content-between gap-2">
-            <h6 class="mb-0 fw-semibold"><i class="bi bi-graph-up me-2"></i>Next months — what will be charged</h6>
-            <form method="get" th:action="@{/ui/upcoming-debts}" class="d-flex align-items-center gap-2">
-                <label class="small text-muted" for="monthsSel">Months</label>
-                <select id="monthsSel" name="months" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
-                    <option th:each="m : ${ {6, 12, 18, 24, 36} }" th:value="${m}" th:text="${m}" th:selected="${m == months}"></option>
-                </select>
-            </form>
-        </div>
-        <div class="card-body border-bottom bg-body-tertiary">
-            <div class="fw-semibold mb-2"><i class="bi bi-cart-plus me-1"></i>Thinking about a new purchase? Simulate it:</div>
-            <div class="row g-2 align-items-end">
-                <div class="col-sm-3">
-                    <label class="form-label small mb-1">Total amount</label>
-                    <input type="number" id="wiTotal" step="0.01" min="0" class="form-control form-control-sm" placeholder="6000.00">
-                </div>
-                <div class="col-sm-2">
-                    <label class="form-label small mb-1">Installments</label>
-                    <input type="number" id="wiInstallments" min="1" class="form-control form-control-sm" value="6">
-                </div>
-                <div class="col-sm-3">
-                    <label class="form-label small mb-1">First payment month</label>
-                    <input type="month" id="wiFirst" class="form-control form-control-sm" th:value="${currentMonth.plusMonths(1)}">
-                </div>
-                <div class="col-sm-4 d-flex gap-2">
-                    <button type="button" class="btn btn-sm btn-primary" onclick="whatIf()"><i class="bi bi-calculator me-1"></i>Simulate</button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearWhatIf()">Clear</button>
-                </div>
-            </div>
-            <small class="text-muted d-block mt-2" id="wiSummary"></small>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-sm table-hover mb-0 align-middle" id="projectionTable">
-                <thead class="table-light">
-                <tr>
-                    <th>Month</th>
-                    <th class="text-end">Current debts</th>
-                    <th class="text-end">Upcoming</th>
-                    <th class="text-end">Fixed expenses</th>
-                    <th class="text-end">Total</th>
-                    <th class="text-end">Available</th>
-                    <th class="text-end whatif-col">+ New purchase</th>
-                    <th class="text-end whatif-col">Available after</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="m : ${projection.months}"
-                    th:classappend="${!m.startingThisMonth.empty} ? 'proj-start' : ''"
-                    th:attr="data-month=${m.month}, data-total=${m.totalCommitments},
-                             data-available=${m.availableIncome != null ? m.availableIncome : ''}">
-                    <td>
-                        <span class="fw-semibold" th:text="${m.label}"></span>
-                        <span th:each="s : ${m.startingThisMonth}" class="badge bg-warning text-dark ms-1"
-                              th:text="${'starts: ' + s}"></span>
-                        <span th:if="${m.relief > 0}" class="badge bg-success-subtle text-success-emphasis ms-1"
-                              th:text="${'-$' + #numbers.formatDecimal(m.relief, 1, 'COMMA', 2, 'POINT') + ' finished'}"></span>
-                    </td>
-                    <td class="text-end" th:text="${'$' + #numbers.formatDecimal(m.currentDebts, 1, 'COMMA', 2, 'POINT')}"></td>
-                    <td class="text-end text-warning-emphasis"
-                        th:text="${m.upcomingDebts > 0 ? '$' + #numbers.formatDecimal(m.upcomingDebts, 1, 'COMMA', 2, 'POINT') : '—'}"></td>
-                    <td class="text-end" th:text="${'$' + #numbers.formatDecimal(m.fixedExpenses, 1, 'COMMA', 2, 'POINT')}"></td>
-                    <td class="text-end fw-bold" th:classappend="${projection.peakMonth != null and m.month == projection.peakMonth.month} ? 'text-danger' : ''"
-                        th:text="${'$' + #numbers.formatDecimal(m.totalCommitments, 1, 'COMMA', 2, 'POINT')}"></td>
-                    <td class="text-end" th:classappend="${m.availableIncome != null and m.availableIncome < 0} ? 'negative' : ''"
-                        th:text="${m.availableIncome == null ? '—' : (m.availableIncome < 0 ? '-$' + #numbers.formatDecimal(m.availableIncome * -1, 1, 'COMMA', 2, 'POINT') : '$' + #numbers.formatDecimal(m.availableIncome, 1, 'COMMA', 2, 'POINT'))}"></td>
-                    <td class="text-end whatif-col wi-add">—</td>
-                    <td class="text-end whatif-col wi-avail">—</td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-        <div class="card-footer bg-white small text-muted">
-            <span th:if="${projection.peakMonth != null}">
-                Busiest month: <strong th:text="${projection.peakMonth.label}"></strong>
-                (<span th:text="${'$' + #numbers.formatDecimal(projection.peakCommitments, 1, 'COMMA', 2, 'POINT')}"></span>).
-            </span>
-            <span th:if="${projection.salary == null}">Set your salary on the dashboard to see the available income.</span>
-        </div>
-    </div>
+    function update() {
+        var total = parseFloat(document.getElementById('wiTotal').value);
+        var n = parseInt(document.getElementById('wiMonths').value, 10);
+        var first = document.getElementById('wiFirst').value;
+        var on = total > 0 && n >= 1 && !!first;
+        var monthly = on ? Math.round(total / n * 100) / 100 : 0;
+        var start = on ? idx(first) : 0;
 
-    <!-- History -->
-    <div class="card shadow-sm mb-4" th:if="${!history.empty}">
-        <div class="card-header bg-white">
-            <a class="text-decoration-none fw-semibold text-body" data-bs-toggle="collapse" href="#historyBody">
-                <i class="bi bi-clock-history me-2"></i>Already started / cancelled
-                <span class="badge bg-secondary ms-1" th:text="${history.size()}"></span>
-            </a>
-        </div>
-        <div class="collapse" id="historyBody">
-            <div class="table-responsive">
-                <table class="table table-sm mb-0 align-middle">
-                    <tbody>
-                    <tr th:each="u : ${history}">
-                        <td th:text="${u.description}"></td>
-                        <td th:text="${u.debtAccount != null ? u.debtAccount.name : '—'}"></td>
-                        <td th:text="${u.installments + ' x $' + #numbers.formatDecimal(u.monthlyPayment, 1, 'COMMA', 2, 'POINT')}"></td>
-                        <td th:text="${u.firstPaymentLabel()}"></td>
-                        <td>
-                            <span class="badge" th:classappend="${u.status.name() == 'STARTED'} ? 'bg-success' : 'bg-secondary'"
-                                  th:text="${u.status}"></span>
-                        </td>
-                        <td class="text-end">
-                            <form th:action="@{/ui/upcoming-debts/{id}/reopen(id=${u.id})}" method="post" class="d-inline">
-                                <button type="submit" class="btn btn-sm btn-outline-warning" title="Put back on the pile">
-                                    <i class="bi bi-arrow-counterclockwise"></i> Back to pile
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Edit modal -->
-<div class="modal fade" id="editModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form class="modal-content" method="post" id="editForm">
-            <div class="modal-header">
-                <h5 class="modal-title">Edit upcoming debt</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-2">
-                    <label class="form-label small mb-1">Description</label>
-                    <input type="text" name="description" id="edDescription" class="form-control" required>
-                </div>
-                <div class="mb-2">
-                    <label class="form-label small mb-1">Card</label>
-                    <select name="debtAccountCode" id="edAccount" class="form-select">
-                        <option value="">— no card —</option>
-                        <optgroup th:each="group : ${accountsByProvider}" th:label="${group.key}">
-                            <option th:each="acc : ${group.value}" th:value="${acc.code}" th:text="${acc.name}"></option>
-                        </optgroup>
-                    </select>
-                </div>
-                <div class="row g-2 mb-2">
-                    <div class="col">
-                        <label class="form-label small mb-1">Total amount</label>
-                        <input type="number" name="totalAmount" id="edTotal" step="0.01" min="0" class="form-control">
-                    </div>
-                    <div class="col">
-                        <label class="form-label small mb-1">Monthly payment</label>
-                        <input type="number" name="monthlyPayment" id="edMonthly" step="0.01" min="0" class="form-control">
-                    </div>
-                    <div class="col">
-                        <label class="form-label small mb-1">Installments</label>
-                        <input type="number" name="installments" id="edInstallments" min="1" class="form-control" required>
-                    </div>
-                </div>
-                <div class="row g-2">
-                    <div class="col">
-                        <label class="form-label small mb-1">First payment month</label>
-                        <input type="month" name="firstPaymentMonth" id="edFirst" class="form-control" required>
-                    </div>
-                    <div class="col">
-                        <label class="form-label small mb-1">Purchase date</label>
-                        <input type="date" name="purchaseDate" id="edPurchase" class="form-control">
-                    </div>
-                    <div class="col">
-                        <label class="form-label small mb-1">Type</label>
-                        <select name="debtType" id="edType" class="form-select">
-                            <option th:each="t : ${debtTypes}" th:value="${t.name()}" th:text="${t.name()}"></option>
-                        </select>
-                    </div>
-                </div>
-                <small class="text-muted d-block mt-2">If you change the total or the installments, clear the monthly payment to have it recalculated.</small>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="submit" class="btn btn-primary">Save</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script th:inline="javascript">
-    const BASE_URL = /*[[@{/ui/upcoming-debts}]]*/ '/ui/upcoming-debts';
-
-    document.getElementById('editModal').addEventListener('show.bs.modal', ev => {
-        const d = ev.relatedTarget.dataset;
-        document.getElementById('editForm').action = BASE_URL + '/' + d.id;
-        document.getElementById('edDescription').value = d.description || '';
-        document.getElementById('edAccount').value = d.account || '';
-        document.getElementById('edTotal').value = d.total || '';
-        document.getElementById('edMonthly').value = d.monthly || '';
-        document.getElementById('edInstallments').value = d.installments || '';
-        document.getElementById('edFirst').value = d.first || '';
-        document.getElementById('edPurchase').value = d.purchase || '';
-        document.getElementById('edType').value = d.type || 'CARD';
-    });
-
-    const money = v => (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-    const monthIndex = ym => { const [y, m] = ym.split('-').map(Number); return y * 12 + (m - 1); };
-
-    function whatIf() {
-        const total = parseFloat(document.getElementById('wiTotal').value);
-        const n = parseInt(document.getElementById('wiInstallments').value, 10);
-        const first = document.getElementById('wiFirst').value;
-        if (!(total > 0) || !(n >= 1) || !first) {
-            document.getElementById('wiSummary').textContent = 'Enter an amount, installments and first payment month.';
-            return;
-        }
-        const monthly = Math.round(total / n * 100) / 100;
-        const start = monthIndex(first);
-        let worst = null;
-        document.querySelectorAll('#projectionTable tbody tr').forEach(row => {
-            const idx = monthIndex(row.dataset.month);
-            const charged = idx >= start && idx < start + n;
-            const add = charged ? monthly : 0;
-            row.querySelector('.wi-add').textContent = charged ? money(add) : '—';
-            const availCell = row.querySelector('.wi-avail');
-            if (row.dataset.available === '') {
-                availCell.textContent = '—';
-            } else {
-                const after = parseFloat(row.dataset.available) - add;
-                availCell.textContent = money(after);
-                availCell.classList.toggle('negative', after < 0);
-                if (charged && (worst === null || after < worst.after)) worst = {after, month: row.cells[0].querySelector('span').textContent};
+        var rows = bars.map(function (b) {
+            var debts = +b.dataset.debts, up = +b.dataset.up, fix = +b.dataset.fix;
+            var i = idx(b.dataset.month);
+            var add = on && i >= start && i < start + n ? monthly : 0;
+            return { b: b, debts: debts, up: up, fix: fix, add: add, total: debts + up + fix + add, label: b.dataset.label };
+        });
+        var peakTotal = Math.max.apply(null, rows.map(function (r) { return r.total; }).concat([0]));
+        var line = chart && chart.querySelector('.salary-line');
+        var withLine = !!line && salary !== null && salary <= peakTotal * 1.5;
+        var scale = Math.max(withLine ? salary : 0, peakTotal) * 1.04;
+        rows.forEach(function (r, k) {
+            var bar = r.b.querySelector('.bar');
+            bar.style.height = scale > 0 ? pct(r.total / scale * 100) : '0%';
+            var part = function (v) { return r.total > 0 ? pct(v / r.total * 100) : '0%'; };
+            bar.querySelector('.bar-new').style.height = part(r.add);
+            bar.querySelector('.bar-up').style.height = part(r.up);
+            bar.querySelector('.bar-fix').style.height = part(r.fix);
+            var panel = panels[k];
+            if (!panel) return;
+            var tot = panel.querySelector('[data-wi-total]');
+            tot.innerHTML = '';
+            var whole = money(r.total), cents = whole.slice(-3);
+            tot.appendChild(document.createTextNode(whole.slice(0, -3)));
+            var small = document.createElement('small'); small.textContent = cents; tot.appendChild(small);
+            panel.querySelector('[data-wi-row]').hidden = r.add === 0;
+            panel.querySelector('[data-wi-add]').textContent = money(r.add);
+            var left = panel.querySelector('[data-wi-left]');
+            if (left) {
+                var after = parseFloat(left.dataset.base) - r.add;
+                var v = left.lastElementChild;
+                v.textContent = money(after);
+                v.className = 'tabular ' + (after < 0 ? 'text-orange' : 'text-green');
             }
         });
-        document.getElementById('projectionCard').classList.add('whatif-on');
-        let msg = n + ' x ' + money(monthly) + ' starting ' + first + '.';
-        if (worst) msg += ' Tightest month: ' + worst.month + ' with ' + money(worst.after) + ' left.';
-        document.getElementById('wiSummary').textContent = msg;
-    }
+        if (line) { line.hidden = !withLine; if (withLine) line.style.setProperty('--p', (salary / scale).toFixed(3)); }
+        chart && chart.querySelector('[data-wi-legend]') && (chart.querySelector('[data-wi-legend]').hidden = !on);
 
-    function clearWhatIf() {
-        document.getElementById('projectionCard').classList.remove('whatif-on');
-        document.getElementById('wiSummary').textContent = '';
+        var summary = document.getElementById('wiSummary');
+        var verdict = document.getElementById('wiVerdict');
+        if (!on) { summary.textContent = t.tEmpty; verdict.hidden = true; return; }
+        var peak = rows.reduce(function (a, r) { return !a || r.total > a.total ? r : a; }, null);
+        var firstLabel = first;
+        rows.forEach(function (r) { if (r.b.dataset.month === first) firstLabel = r.label; });
+        summary.textContent = fill(t.tResult, [n, money(monthly), firstLabel, peak ? peak.label : '—', peak ? money0(peak.total) : '—']);
+        verdict.hidden = salary === null;
+        if (salary !== null) {
+            var charged = rows.filter(function (r) { return r.add > 0; });
+            var worst = charged.reduce(function (a, r) { return !a || r.total > a.total ? r : a; }, null);
+            if (!worst) { verdict.hidden = true; return; }
+            var leftover = salary - worst.total;
+            verdict.textContent = leftover < 0 ? fill(t.tShort, [worst.label, money0(-leftover)]) : fill(t.tLeft, [worst.label, money0(leftover)]);
+            verdict.className = 'small ' + (leftover < 0 ? 'text-orange' : 'text-green');
+            // Jump the chart to that month
+            worst.b.click();
+        }
     }
+    ['wiTotal', 'wiMonths', 'wiFirst'].forEach(function (id) {
+        document.getElementById(id).addEventListener('input', update);
+    });
+})();
 </script>
 </body>
 </html>

@@ -93,12 +93,29 @@ class UpcomingDebtViewControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("TV Liverpool")))
                 .andExpect(content().string(containsString("Visa Oro")))
-                .andExpect(content().string(containsString("in 3 month(s)")))
-                .andExpect(content().string(containsString("Due — check your statement")))
-                .andExpect(content().string(containsString("starts: TV Liverpool")))
+                .andExpect(content().string(containsString("in 3 months")))
+                .andExpect(content().string(containsString("1 purchase reached its first payment month")))
+                .andExpect(content().string(containsString("Starts: TV Liverpool")))
                 .andExpect(content().string(containsString("Fridge")))
                 .andExpect(content().string(containsString("Back to pile")))
-                .andExpect(content().string(containsString("-$100.00")));
+                .andExpect(content().string(containsString("-$100.00")))
+                .andExpect(content().string(containsString("Visa Oro · $1,000.00 × 12")))
+                .andExpect(content().string(containsString("data-cancel-action=\"/ui/upcoming-debts/1/cancel\"")));
+    }
+
+    @Test
+    void list_renders_in_spanish() throws Exception {
+        YearMonth now = YearMonth.now();
+        when(findAllUpcomingDebtsUseCase.getByEmail("user@test.com")).thenReturn(List.of(
+                upcoming(1, "TV Liverpool", now.plusMonths(3), UpcomingDebtStatus.PENDING)));
+        PaymentProjectionDto projection = new PaymentProjectionDto();
+        projection.setMonths(List.of());
+        when(getPaymentProjectionUseCase.getProjection("user@test.com", 12)).thenReturn(projection);
+
+        mockMvc.perform(get("/ui/upcoming-debts").param("lang", "es_MX").sessionAttr("userEmail", "user@test.com"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("¿Y si compro…?")))
+                .andExpect(content().string(containsString("en 3 meses")));
     }
 
     @Test

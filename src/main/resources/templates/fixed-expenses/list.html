@@ -1,313 +1,232 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Fixed Expenses – Financial Manager</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-</head>
-<body class="bg-light">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{layout/app :: head(#{fixed.title})}"></head>
+<body class="app">
+<div th:replace="~{layout/app :: nav}"></div>
+<main class="app-main" id="fixedMain"
+      th:with="colors=${ {'var(--accent)', 'var(--orange)', 'var(--green)', 'var(--purple)', 'var(--red)', 'var(--fixed)'} }">
+    <div class="nav-bar">
+        <a class="btn btn-glass btn-icon" th:href="@{/ui/more}" th:aria-label="#{common.back}">
+            <svg th:replace="~{layout/app :: icon('chevron-left', '')}"></svg>
+        </a>
+        <span></span>
+        <span style="display: flex; gap: 8px">
+            <button type="button" class="btn btn-glass btn-sm" id="selectToggle" th:unless="${expenses.isEmpty()}"
+                    th:attr="data-t-select=#{fixed.select}, data-t-done=#{fixed.done}" th:text="#{fixed.select}">Select</button>
+            <button type="button" class="btn btn-glass btn-icon" data-open-sheet="add-sheet" th:aria-label="#{fixed.add}">
+                <svg th:replace="~{layout/app :: icon('plus', '')}"></svg>
+            </button>
+        </span>
+    </div>
+    <div class="title-block">
+        <h1 class="large-title" th:text="#{fixed.title}">Fixed expenses</h1>
+    </div>
 
-<div th:replace="~{layout/navbar :: navbar}"></div>
-
-<div class="container">
-    <h2 class="mb-4 fw-bold"><i class="bi bi-receipt me-2 text-primary"></i>Fixed Expenses</h2>
-
-    <div class="row g-4">
-        <!-- Expense Catalogs -->
-        <div class="col-lg-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-white">
-                    <h6 class="mb-0 fw-semibold"><i class="bi bi-collection me-2"></i>Expense Categories</h6>
-                </div>
-                <div class="card-body">
-                    <form th:action="@{/ui/fixed-expenses/catalog}" method="post" class="d-flex gap-2 mb-3">
-                        <input type="text" name="name" class="form-control" placeholder="New category" required>
-                        <button type="submit" class="btn btn-primary text-nowrap">
-                            <i class="bi bi-plus-lg"></i> Add
-                        </button>
-                    </form>
-                    <div class="list-group" th:if="${!catalogs.empty}">
-                        <div th:each="catalog : ${catalogs}"
-                             class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>
-                                <i class="bi bi-tag me-2 text-muted"></i>
-                                <span th:text="${catalog.name}"></span>
-                                <small class="text-muted ms-2">#<span th:text="${catalog.id}"></span></small>
-                            </span>
-                            <form th:action="@{/ui/fixed-expenses/catalog/{id}(id=${catalog.id})}" method="post">
-                                <input type="hidden" name="_method" value="DELETE">
-                                <button type="submit" class="btn btn-outline-danger btn-sm"
-                                        onclick="return confirm('Delete this category?')">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                    <p class="text-muted text-center mt-2" th:if="${catalogs.empty}">
-                        <i class="bi bi-inbox me-1"></i>No categories yet.
-                    </p>
-                </div>
-            </div>
+    <!-- Total + breakdown by category -->
+    <section class="card hero" th:unless="${expenses.isEmpty()}">
+        <div class="hero-top">
+            <span class="hero-label" th:text="#{fixed.perMonth}">per month</span>
+            <span class="small muted" th:text="#{fixed.count(${expenses.size()})}">8 expenses</span>
         </div>
+        <div class="hero-amount"><span th:text="${@fmt.whole(total)}">$9,850</span><small th:text="${@fmt.cents(total)}">.00</small></div>
+        <div class="split-bar" role="img" th:aria-label="#{fixed.byCategory}">
+            <span th:each="g, st : ${byCategory}" th:style="${'flex-grow:' + g.total() + ';background:' + colors[st.index % 6]}"></span>
+        </div>
+        <div class="plan-breakdown">
+            <span th:each="g, st : ${byCategory}">
+                <span class="dot dot-lg" th:style="${'background:' + colors[st.index % 6]}"></span>
+                <span th:text="${g.name().isEmpty()} ? #{fixed.noCategory} : ${g.name()}">Home</span>
+                <span><span class="small muted" th:text="${g.percent() + '%'}">60%</span>&nbsp; <span class="tabular" th:text="${@fmt.money(g.total())}">$6,000.00</span></span>
+            </span>
+        </div>
+    </section>
 
-        <!-- Fixed Expenses -->
-        <div class="col-lg-8">
-            <div class="card shadow-sm">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0 fw-semibold"><i class="bi bi-list-check me-2"></i>My Fixed Expenses</h6>
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="bulkEditBtn" disabled
-                                data-bs-toggle="modal" data-bs-target="#bulkEditModal">
-                            <i class="bi bi-pencil-square"></i> Bulk Edit
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-danger" id="bulkDeleteBtn" disabled>
-                            <i class="bi bi-trash"></i> Delete Selected
-                        </button>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <!-- Add Expense Form -->
-                    <form th:action="@{/ui/fixed-expenses}" method="post" class="mb-3">
-                        <div class="row g-2">
-                            <div class="col-sm-3">
-                                <input type="text" name="name" class="form-control" placeholder="Expense name" required>
-                            </div>
-                            <div class="col-sm-3">
-                                <input type="text" name="description" class="form-control" placeholder="Description">
-                            </div>
-                            <div class="col-sm-2">
-                                <input type="number" name="monthlyCost" step="0.01" class="form-control" placeholder="Monthly cost">
-                            </div>
-                            <div class="col-sm-1">
-                                <input type="number" name="paymentDay" class="form-control" placeholder="Day" min="1" max="31">
-                            </div>
-                            <div class="col-sm-2">
-                                <select name="catalogId" class="form-select" required>
-                                    <option value="">-- Category --</option>
-                                    <option th:each="cat : ${catalogs}"
-                                            th:value="${cat.id}"
-                                            th:text="${cat.name}"></option>
-                                </select>
-                            </div>
-                            <div class="col-sm-1">
-                                <button type="submit" class="btn btn-primary w-100">
-                                    <i class="bi bi-plus-lg"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-
-                    <!-- Expenses Table -->
-                    <div class="table-responsive" th:if="${!expenses.empty}">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                            <tr>
-                                <th><input type="checkbox" id="selectAll" class="form-check-input"></th>
-                                <th>Name</th>
-                                <th>Description</th>
-                                <th>Category</th>
-                                <th>Monthly Cost</th>
-                                <th>Pay Day</th>
-                                <th></th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            <tr th:each="expense : ${expenses}">
-                                <td>
-                                    <input type="checkbox" class="form-check-input expense-checkbox" name="ids" th:value="${expense.id}">
-                                </td>
-                                <td th:text="${expense.name}"></td>
-                                <td th:text="${expense.description}"></td>
-                                <td th:text="${expense.fixedExpenseCatalog?.name}"></td>
-                                <td th:text="${'$' + #numbers.formatDecimal(expense.monthlyCost, 1, 2)}"></td>
-                                <td th:text="${expense.paymentDay}"></td>
-                                <td class="text-nowrap">
-                                    <button type="button" class="btn btn-sm btn-outline-primary edit-expense-btn"
-                                            data-bs-toggle="modal" data-bs-target="#editExpenseModal"
-                                            th:data-id="${expense.id}"
-                                            th:data-name="${expense.name}"
-                                            th:data-description="${expense.description}"
-                                            th:data-monthly-cost="${expense.monthlyCost}"
-                                            th:data-payment-day="${expense.paymentDay}"
-                                            th:data-catalog-id="${expense.fixedExpenseCatalog?.id}">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <form th:action="@{/ui/fixed-expenses/{id}(id=${expense.id})}" method="post" class="d-inline">
-                                        <input type="hidden" name="_method" value="DELETE">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                onclick="return confirm('Delete this expense?')">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <p class="text-muted text-center mt-3" th:if="${expenses.empty}">
-                        <i class="bi bi-inbox me-1"></i>No fixed expenses yet.
-                    </p>
-                </div>
-            </div>
+    <div class="card" th:if="${expenses.isEmpty()}">
+        <div class="empty">
+            <svg th:replace="~{layout/app :: icon('receipt', '')}"></svg>
+            <span th:text="#{fixed.empty}">No fixed expenses yet.</span>
+            <button type="button" class="btn btn-tinted btn-sm" data-open-sheet="add-sheet" th:text="#{fixed.add}">Add expense</button>
         </div>
     </div>
+
+    <!-- Expenses, grouped by category -->
+    <section class="section" th:each="g, st : ${byCategory}">
+        <h2 class="list-header" style="display: flex; justify-content: space-between">
+            <span th:text="${g.name().isEmpty()} ? #{fixed.noCategory} : ${g.name()}">Home</span>
+            <span class="tabular" th:text="${@fmt.money(g.total())}">$6,000.00</span>
+        </h2>
+        <div class="list">
+            <button type="button" class="list-row expense-row" th:each="e : ${g.expenses()}" data-open-sheet="edit-sheet"
+                    th:attr="data-id=${e.id},
+                             data-action=@{/ui/fixed-expenses/{id}(id=${e.id})},
+                             data-delete-action=@{/ui/fixed-expenses/{id}(id=${e.id})},
+                             data-f-name=${e.name},
+                             data-f-description=${e.description},
+                             data-f-monthly-cost=${e.monthlyCost},
+                             data-f-payment-day=${e.paymentDay},
+                             data-f-catalog-id=${e.fixedExpenseCatalog != null ? e.fixedExpenseCatalog.id : ''}">
+                <span class="select-check" aria-hidden="true"><svg th:replace="~{layout/app :: icon('check', '')}"></svg></span>
+                <span class="row-icon" th:style="${'background:' + colors[st.index % 6]}">
+                    <svg th:replace="~{layout/app :: icon('receipt', '')}"></svg>
+                </span>
+                <span class="list-row-body">
+                    <span class="list-row-title">
+                        <span th:text="${e.name}">Rent</span>
+                        <span th:if="${(e.description != null and !e.description.isBlank()) or e.paymentDay != null}"
+                              th:text="${(e.description != null and !e.description.isBlank() ? e.description : '')
+                                    + (e.description != null and !e.description.isBlank() and e.paymentDay != null ? ' · ' : '')}
+                                    + (${e.paymentDay != null} ? #{fixed.daySub(${e.paymentDay})} : '')">Apartment · Day 1</span>
+                    </span>
+                    <span class="list-row-value tabular" th:text="${@fmt.money(e.monthlyCost)}">$6,000.00</span>
+                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+                </span>
+            </button>
+        </div>
+    </section>
+
+    <!-- Categories -->
+    <details class="disclosure list">
+        <summary>
+            <span class="list-row-body">
+                <span class="list-row-title"><span th:text="#{fixed.categories}">Categories</span></span>
+                <span class="list-row-value" th:text="${catalogs.size()}">4</span>
+                <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+            </span>
+        </summary>
+        <div>
+            <div class="list-row" th:each="c : ${catalogs}">
+                <span class="list-row-body">
+                    <span class="list-row-title"><span th:text="${c.name}">Home</span></span>
+                    <form th:action="@{/ui/fixed-expenses/catalog/{id}(id=${c.id})}" method="post" th:attr="data-confirm=#{fixed.categoryDeleteConfirm}">
+                        <input type="hidden" name="_method" value="DELETE">
+                        <button type="submit" class="icon-btn danger" th:aria-label="${#messages.msg('common.delete') + ': ' + c.name}">
+                            <svg th:replace="~{layout/app :: icon('close', '')}"></svg>
+                        </button>
+                    </form>
+                </span>
+            </div>
+            <form class="list-row" th:action="@{/ui/fixed-expenses/catalog}" method="post">
+                <span class="list-row-body" style="gap: 8px">
+                    <input class="field" name="name" required th:placeholder="#{fixed.newCategory}" th:aria-label="#{fixed.newCategory}" autocomplete="off">
+                    <button type="submit" class="btn btn-tinted btn-sm" th:text="#{common.add}">Add</button>
+                </span>
+            </form>
+        </div>
+    </details>
+</main>
+
+<!-- Selection toolbar -->
+<div class="sel-bar" id="selBar" hidden>
+    <span id="selCount" th:attr="data-t-0=#{fixed.selected(0)}, data-t-1=#{fixed.selected(1)}, data-t-n=#{fixed.selected(2)}"></span>
+    <button type="button" class="btn btn-tinted btn-sm" id="bulkEditBtn" data-open-sheet="bulk-sheet" disabled th:text="#{fixed.bulkEdit}">Edit selected</button>
+    <form th:action="@{/ui/fixed-expenses/bulk-delete}" method="post" id="bulkDeleteForm" th:attr="data-confirm=#{fixed.bulkDeleteConfirm}">
+        <input type="hidden" name="_method" value="DELETE">
+        <button type="submit" class="btn btn-danger btn-sm" id="bulkDeleteBtn" disabled th:text="#{fixed.bulkDelete}">Delete</button>
+    </form>
 </div>
 
-<!-- Edit Expense Modal -->
-<div class="modal fade" id="editExpenseModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form id="editExpenseForm" method="post" class="modal-content">
-            <input type="hidden" name="_method" value="PUT">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Edit Fixed Expense</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">Name</label>
-                    <input type="text" name="name" id="editName" class="form-control" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Description</label>
-                    <input type="text" name="description" id="editDescription" class="form-control">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Monthly Cost</label>
-                    <input type="number" step="0.01" name="monthlyCost" id="editMonthlyCost" class="form-control">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Pay Day</label>
-                    <input type="number" min="1" max="31" name="paymentDay" id="editPaymentDay" class="form-control">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Category</label>
-                    <select name="catalogId" id="editCatalogId" class="form-select" required>
-                        <option th:each="cat : ${catalogs}"
-                                th:value="${cat.id}"
-                                th:text="${cat.name}"></option>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn btn-primary">Save Changes</button>
-            </div>
-        </form>
+<!-- Add -->
+<dialog class="sheet" id="add-sheet" th:aria-label="#{fixed.add}">
+    <form th:action="@{/ui/fixed-expenses}" method="post">
+        <div class="sheet-head">
+            <button type="button" class="btn btn-plain btn-sm" data-close-sheet th:text="#{common.cancel}">Cancel</button>
+            <strong th:text="#{fixed.add}">Add expense</strong>
+            <button type="submit" class="btn btn-plain btn-sm" style="font-weight: 700" th:text="#{common.add}">Add</button>
+        </div>
+        <div class="sheet-body"><th:block th:replace="~{fixed-expenses/fragments :: fields('add')}"></th:block></div>
+    </form>
+</dialog>
+
+<!-- Edit (+ delete) -->
+<dialog class="sheet" id="edit-sheet" th:aria-label="#{fixed.edit}">
+    <form method="post">
+        <input type="hidden" name="_method" value="PUT">
+        <div class="sheet-head">
+            <button type="button" class="btn btn-plain btn-sm" data-close-sheet th:text="#{common.cancel}">Cancel</button>
+            <strong th:text="#{fixed.edit}">Edit expense</strong>
+            <button type="submit" class="btn btn-plain btn-sm" style="font-weight: 700" th:text="#{common.save}">Save</button>
+        </div>
+        <div class="sheet-body"><th:block th:replace="~{fixed-expenses/fragments :: fields('edit')}"></th:block></div>
+    </form>
+    <div class="sheet-body" style="padding-top: 0">
+        <div class="list">
+            <form class="list-row" method="post" data-action-from="deleteAction" th:attr="data-confirm=#{fixed.deleteConfirm}">
+                <input type="hidden" name="_method" value="DELETE">
+                <button type="submit" class="link-button list-row-body text-danger-ios" th:text="#{common.delete}">Delete</button>
+            </form>
+        </div>
     </div>
-</div>
+</dialog>
 
-<!-- Bulk Edit Modal -->
-<div class="modal fade" id="bulkEditModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form id="bulkEditForm" th:action="@{/ui/fixed-expenses/bulk-edit}" method="post" class="modal-content">
-            <input type="hidden" name="_method" value="PUT">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Bulk Edit Selected Expenses</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<!-- Bulk edit -->
+<dialog class="sheet" id="bulk-sheet" th:aria-label="#{fixed.bulkEdit}">
+    <form th:action="@{/ui/fixed-expenses/bulk-edit}" method="post" id="bulkEditForm">
+        <input type="hidden" name="_method" value="PUT">
+        <div class="sheet-head">
+            <button type="button" class="btn btn-plain btn-sm" data-close-sheet th:text="#{common.cancel}">Cancel</button>
+            <strong th:text="#{fixed.bulkEdit}">Edit selected</strong>
+            <button type="submit" class="btn btn-plain btn-sm" style="font-weight: 700" th:text="#{fixed.apply}">Apply</button>
+        </div>
+        <div class="sheet-body form-stack">
+            <p class="subtitle" th:text="#{fixed.bulkHelp}">Leave a field blank to keep each expense’s current value.</p>
+            <div>
+                <label class="field-label" for="b-cat" th:text="#{fixed.category}">Category</label>
+                <select class="field" id="b-cat" name="catalogId">
+                    <option value="" th:text="#{fixed.noChange}">Don’t change</option>
+                    <option th:each="c : ${catalogs}" th:value="${c.id}" th:text="${c.name}">Home</option>
+                </select>
             </div>
-            <div class="modal-body">
-                <p class="text-muted">Leave a field blank to keep its current value for each selected expense.</p>
-                <div class="mb-3">
-                    <label class="form-label">Category</label>
-                    <select name="catalogId" class="form-select">
-                        <option value="">-- Don't change --</option>
-                        <option th:each="cat : ${catalogs}"
-                                th:value="${cat.id}"
-                                th:text="${cat.name}"></option>
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Monthly Cost</label>
-                    <input type="number" step="0.01" name="monthlyCost" class="form-control" placeholder="Don't change">
-                </div>
+            <div>
+                <label class="field-label" for="b-cost" th:text="#{fixed.cost}">Monthly cost</label>
+                <input class="field tabular" id="b-cost" name="monthlyCost" type="number" inputmode="decimal" step="0.01" min="0" th:placeholder="#{fixed.noChange}">
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn btn-primary">Apply to Selected</button>
-            </div>
-        </form>
-    </div>
-</div>
+        </div>
+    </form>
+</dialog>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script th:inline="javascript">
+<script th:inline="none">
 (function () {
-    const checkboxes = () => Array.from(document.querySelectorAll('.expense-checkbox'));
-    const selectAll = document.getElementById('selectAll');
-    const bulkEditBtn = document.getElementById('bulkEditBtn');
-    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
-
-    function refreshBulkButtons() {
-        const anyChecked = checkboxes().some(cb => cb.checked);
-        bulkEditBtn.disabled = !anyChecked;
-        bulkDeleteBtn.disabled = !anyChecked;
+    var main = document.getElementById('fixedMain');
+    var toggle = document.getElementById('selectToggle');
+    if (!toggle) return;
+    var bar = document.getElementById('selBar');
+    var count = document.getElementById('selCount');
+    var rows = Array.prototype.slice.call(document.querySelectorAll('.expense-row'));
+    function selected() { return rows.filter(function (r) { return r.classList.contains('selected'); }); }
+    function refresh() {
+        var n = selected().length;
+        count.textContent = n === 0 ? count.dataset.t0 : (n === 1 ? count.dataset.t1 : count.dataset.tN.replace('2', n));
+        document.getElementById('bulkEditBtn').disabled = n === 0;
+        document.getElementById('bulkDeleteBtn').disabled = n === 0;
     }
-
-    if (selectAll) {
-        selectAll.addEventListener('change', () => {
-            checkboxes().forEach(cb => cb.checked = selectAll.checked);
-            refreshBulkButtons();
-        });
+    function setMode(on) {
+        main.classList.toggle('selecting', on);
+        bar.hidden = !on;
+        toggle.textContent = on ? toggle.dataset.tDone : toggle.dataset.tSelect;
+        if (!on) rows.forEach(function (r) { r.classList.remove('selected'); r.removeAttribute('aria-pressed'); });
+        refresh();
     }
-    checkboxes().forEach(cb => cb.addEventListener('change', refreshBulkButtons));
-
-    function selectedIds() {
-        return checkboxes().filter(cb => cb.checked).map(cb => cb.value);
-    }
-
-    function appendIds(form) {
-        selectedIds().forEach(id => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'ids';
-            input.value = id;
+    toggle.addEventListener('click', function () { setMode(!main.classList.contains('selecting')); });
+    // While selecting, a tap toggles the row instead of opening the edit sheet.
+    main.addEventListener('click', function (e) {
+        var row = e.target.closest('.expense-row');
+        if (!row || !main.classList.contains('selecting')) return;
+        e.stopPropagation();
+        row.classList.toggle('selected');
+        row.setAttribute('aria-pressed', String(row.classList.contains('selected')));
+        refresh();
+    }, true);
+    function addIds(form) {
+        form.querySelectorAll('input[name="ids"]').forEach(function (i) { i.remove(); });
+        selected().forEach(function (r) {
+            var input = document.createElement('input');
+            input.type = 'hidden'; input.name = 'ids'; input.value = r.dataset.id;
             form.appendChild(input);
         });
     }
-
-    document.getElementById('bulkEditForm').addEventListener('submit', function (e) {
-        appendIds(this);
-    });
-
-    bulkDeleteBtn.addEventListener('click', function () {
-        const ids = selectedIds();
-        if (ids.length === 0) return;
-        if (!confirm('Delete ' + ids.length + ' selected expense(s)?')) return;
-
-        const form = document.createElement('form');
-        form.method = 'post';
-        form.action = /*[[@{/ui/fixed-expenses/bulk-delete}]]*/ '';
-
-        const methodInput = document.createElement('input');
-        methodInput.type = 'hidden';
-        methodInput.name = '_method';
-        methodInput.value = 'DELETE';
-        form.appendChild(methodInput);
-
-        ids.forEach(id => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'ids';
-            input.value = id;
-            form.appendChild(input);
-        });
-
-        document.body.appendChild(form);
-        form.submit();
-    });
-
-    document.querySelectorAll('.edit-expense-btn').forEach(btn => {
-        btn.addEventListener('click', function () {
-            const id = this.dataset.id;
-            document.getElementById('editName').value = this.dataset.name || '';
-            document.getElementById('editDescription').value = this.dataset.description || '';
-            document.getElementById('editMonthlyCost').value = this.dataset.monthlyCost || '';
-            document.getElementById('editPaymentDay').value = this.dataset.paymentDay || '';
-            document.getElementById('editCatalogId').value = this.dataset.catalogId || '';
-            document.getElementById('editExpenseForm').action = '/ui/fixed-expenses/' + id;
-        });
+    ['bulkEditForm', 'bulkDeleteForm'].forEach(function (id) {
+        var form = document.getElementById(id);
+        form.addEventListener('submit', function () { addIds(form); }, true);
     });
 })();
 </script>

@@ -4,6 +4,7 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.applicat
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllFixedExpenseUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.FixedExpenseCatalogRepository;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.FixedExpenseRepository;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.FixedExpense;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.mapper.FixedExpenseCatalogMapper;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.model.CreateFixedExpenseCatalogReq;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.model.FixedExpenseReq;
@@ -20,6 +21,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -53,12 +58,43 @@ public class FixedExpenseViewController {
     public String list(HttpSession session, Model model) {
         String email = (String) session.getAttribute("userEmail");
         if (email == null) return "redirect:/ui";
-        model.addAttribute("expenses", findAllFixedExpenseUseCase.getByEmail(email));
+        List<FixedExpense> expenses = findAllFixedExpenseUseCase.getByEmail(email);
+        model.addAttribute("expenses", expenses);
+        model.addAttribute("byCategory", byCategory(expenses));
+        model.addAttribute("total", expenses.stream().map(FixedExpenseViewController::cost)
+                .reduce(BigDecimal.ZERO, BigDecimal::add));
         model.addAttribute("catalogs", findAllFixedExpenseCatalogsUseCase.getCatalogList());
         model.addAttribute("newExpense", new FixedExpenseReq());
         model.addAttribute("newCatalog", new CreateFixedExpenseCatalogReq());
         model.addAttribute("email", email);
         return "fixed-expenses/list";
+    }
+
+    /** Expenses of one category, biggest category first (the breakdown that used to live on the dashboard). */
+    public record CategoryGroup(String name, BigDecimal total, int percent, List<FixedExpense> expenses) {}
+
+    static List<CategoryGroup> byCategory(List<FixedExpense> expenses) {
+        Map<String, List<FixedExpense>> groups = new LinkedHashMap<>();
+        expenses.stream()
+                .sorted(Comparator.comparing(FixedExpenseViewController::cost).reversed())
+                .forEach(e -> groups.computeIfAbsent(
+                        e.getFixedExpenseCatalog() != null ? e.getFixedExpenseCatalog().getName() : "",
+                        k -> new ArrayList<>()).add(e));
+        BigDecimal total = expenses.stream().map(FixedExpenseViewController::cost).reduce(BigDecimal.ZERO, BigDecimal::add);
+        return groups.entrySet().stream()
+                .map(g -> {
+                    BigDecimal sum = g.getValue().stream().map(FixedExpenseViewController::cost)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    int percent = total.signum() > 0
+                            ? sum.multiply(BigDecimal.valueOf(100)).divide(total, 0, RoundingMode.HALF_UP).intValue() : 0;
+                    return new CategoryGroup(g.getKey(), sum, percent, g.getValue());
+                })
+                .sorted(Comparator.comparing(CategoryGroup::total).reversed())
+                .toList();
+    }
+
+    private static BigDecimal cost(FixedExpense e) {
+        return e.getMonthlyCost() == null ? BigDecimal.ZERO : e.getMonthlyCost();
     }
 
     @PostMapping

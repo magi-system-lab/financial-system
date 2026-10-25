@@ -1,16 +1,11 @@
-/* Financial Manager — shared client behaviour for every page (new and legacy). */
+/* Financial Manager — shared client behaviour for every page. */
 
-/* Copy an element's text to the clipboard. Used by legacy pages (onclick="copyEl(this, el)")
-   and by redesigned pages through [data-copy-target]. */
+/* Copy an element's text to the clipboard ([data-copy-target] buttons). The button, or an
+   element inside it, with data-copied-text briefly shows that text. */
 function copyEl(btn, el) {
     if (!el || !navigator.clipboard) return;
     navigator.clipboard.writeText(el.textContent).then(() => {
-        const icon = btn.querySelector('i');
-        if (icon) {
-            icon.className = 'bi bi-clipboard-check';
-            setTimeout(() => { icon.className = 'bi bi-clipboard'; }, 2000);
-        }
-        const label = btn.querySelector('[data-copied-text]');
+        const label = btn.matches('[data-copied-text]') ? btn : btn.querySelector('[data-copied-text]');
         if (label) {
             const original = label.textContent;
             label.textContent = label.dataset.copiedText;
@@ -21,13 +16,6 @@ function copyEl(btn, el) {
 
 (() => {
     const nav = document.querySelector('.fm-nav');
-
-    // Legacy pages ship a viewport meta without viewport-fit=cover; add it so the
-    // safe-area padding works when the app runs full-screen from the Home Screen.
-    const viewport = document.querySelector('meta[name="viewport"]');
-    if (viewport && !viewport.content.includes('viewport-fit')) {
-        viewport.content += ', viewport-fit=cover';
-    }
 
     // Offline support (service workers only run over HTTPS or on localhost).
     if ('serviceWorker' in navigator) {
@@ -126,6 +114,13 @@ function copyEl(btn, el) {
             const name = key.charAt(1).toLowerCase() + key.slice(2);
             const field = form.elements.namedItem(name);
             if (field) field.value = opener.dataset[key];
+        });
+        // Extra forms inside the sheet (e.g. Cancel / Delete): <form data-action-from="cancelAction">
+        // posts to the opener's data-cancel-action; hidden when the opener has none.
+        sheet.querySelectorAll('form[data-action-from]').forEach((f) => {
+            const url = opener.dataset[f.dataset.actionFrom];
+            f.hidden = !url;
+            if (url) f.action = url;
         });
         sheet.querySelectorAll('[data-sheet-extra]').forEach((el) => {
             el.hidden = el.dataset.sheetExtra !== (opener.dataset.mode || '');
