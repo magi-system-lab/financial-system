@@ -248,9 +248,12 @@ the user can recognise the purchase and mark it as started. PENDING items are ad
 
 ### Web UI (Thymeleaf)
 ```
-GET    /ui                   Home / email login
-POST   /ui/session           Set user email in HTTP session
+GET    /ui                   Home / email login (?switch = show the form, skip the default-email auto-login)
+POST   /ui/session           Set user email in HTTP session + long-lived `fm_user` cookie
+POST   /ui/session/end       "Switch user": forget the session user and the cookie
 GET    /ui/dashboard         Main dashboard
+GET    /ui/more              "More" tab: secondary sections + settings (language, switch user)
+GET    /ui/activity          Activity log of the current session
 GET    /ui/fixed-expenses    Fixed expenses management
 GET    /ui/debt-accounts     Debt account management
 GET    /ui/debt-progression  Charts and progression tracking
@@ -262,6 +265,25 @@ GET    /ui/receivables/{id}  One receivable: KPIs, balance-over-time + monthly c
 GET    /ui/upcoming-debts    Upcoming (deferred) purchases pile + month-by-month projection + what-if simulator
 GET    /ui/bulk-statements   Bulk statement import (many files → many cards, see below)
 ```
+
+### UI redesign (iOS-style, mobile first) — in progress
+The UI is being redesigned section by section (iPhone first, also iPad and Mac; installed as a Home Screen web app).
+- **Shell:** `templates/layout/app.html` — `head(title)` (Home Screen meta tags, manifest, `app.css`, `app.js`),
+  `nav` (floating tab bar below 1024px, sidebar from 1024px, offline banner), `icon(name, cls)` (symbols in
+  `static/img/icons.svg`), `langSwitch`. Redesigned pages use `<body class="app">` + `<main class="app-main">`.
+- **Legacy pages** still use Bootstrap; `layout/navbar :: navbar` now renders the new nav (forced light) so every page
+  shares the same navigation until it is migrated. Bootstrap-colliding classes in `app.css` (`.card`, `.btn*`, `.small`)
+  are scoped to `body.app`.
+- **Design tokens / components:** `static/css/app.css` (light + dark via `prefers-color-scheme`); behaviour in `static/js/app.js`.
+- **Active tab:** `GlobalModelAdvice` adds `currentPath`, `navSection` (insights | cards | import | plan | more) and `currentUser`.
+- **Remembered user:** `RememberedUser` (interceptor on `/ui/**`) restores `userEmail` from the `fm_user` cookie —
+  iOS drops session cookies whenever it closes a Home Screen app.
+- **Language:** `messages.properties` (English, default) / `messages_es.properties`; `?lang=en|es_MX` switches and is kept in
+  the `fm_lang` cookie (`WebConfig`). New/redesigned templates use `#{...}` keys; legacy pages are not translated yet.
+- **Offline:** `static/sw.js` saves each `/ui` page you open (network first, 6s timeout) and shows the saved copy with an
+  "Offline · updated …" banner when there is no connection; forms are blocked offline; the copies are deleted on login /
+  switch user. Service workers need HTTPS (or localhost).
+- **Static files** are fingerprinted (`app-<hash>.css`) through `@{...}` and cached for 7 days.
 
 ### Bulk Statement Import (Web UI)
 ```
@@ -462,3 +484,6 @@ The Tesseract installation in Docker is required for `LIVERPOOL` statement parsi
 | `domain/utils/DebtComparatorUtil.java` | Diff logic: new vs. existing debts |
 | `domain/enums/AccountStatementType.java` | Provider type enum (drives factory selection) |
 | `src/main/resources/application.yml` | All Spring/DB configuration |
+| `templates/layout/app.html` | Shared shell for the redesigned UI (head, tab bar / sidebar, icons) |
+| `static/css/app.css` | iOS-style design tokens and components (light + dark) |
+| `static/sw.js` | Service worker: offline copies of visited pages |

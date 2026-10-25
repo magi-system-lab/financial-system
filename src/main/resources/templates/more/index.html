@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{layout/app :: head(#{more.title})}"></head>
+<body class="app">
+<div th:replace="~{layout/app :: nav}"></div>
+<main class="app-main">
+    <div class="title-block">
+        <div><h1 class="large-title" th:text="#{more.title}">More</h1></div>
+    </div>
+
+    <section class="section">
+        <h2 class="list-header" th:text="#{more.money}">Money</h2>
+        <div class="list">
+            <a class="list-row" th:href="@{/ui/receivables}">
+                <span class="row-icon bg-green"><svg th:replace="~{layout/app :: icon('people', '')}"></svg></span>
+                <span class="list-row-body">
+                    <span class="list-row-title"><span th:text="#{nav.lent}">Money lent</span></span>
+                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+                </span>
+            </a>
+            <a class="list-row" th:href="@{/ui/fixed-expenses}">
+                <span class="row-icon bg-orange"><svg th:replace="~{layout/app :: icon('receipt', '')}"></svg></span>
+                <span class="list-row-body">
+                    <span class="list-row-title"><span th:text="#{nav.fixedExpenses}">Fixed expenses</span></span>
+                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+                </span>
+            </a>
+            <a class="list-row" th:href="@{/ui/progression}">
+                <span class="row-icon bg-blue"><svg th:replace="~{layout/app :: icon('calendar', '')}"></svg></span>
+                <span class="list-row-body">
+                    <span class="list-row-title"><span th:text="#{nav.monthByMonth}">Month by month</span></span>
+                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+                </span>
+            </a>
+        </div>
+    </section>
+
+    <section class="section">
+        <h2 class="list-header" th:text="#{more.data}">Data</h2>
+        <div class="list">
+            <a class="list-row" th:href="@{/ui/providers}">
+                <span class="row-icon bg-blue"><svg th:replace="~{layout/app :: icon('bank', '')}"></svg></span>
+                <span class="list-row-body">
+                    <span class="list-row-title"><span th:text="#{nav.providers}">Providers</span></span>
+                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+                </span>
+            </a>
+            <a class="list-row" th:href="@{/ui/ignorable-debts}">
+                <span class="row-icon bg-gray"><svg th:replace="~{layout/app :: icon('eye-off', '')}"></svg></span>
+                <span class="list-row-body">
+                    <span class="list-row-title"><span th:text="#{nav.ignored}">Ignored debts</span></span>
+                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+                </span>
+            </a>
+            <a class="list-row" th:href="@{/ui/activity}">
+                <span class="row-icon bg-indigo"><svg th:replace="~{layout/app :: icon('terminal', '')}"></svg></span>
+                <span class="list-row-body">
+                    <span class="list-row-title"><span th:text="#{nav.activity}">Activity log</span></span>
+                    <span class="list-row-value" th:if="${!activityLog.isEmpty()}" th:text="${activityLog.size()}">3</span>
+                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+                </span>
+            </a>
+        </div>
+    </section>
+
+    <section class="section">
+        <h2 class="list-header" th:text="#{more.settings}">Settings</h2>
+        <div class="list">
+            <div class="list-row">
+                <span class="row-icon bg-blue"><svg th:replace="~{layout/app :: icon('globe', '')}"></svg></span>
+                <span class="list-row-body">
+                    <span class="list-row-title"><span th:text="#{nav.language}">Language</span></span>
+                    <span class="seg seg-inline">
+                        <a th:href="@{/ui/more(lang='en')}" lang="en"
+                           th:aria-current="${#locale.language != 'es'} ? 'true'" th:text="#{lang.en}">English</a>
+                        <a th:href="@{/ui/more(lang='es_MX')}" lang="es"
+                           th:aria-current="${#locale.language == 'es'} ? 'true'" th:text="#{lang.es}">Español</a>
+                    </span>
+                </span>
+            </div>
+            <div class="list-row">
+                <span class="row-icon bg-indigo"><svg th:replace="~{layout/app :: icon('moon', '')}"></svg></span>
+                <span class="list-row-body">
+                    <span class="list-row-title"><span th:text="#{more.appearance}">Appearance</span></span>
+                    <span class="list-row-value" th:text="#{more.appearance.auto}">Automatic</span>
+                </span>
+            </div>
+            <div class="list-row">
+                <span class="row-icon bg-gray"><svg th:replace="~{layout/app :: icon('person', '')}"></svg></span>
+                <span class="list-row-body">
+                    <span class="list-row-title">
+                        <span th:text="#{nav.signedInAs}">Signed in as</span>
+                        <span th:text="${currentUser}">you@example.com</span>
+                    </span>
+                </span>
+            </div>
+            <form class="list-row" th:action="@{/ui/session/end}" method="post" data-clear-offline style="margin: 0">
+                <span class="row-icon bg-pink"><svg th:replace="~{layout/app :: icon('switch-user', '')}"></svg></span>
+                <span class="list-row-body">
+                    <button type="submit" class="link-button text-danger-ios" th:text="#{more.switchUser}">Switch user</button>
+                </span>
+            </form>
+        </div>
+        <p class="list-footer" th:text="#{more.homeScreenTip}">Add to your Home Screen…</p>
+        <p class="list-footer" th:text="#{more.offlineTip}">Pages you open are saved…</p>
+    </section>
+</main>
+</body>
+</html>
