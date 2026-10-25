@@ -36,7 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(DebtAccountViewController.class)
-@Import({SecurityConfig.class, UiFormat.class, CardColors.class})
+@Import(SecurityConfig.class)
 class DebtAccountViewControllerTest {
 
     private static final String EMAIL = "user@test.com";

@@ -187,7 +187,7 @@ class BulkStatementViewControllerTest {
                 .andExpect(content().string(containsString("New TV")))
                 .andExpect(content().string(containsString("Laptop")))
                 .andExpect(content().string(containsString("Phantom charge")))
-                .andExpect(content().string(containsString("NOT IN STATEMENT")))
+                .andExpect(content().string(containsString("Not in statement")))
                 .andExpect(content().string(containsString("PDF is password protected")))
                 .andExpect(content().string(containsString("Retry this file")))
                 .andExpect(content().string(containsString("Rebuild from 0")));

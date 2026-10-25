@@ -1,408 +1,179 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Bulk Statement Review – Financial Manager</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <style th:replace="~{fragments/statement-diff :: styles}"></style>
-    <style>
-        .item-card { scroll-margin-top: 1rem; }
-        .item-card.mode-sot  { border-left: 5px solid #dc3545; }
-        .item-card.mode-upd  { border-left: 5px solid #0d6efd; }
-        .item-card.mode-skip { border-left: 5px solid #adb5bd; opacity: .75; }
-        .item-card.mode-err  { border-left: 5px solid #dc3545; }
-        .summary-table td, .summary-table th { white-space: nowrap; }
-    </style>
-</head>
-<body class="bg-light">
-
-<div th:replace="~{layout/navbar :: navbar}"></div>
-
-<div class="container-fluid py-2 px-4">
-
-    <!-- Header -->
-    <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
-        <div class="d-flex align-items-center">
-            <a th:href="@{/ui/bulk-statements}" class="btn btn-outline-secondary me-3" title="Back to file selection">
-                <i class="bi bi-arrow-left"></i>
-            </a>
-            <div>
-                <h2 class="fw-bold mb-0">
-                    <i class="bi bi-arrow-left-right me-2 text-primary"></i>Bulk Statement Review
-                </h2>
-                <small class="text-muted">
-                    <span th:text="${batch.items().size()}"></span> file(s)
-                    &nbsp;·&nbsp; <span th:text="${batch.actionableCount()}"></span> card(s) will be modified
-                    <th:block th:if="${batch.failedCount() > 0}">
-                        &nbsp;·&nbsp; <span class="text-danger fw-semibold"><span th:text="${batch.failedCount()}"></span> failed</span>
-                    </th:block>
-                    &nbsp;·&nbsp; Nothing has been saved yet.
-                </small>
-            </div>
-        </div>
-
-        <div class="d-flex gap-2 flex-wrap justify-content-end">
-            <span class="badge badge-new fs-6 px-3 py-2"><i class="bi bi-plus-circle me-1"></i><span th:text="${batch.totalNew()}"></span> New</span>
-            <span class="badge badge-updated fs-6 px-3 py-2"><i class="bi bi-arrow-up-circle me-1"></i><span th:text="${batch.totalUpdated()}"></span> Updated</span>
-            <span class="badge badge-completed fs-6 px-3 py-2"><i class="bi bi-x-circle me-1"></i><span th:text="${batch.totalCompleted()}"></span> Completed</span>
-            <span class="badge badge-unchanged fs-6 px-3 py-2"><i class="bi bi-dash-circle me-1"></i><span th:text="${batch.totalUnchanged()}"></span> Unchanged</span>
-            <span class="badge badge-ignored fs-6 px-3 py-2" th:if="${batch.totalIgnored() > 0}"><i class="bi bi-eye-slash me-1"></i><span th:text="${batch.totalIgnored()}"></span> Ignored</span>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{layout/app :: head(#{review.title})}"></head>
+<body class="app">
+<div th:replace="~{layout/app :: nav}"></div>
+<main class="app-main">
+    <div class="nav-bar">
+        <a class="btn btn-glass btn-icon" th:href="@{/ui/bulk-statements}" th:aria-label="#{common.back}">
+            <svg th:replace="~{layout/app :: icon('chevron-left', '')}"></svg>
+        </a>
+        <span></span>
+        <span style="width: 44px"></span>
+    </div>
+    <div class="title-block">
+        <div>
+            <h1 class="large-title" th:text="#{review.title}">Review</h1>
+            <p class="subtitle">
+                <span th:text="#{review.summary(${batch.items().size()}, ${batch.actionableCount()})}">3 files · 2 cards change</span><span
+                      th:if="${batch.failedCount() > 0}" class="text-orange" th:text="${' · ' + #messages.msg('review.failedCount', batch.failedCount())}"> · 1 failed</span>.
+                <span th:text="#{review.nothingSaved}">Nothing is saved until you apply.</span>
+            </p>
         </div>
     </div>
 
-    <!-- Sync error -->
-    <div class="alert alert-danger mb-3" th:if="${syncError != null}">
-        <div class="d-flex align-items-center gap-2 mb-2">
-            <i class="bi bi-exclamation-triangle-fill fs-5"></i>
-            <strong>Execution failed — nothing was saved</strong>
-        </div>
-        <div class="position-relative">
-            <div class="font-monospace small p-2 bg-danger bg-opacity-10 rounded border border-danger border-opacity-25"
-                 th:text="${syncError}"
-                 style="word-break: break-word; white-space: pre-wrap; padding-right: 2.5rem !important;"></div>
-            <button type="button" class="btn btn-sm btn-outline-secondary position-absolute top-0 end-0 m-1"
-                    title="Copy to clipboard" onclick="copyEl(this, this.previousElementSibling)">
-                <i class="bi bi-clipboard"></i>
-            </button>
-        </div>
-        <div class="mt-2 small text-muted">
-            <i class="bi bi-terminal me-1"></i>All cards are applied in one transaction, so the database was left as it was.
-            Skip the problematic card or open the <strong>Activity Log</strong> for details.
-        </div>
+    <div class="chips">
+        <span class="chip chip-green" th:text="#{review.new(${batch.totalNew()})}">2 new</span>
+        <span class="chip chip-blue" th:text="#{review.updated(${batch.totalUpdated()})}">5 updated</span>
+        <span class="chip chip-orange" th:text="#{review.completed(${batch.totalCompleted()})}">1 completed</span>
+        <span class="chip chip-gray" th:text="#{review.unchanged(${batch.totalUnchanged()})}">3 unchanged</span>
+        <span class="chip chip-gray" th:if="${batch.totalIgnored() > 0}" th:text="#{review.ignored(${batch.totalIgnored()})}">1 ignored</span>
     </div>
 
-    <!-- Overview: one row per file -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-white d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <h5 class="mb-0 fw-semibold"><i class="bi bi-list-check me-2 text-primary"></i>Files &amp; cards</h5>
-            <div class="d-flex gap-2 align-items-center">
-                <small class="text-muted me-1">Set every card to:</small>
-                <form th:action="@{/ui/bulk-statements/action-all}" method="post">
-                    <input type="hidden" name="action" value="UPDATE">
-                    <button class="btn btn-sm btn-outline-primary"><i class="bi bi-arrow-repeat me-1"></i>Update</button>
-                </form>
-                <form th:action="@{/ui/bulk-statements/action-all}" method="post">
-                    <input type="hidden" name="action" value="SOURCE_OF_TRUTH">
-                    <button class="btn btn-sm btn-outline-danger"><i class="bi bi-database-fill-exclamation me-1"></i>Rebuild from 0</button>
-                </form>
-                <form th:action="@{/ui/bulk-statements/action-all}" method="post">
-                    <input type="hidden" name="action" value="SKIP">
-                    <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-slash-circle me-1"></i>Skip</button>
-                </form>
-            </div>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-sm table-hover mb-0 align-middle summary-table">
-                <thead class="table-light">
-                <tr>
-                    <th>File</th>
-                    <th>Card</th>
-                    <th class="text-center">New</th>
-                    <th class="text-center">Updated</th>
-                    <th class="text-center">Completed</th>
-                    <th class="text-center" title="Active in the system but not listed in the statement">Not in statement</th>
-                    <th>Action</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="item, st : ${batch.items()}">
-                    <td>
-                        <a th:href="${'#item-' + st.index}" class="text-decoration-none">
-                            <i class="bi bi-file-earmark-text me-1"></i><span th:text="${item.fileName}"></span>
-                        </a>
-                    </td>
-                    <td>
-                        <span th:text="${item.accountName != null ? item.accountName : item.debtAccountCode}"></span>
-                        <small class="text-muted" th:if="${item.providerName != null}" th:text="${'· ' + item.providerName}"></small>
-                    </td>
-                    <th:block th:if="${item.diff != null}">
-                        <td class="text-center" th:text="${item.diff.newDebts().size()}"></td>
-                        <td class="text-center" th:text="${item.diff.updatedDebts().size()}"></td>
-                        <td class="text-center" th:text="${item.diff.completedDebts().size()}"></td>
-                        <td class="text-center">
-                            <span th:class="${item.missingFromStatement.isEmpty() ? '' : 'badge badge-missing'}"
-                                  th:text="${item.missingFromStatement.size()}"></span>
-                        </td>
-                    </th:block>
-                    <td colspan="4" class="text-danger small" th:if="${item.diff == null}">
-                        <i class="bi bi-exclamation-octagon me-1"></i>Not extracted
-                    </td>
-                    <td>
-                        <span th:if="${item.hasError()}" class="badge bg-danger">FAILED</span>
-                        <span th:if="${!item.hasError() and item.action.name() == 'UPDATE'}" class="badge bg-primary">UPDATE</span>
-                        <span th:if="${!item.hasError() and item.action.name() == 'SOURCE_OF_TRUTH'}" class="badge bg-danger">REBUILD FROM 0</span>
-                        <span th:if="${!item.hasError() and item.action.name() == 'SKIP'}" class="badge bg-secondary">SKIP</span>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
+    <div class="notice notice-error" role="alert" th:if="${syncError != null}" style="flex-direction: column">
+        <strong th:text="#{review.syncFailed}">Applying failed — nothing was saved</strong>
+        <pre class="code-block" id="sync-error" style="background: transparent; padding: 0" th:text="${syncError}">error</pre>
+        <span class="small" th:text="#{review.syncFailedHelp}">All cards are applied together.</span>
+        <button type="button" class="btn btn-tinted btn-sm" style="align-self: flex-start" data-copy-target="#sync-error">
+            <span th:text="#{payments.copy}" th:attr="data-copied-text=#{activity.copied}">Copy error</span>
+        </button>
+    </div>
+
+    <!-- Same action for every card -->
+    <div class="list">
+        <div class="list-row">
+            <span class="list-row-body" style="flex-wrap: wrap">
+                <span class="list-row-title"><span th:text="#{review.setAll}">Every card</span></span>
+                <span class="seg seg-inline">
+                    <form th:action="@{/ui/bulk-statements/action-all}" method="post"><input type="hidden" name="action" value="UPDATE"><button type="submit" th:text="#{review.update}">Update</button></form>
+                    <form th:action="@{/ui/bulk-statements/action-all}" method="post"><input type="hidden" name="action" value="SOURCE_OF_TRUTH"><button type="submit" th:text="#{review.rebuild}">Rebuild from 0</button></form>
+                    <form th:action="@{/ui/bulk-statements/action-all}" method="post"><input type="hidden" name="action" value="SKIP"><button type="submit" th:text="#{review.skip}">Skip</button></form>
+                </span>
+            </span>
         </div>
     </div>
 
     <!-- One section per file / card -->
-    <div th:each="item, st : ${batch.items()}"
-         th:id="${'item-' + st.index}"
-         th:attr="data-ignore-url=@{/ui/bulk-statements/items/{i}/mark-ignorable(i=${st.index})}"
-         th:classappend="${item.hasError() ? 'mode-err' : (item.action.name() == 'SOURCE_OF_TRUTH' ? 'mode-sot' : (item.action.name() == 'SKIP' ? 'mode-skip' : 'mode-upd'))}"
-         class="card shadow-sm mb-4 item-card">
-
-        <div class="card-header bg-white d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <div>
-                <h5 class="mb-0 fw-semibold">
-                    <i class="bi bi-credit-card me-2 text-primary"></i>
-                    <span th:text="${item.accountName != null ? item.accountName : item.debtAccountCode}"></span>
-                    <small class="text-muted fw-normal" th:if="${item.providerName != null}" th:text="${'· ' + item.providerName}"></small>
-                </h5>
-                <small class="text-muted">
-                    <i class="bi bi-file-earmark-text me-1"></i><span th:text="${item.fileName}"></span>
-                    <th:block th:if="${item.diff != null}">
-                        &nbsp;·&nbsp; Parser: <strong th:text="${item.diff.parserUsed()}"></strong>
-                    </th:block>
-                    <th:block th:if="${!item.debtAccountCode.isEmpty()}">
-                        &nbsp;·&nbsp; <a th:href="@{/ui/debt-accounts/{c}(c=${item.debtAccountCode})}" target="_blank" class="text-muted">open card <i class="bi bi-box-arrow-up-right"></i></a>
-                    </th:block>
-                </small>
+    <section th:each="item, st : ${batch.items()}" th:id="${'item-' + st.index}"
+             th:class="${'section item-card' + (!item.hasError() and item.action.name() == 'SKIP' ? ' skipped' : '')}"
+             th:with="ignoreUrl=@{/ui/bulk-statements/items/{i}/mark-ignorable(i=${st.index})}">
+        <div class="card item-card">
+            <div class="item-head">
+                <span class="row-icon" th:classappend="${item.hasError()} ? 'bg-pink' : 'bg-blue'">
+                    <svg th:replace="~{layout/app :: icon('cards', '')}"></svg>
+                </span>
+                <div>
+                    <strong th:text="${item.accountName != null ? item.accountName : item.debtAccountCode}">Visa Oro</strong>
+                    <span th:text="${item.fileName + (item.providerName != null ? ' · ' + item.providerName : '')}">statement.pdf · BBVA</span>
+                    <span th:if="${item.diff != null}" th:text="#{review.parser(${item.diff.parserUsed()})}">Read as BBVA</span>
+                </div>
+                <a class="btn btn-plain btn-sm" th:if="${!item.debtAccountCode.isEmpty()}"
+                   th:href="@{/ui/debt-accounts/{c}(c=${item.debtAccountCode})}" th:text="#{review.openCard}">Open card</a>
             </div>
 
-            <!-- Per-card action switch -->
-            <div class="btn-group" role="group" th:unless="${item.hasError()}">
+            <!-- Per-card action -->
+            <div class="seg" th:unless="${item.hasError()}">
                 <form th:action="@{/ui/bulk-statements/items/{i}/action(i=${st.index})}" method="post">
                     <input type="hidden" name="action" value="UPDATE">
-                    <button type="submit" class="btn btn-sm rounded-end-0"
-                            th:classappend="${item.action.name() == 'UPDATE' ? 'btn-primary' : 'btn-outline-primary'}"
-                            title="Insert new debts, advance installments, close completed ones">
-                        <i class="bi bi-arrow-repeat me-1"></i>Update
-                    </button>
+                    <button type="submit" th:aria-pressed="${item.action.name() == 'UPDATE'}" th:text="#{review.update}">Update</button>
                 </form>
                 <form th:action="@{/ui/bulk-statements/items/{i}/action(i=${st.index})}" method="post">
                     <input type="hidden" name="action" value="SOURCE_OF_TRUTH">
-                    <button type="submit" class="btn btn-sm rounded-0"
-                            th:classappend="${item.action.name() == 'SOURCE_OF_TRUTH' ? 'btn-danger' : 'btn-outline-danger'}"
-                            title="Deactivate every current debt of this card and load the statement from scratch">
-                        <i class="bi bi-database-fill-exclamation me-1"></i>Rebuild from 0
-                    </button>
+                    <button type="submit" th:aria-pressed="${item.action.name() == 'SOURCE_OF_TRUTH'}" th:text="#{review.rebuild}">Rebuild from 0</button>
                 </form>
                 <form th:action="@{/ui/bulk-statements/items/{i}/action(i=${st.index})}" method="post">
                     <input type="hidden" name="action" value="SKIP">
-                    <button type="submit" class="btn btn-sm rounded-start-0"
-                            th:classappend="${item.action.name() == 'SKIP' ? 'btn-secondary' : 'btn-outline-secondary'}"
-                            title="Leave this card untouched">
-                        <i class="bi bi-slash-circle me-1"></i>Skip
-                    </button>
+                    <button type="submit" th:aria-pressed="${item.action.name() == 'SKIP'}" th:text="#{review.skip}">Skip</button>
                 </form>
             </div>
+
+            <!-- Failed extraction: show why + retry -->
+            <th:block th:if="${item.hasError()}">
+                <div th:class="${'notice ' + (item.needsPdfPassword ? 'notice-warn' : 'notice-error')}" style="flex-direction: column; gap: 4px">
+                    <strong th:text="#{review.failedTitle}">This file couldn’t be read</strong>
+                    <span style="word-break: break-word" th:text="${item.error}">PDF is password protected</span>
+                    <span class="small" th:text="#{review.notApplied}">It won’t be applied.</span>
+                </div>
+                <form th:if="${item.retryable}" th:action="@{/ui/bulk-statements/items/{i}/retry(i=${st.index})}"
+                      method="post" enctype="multipart/form-data" class="form-stack">
+                    <div>
+                        <label class="field-label" th:for="${'retry-file-' + st.index}" th:text="#{review.file}">Statement file</label>
+                        <input class="field" type="file" th:id="${'retry-file-' + st.index}" name="file" required accept=".pdf,.xlsx,.xls,.csv">
+                    </div>
+                    <div>
+                        <label class="field-label" th:for="${'retry-pwd-' + st.index}" th:text="#{import.password}">PDF password</label>
+                        <input class="field" type="password" th:id="${'retry-pwd-' + st.index}" name="pdfPassword" autocomplete="off">
+                    </div>
+                    <button type="submit" class="btn btn-tinted btn-sm" style="align-self: flex-start" th:text="#{review.retry}">Retry this file</button>
+                </form>
+            </th:block>
+
+            <!-- Extracted: what will happen -->
+            <th:block th:unless="${item.hasError()}">
+                <div th:if="${upcomingByAccount != null and upcomingByAccount[item.debtAccountCode] != null and !upcomingByAccount[item.debtAccountCode].empty}"
+                     th:replace="~{fragments/upcoming-reminder :: reminder(${upcomingByAccount[item.debtAccountCode]}, ${'/ui/bulk-statements/preview#item-' + st.index})}"></div>
+                <p class="small" th:if="${item.action.name() == 'UPDATE'}">
+                    <span th:text="#{review.willUpdate(${item.diff.newDebts().size()}, ${item.diff.updatedDebts().size()}, ${item.diff.completedDebts().size()})}">Adds 1 new, moves 2 forward and closes 1.</span>
+                    <span class="text-orange" th:unless="${item.missingFromStatement.isEmpty()}"
+                          th:text="#{review.willKeepMissing(${item.missingFromStatement.size()})}">1 debt in the app isn’t on the statement…</span>
+                </p>
+                <p class="small text-orange" th:if="${item.action.name() == 'SOURCE_OF_TRUTH'}"
+                   th:text="#{review.willRebuild(${item.existingActiveCount}, ${item.sourceOfTruthInsertCount()})}">Deactivates all 4 current debts and inserts 5.</p>
+                <p class="small muted" th:if="${item.action.name() == 'SKIP'}" th:text="#{review.willSkip}">This card won’t be touched.</p>
+            </th:block>
         </div>
 
-        <!-- Failed extraction -->
-        <div class="card-body" th:if="${item.hasError()}">
-            <div class="alert mb-3" th:classappend="${item.needsPdfPassword ? 'alert-warning' : 'alert-danger'}">
-                <i class="bi me-1" th:classappend="${item.needsPdfPassword ? 'bi-lock-fill' : 'bi-exclamation-triangle-fill'}"></i>
-                <span th:text="${item.error}" style="word-break: break-word;"></span>
-                <div class="small mt-1">This file will <strong>not</strong> be applied.</div>
-            </div>
-            <form th:if="${item.retryable}" th:action="@{/ui/bulk-statements/items/{i}/retry(i=${st.index})}"
-                  method="post" enctype="multipart/form-data" class="row g-2 align-items-end retry-form">
-                <div class="col-md-5">
-                    <label class="form-label small fw-semibold">Statement file</label>
-                    <input type="file" name="file" class="form-control form-control-sm" required accept=".pdf,.xlsx,.xls,.csv">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label small fw-semibold">PDF password <span class="fw-normal text-muted">(optional)</span></label>
-                    <input type="password" name="pdfPassword" class="form-control form-control-sm" autocomplete="off"
-                           th:classappend="${item.needsPdfPassword ? 'border-warning' : ''}">
-                </div>
-                <div class="col-md-3">
-                    <button type="submit" class="btn btn-sm btn-outline-primary w-100">
-                        <i class="bi bi-arrow-clockwise me-1"></i>Retry this file
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        <!-- Extracted: explain what will happen + diff -->
         <th:block th:unless="${item.hasError()}">
-            <div class="px-3 pt-3" th:if="${upcomingByAccount != null and upcomingByAccount[item.debtAccountCode] != null and !upcomingByAccount[item.debtAccountCode].empty}">
-                <div th:replace="~{fragments/upcoming-reminder :: reminder(${upcomingByAccount[item.debtAccountCode]}, ${'/ui/bulk-statements/preview#item-' + st.index})}"></div>
+            <div class="card" th:if="${item.diff.isEmpty() and item.diff.ignoredDebts().isEmpty() and item.missingFromStatement.isEmpty()}">
+                <p class="small muted" th:text="#{review.noDebts}">The statement has no debts to compare.</p>
             </div>
-            <div class="card-body py-2 small border-bottom">
-                <div th:if="${item.action.name() == 'UPDATE'}">
-                    <i class="bi bi-info-circle me-1 text-primary"></i>
-                    Will insert <strong th:text="${item.diff.newDebts().size()}"></strong> new debt(s),
-                    advance <strong th:text="${item.diff.updatedDebts().size()}"></strong>
-                    and close <strong th:text="${item.diff.completedDebts().size()}"></strong>.
-                    <th:block th:if="${!item.missingFromStatement.isEmpty()}">
-                        <span class="fw-semibold" style="color:#6f42c1">
-                            <span th:text="${item.missingFromStatement.size()}"></span> debt(s) in the system are not in the statement and will be left as they are
-                        </span> — if that looks wrong, use <strong>Rebuild from 0</strong>.
-                    </th:block>
-                </div>
-                <div th:if="${item.action.name() == 'SOURCE_OF_TRUTH'}" class="text-danger">
-                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                    Will <strong>deactivate all <span th:text="${item.existingActiveCount}"></span></strong> current active debt(s) of this card
-                    and insert <strong th:text="${item.sourceOfTruthInsertCount()}"></strong> debt(s) from the statement as fresh records.
-                </div>
-                <div th:if="${item.action.name() == 'SKIP'}" class="text-muted">
-                    <i class="bi bi-slash-circle me-1"></i>This card will be left untouched.
-                </div>
-            </div>
-
-            <div class="card-body text-muted small py-2"
-                 th:if="${item.diff.isEmpty() and item.diff.ignoredDebts().isEmpty() and item.missingFromStatement.isEmpty()}">
-                <i class="bi bi-check-circle me-1"></i>The statement has no debts to compare.
-            </div>
-
-            <div class="table-responsive"
-                 th:unless="${item.diff.isEmpty() and item.diff.ignoredDebts().isEmpty() and item.missingFromStatement.isEmpty()}">
-                <table class="table table-bordered table-sm mb-0 align-middle">
-                    <thead class="table-dark">
-                    <tr>
-                        <th style="width:150px">Status</th>
-                        <th>Description</th>
-                        <th>Monthly Payment</th>
-                        <th>Installments</th>
-                        <th>Original Amount</th>
-                        <th>Type</th>
-                        <th>Date</th>
-                        <th style="width:50px"></th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <th:block th:replace="~{fragments/statement-diff :: rows(${item.diff})}"></th:block>
-
-                    <!-- In the system but not in the statement -->
-                    <tr class="table-secondary" th:if="${!item.missingFromStatement.isEmpty()}">
-                        <td colspan="8" class="py-1 small fw-semibold text-muted">
-                            <i class="bi bi-question-diamond me-1"></i>In the system but not in this statement —
-                            <span th:text="${item.action.name() == 'SOURCE_OF_TRUTH' ? 'will be deactivated' : 'left untouched'}"></span>
-                        </td>
-                    </tr>
-                    <tr class="row-missing" th:each="debt : ${item.missingFromStatement}">
-                        <td><span class="badge badge-missing">NOT IN STATEMENT</span></td>
-                        <td th:text="${debt.description}"></td>
-                        <td th:text="${'$' + debt.monthlyPayment}"></td>
-                        <td>
-                            <span th:text="${debt.currentInstallment}"></span>
-                            <span class="text-muted">/ <span th:text="${debt.maxFinancingTerm}"></span></span>
-                        </td>
-                        <td th:text="${debt.originalAmount != null ? '$' + debt.originalAmount : '—'}"></td>
-                        <td><span class="badge bg-secondary" th:text="${debt.debtType != null ? debt.debtType : '—'}"></span></td>
-                        <td th:text="${debt.operationDate != null ? debt.operationDate : '—'}"></td>
-                        <td></td>
-                    </tr>
-                    </tbody>
-                </table>
+            <div class="list" th:unless="${item.diff.isEmpty() and item.diff.ignoredDebts().isEmpty() and item.missingFromStatement.isEmpty()}">
+                <th:block th:replace="~{fragments/statement-diff :: rows(${item.diff}, ${ignoreUrl})}"></th:block>
+                <th:block th:replace="~{fragments/statement-diff :: missing(${item.missingFromStatement}, ${item.action.name() == 'SOURCE_OF_TRUTH'})}"></th:block>
             </div>
         </th:block>
-    </div>
+    </section>
 
-    <!-- Bottom actions -->
-    <div class="d-flex gap-3 justify-content-end mb-5">
-        <form th:action="@{/ui/bulk-statements/cancel}" method="post"
-              onsubmit="return confirm('Discard this review? Nothing will be saved.');">
-            <button type="submit" class="btn btn-outline-secondary btn-lg">
-                <i class="bi bi-x-lg me-1"></i>Discard
-            </button>
+    <div class="actions-grid">
+        <form th:action="@{/ui/bulk-statements/cancel}" method="post" th:attr="data-confirm=#{review.discardConfirm}">
+            <button type="submit" class="btn btn-danger" th:text="#{review.discard}">Discard</button>
         </form>
-        <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#executeModal"
-                th:disabled="${batch.actionableCount() == 0}">
-            <i class="bi bi-check2-all me-1"></i>Execute &amp; persist
-        </button>
+        <button type="button" class="btn btn-primary" data-open-sheet="apply-sheet"
+                th:disabled="${batch.actionableCount() == 0}" th:text="#{review.apply}">Apply</button>
     </div>
-</div>
+</main>
 
-<!-- Execute confirmation -->
-<div class="modal fade" id="executeModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-check2-all me-2"></i>Execute bulk import</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>The following will be applied in a <strong>single transaction</strong> — if any card fails, nothing is saved.</p>
-                <table class="table table-sm align-middle">
-                    <thead class="table-light">
-                    <tr><th>Card</th><th>File</th><th>Action</th></tr>
-                    </thead>
-                    <tbody>
-                    <tr th:each="item : ${batch.items()}">
-                        <td th:text="${item.accountName != null ? item.accountName : item.debtAccountCode}"></td>
-                        <td class="small text-muted" th:text="${item.fileName}"></td>
-                        <td>
-                            <span th:if="${item.hasError()}" class="badge bg-danger">FAILED — not applied</span>
-                            <span th:if="${!item.hasError() and item.action.name() == 'UPDATE'}" class="badge bg-primary">UPDATE</span>
-                            <span th:if="${!item.hasError() and item.action.name() == 'SOURCE_OF_TRUTH'}" class="badge bg-danger">REBUILD FROM 0</span>
-                            <span th:if="${!item.hasError() and item.action.name() == 'SKIP'}" class="badge bg-secondary">SKIP</span>
-                        </td>
-                    </tr>
-                    </tbody>
-                </table>
-                <div class="alert alert-danger mb-0" th:unless="${batch.sourceOfTruthItems().isEmpty()}">
-                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                    <strong th:text="${batch.sourceOfTruthItems().size()}"></strong> card(s) will be rebuilt from 0:
-                    all of their current debts are deactivated and replaced by the statement. This cannot be undone.
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form th:action="@{/ui/bulk-statements/execute}" method="post">
-                    <button type="submit" class="btn btn-success">
-                        <i class="bi bi-check2-all me-1"></i>Yes, persist <span th:text="${batch.actionableCount()}"></span> card(s)
-                    </button>
-                </form>
-            </div>
+<!-- Apply: summary of what each card will do -->
+<dialog class="sheet" id="apply-sheet" th:aria-label="#{review.applyTitle}">
+    <form th:action="@{/ui/bulk-statements/execute}" method="post">
+        <div class="sheet-head">
+            <button type="button" class="btn btn-plain btn-sm" data-close-sheet th:text="#{common.cancel}">Cancel</button>
+            <strong th:text="#{review.applyTitle}">Apply import</strong>
+            <span style="width: 60px"></span>
         </div>
-    </div>
-</div>
-
-<!-- Mark as Ignorable modal -->
-<div class="modal fade" id="ignoreModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-eye-slash me-2"></i>Mark Debt as Ignorable</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="sheet-body">
+            <p class="subtitle" th:text="#{review.applyHelp}">Everything is saved together.</p>
+            <div class="list">
+                <div class="list-row" th:each="item : ${batch.items()}">
+                    <span class="list-row-body">
+                        <span class="list-row-title">
+                            <span th:text="${item.accountName != null ? item.accountName : item.debtAccountCode}">Visa Oro</span>
+                            <span th:text="${item.fileName}">statement.pdf</span>
+                        </span>
+                        <span th:if="${item.hasError()}" class="chip chip-red" th:text="#{review.failedBadge}">Failed</span>
+                        <span th:if="${!item.hasError() and item.action.name() == 'UPDATE'}" class="chip chip-blue" th:text="#{review.update}">Update</span>
+                        <span th:if="${!item.hasError() and item.action.name() == 'SOURCE_OF_TRUTH'}" class="chip chip-orange" th:text="#{review.rebuild}">Rebuild from 0</span>
+                        <span th:if="${!item.hasError() and item.action.name() == 'SKIP'}" class="chip chip-gray" th:text="#{review.skip}">Skip</span>
+                    </span>
+                </div>
             </div>
-            <form id="ignoreForm" method="post">
-                <input type="hidden" name="hashSum" id="ignoreHashSum">
-                <div class="modal-body">
-                    <p class="text-muted mb-3">
-                        This debt will be excluded from all future statement previews for this card.
-                        You can remove it from the ignored list at any time under
-                        <a th:href="@{/ui/ignorable-debts}" target="_blank">Ignored Debts</a>.
-                    </p>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Debt</label>
-                        <input type="text" class="form-control" id="ignoreDebtDesc" readonly>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold" for="ignoreReason">Reason <span class="text-danger">*</span></label>
-                        <input type="text" name="reason" id="ignoreReason" class="form-control"
-                               placeholder="e.g. Not my debt, already settled outside the system" required>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-warning"><i class="bi bi-eye-slash me-1"></i>Ignore This Debt</button>
-                </div>
-            </form>
+            <div class="notice notice-warn" th:unless="${batch.sourceOfTruthItems().isEmpty()}"
+                 th:text="#{review.rebuildWarning(${batch.sourceOfTruthItems().size()})}">1 card will be rebuilt from 0.</div>
+            <button type="submit" class="btn btn-primary btn-block" th:text="#{review.applyN(${batch.actionableCount()})}">Apply 2 cards</button>
         </div>
-    </div>
-</div>
+    </form>
+</dialog>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-    // Point the ignore modal at the card the clicked debt belongs to
-    document.getElementById('ignoreModal').addEventListener('show.bs.modal', function (e) {
-        var btn = e.relatedTarget;
-        var card = btn.closest('[data-ignore-url]');
-        document.getElementById('ignoreForm').action = card ? card.getAttribute('data-ignore-url') : '';
-        document.getElementById('ignoreHashSum').value  = btn.getAttribute('data-hash') || '';
-        document.getElementById('ignoreDebtDesc').value = btn.getAttribute('data-desc') || '';
-        document.getElementById('ignoreReason').value   = '';
-    });
-</script>
+<dialog th:replace="~{fragments/statement-diff :: ignoreSheet('')}"></dialog>
 </body>
 </html>

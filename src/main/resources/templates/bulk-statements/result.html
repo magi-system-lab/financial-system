@@ -1,76 +1,42 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Bulk Statement Import Result – Financial Manager</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-</head>
-<body class="bg-light">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{layout/app :: head(#{result.title})}"></head>
+<body class="app">
+<div th:replace="~{layout/app :: nav}"></div>
+<main class="app-main">
+    <div class="empty" style="color: var(--text)">
+        <span class="row-icon bg-green" style="width: 72px; height: 72px; border-radius: 36px">
+            <svg th:replace="~{layout/app :: icon('check', '')}"></svg>
+        </span>
+        <h1 class="large-title" style="font-size: 28px" th:text="#{result.title}">Import complete</h1>
+        <p class="subtitle" th:text="#{result.summary(${result.count(T(com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.BulkSyncResult.Outcome).APPLIED)}, ${result.count(T(com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.BulkSyncResult.Outcome).NO_CHANGES)}, ${result.count(T(com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.BulkSyncResult.Outcome).SKIPPED)}, ${result.count(T(com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.BulkSyncResult.Outcome).FAILED)})}">2 applied · 1 up to date · 0 skipped · 0 failed</p>
+    </div>
 
-<div th:replace="~{layout/navbar :: navbar}"></div>
-
-<div class="container py-2">
-    <div class="d-flex align-items-center justify-content-between mb-4">
-        <div>
-            <h2 class="fw-bold mb-0"><i class="bi bi-check2-circle me-2 text-success"></i>Bulk import finished</h2>
-            <small class="text-muted">
-                <span th:text="${result.count(T(com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.BulkSyncResult.Outcome).APPLIED)}"></span> applied
-                &nbsp;·&nbsp; <span th:text="${result.count(T(com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.BulkSyncResult.Outcome).NO_CHANGES)}"></span> already up to date
-                &nbsp;·&nbsp; <span th:text="${result.count(T(com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.BulkSyncResult.Outcome).SKIPPED)}"></span> skipped
-                &nbsp;·&nbsp; <span th:text="${result.count(T(com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.BulkSyncResult.Outcome).FAILED)}"></span> failed
-            </small>
-        </div>
-        <div class="d-flex gap-2">
-            <a th:href="@{/ui/bulk-statements}" class="btn btn-outline-primary"><i class="bi bi-files me-1"></i>New bulk import</a>
-            <a th:href="@{/ui/insights}" class="btn btn-primary"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
+    <div class="list">
+        <div class="list-row" th:each="e : ${result.entries()}">
+            <span class="list-row-body" style="padding-top: 12px; padding-bottom: 12px">
+                <span class="list-row-title" style="gap: 3px">
+                    <a th:if="${!e.debtAccountCode().isEmpty()}" th:href="@{/ui/debt-accounts/{c}(c=${e.debtAccountCode()})}"
+                       style="color: var(--text)" th:text="${e.accountName() != null ? e.accountName() : e.debtAccountCode()}">Visa Oro</a>
+                    <span th:if="${e.debtAccountCode().isEmpty()}">—</span>
+                    <span th:text="${e.fileName()}">statement.pdf</span>
+                    <span th:if="${e.outcome().name() == 'APPLIED'}" th:text="#{result.counts(${e.inserted()}, ${e.updated()}, ${e.deactivated()})}">+2 new · 3 updated · −0 deactivated</span>
+                    <span th:if="${e.note() != null}" th:text="${e.note()}">note</span>
+                </span>
+                <span th:switch="${e.outcome().name()}">
+                    <span th:case="'APPLIED'" class="chip chip-green" th:text="#{result.applied}">Applied</span>
+                    <span th:case="'NO_CHANGES'" class="chip chip-blue" th:text="#{result.upToDate}">Up to date</span>
+                    <span th:case="'SKIPPED'" class="chip chip-gray" th:text="#{result.skipped}">Skipped</span>
+                    <span th:case="'FAILED'" class="chip chip-red" th:text="#{result.failed}">Failed</span>
+                </span>
+            </span>
         </div>
     </div>
 
-    <div class="card shadow-sm mb-5">
-        <div class="table-responsive">
-            <table class="table table-sm align-middle mb-0">
-                <thead class="table-dark">
-                <tr>
-                    <th>Card</th>
-                    <th>File</th>
-                    <th>Mode</th>
-                    <th>Outcome</th>
-                    <th class="text-center">Inserted</th>
-                    <th class="text-center">Updated</th>
-                    <th class="text-center">Deactivated</th>
-                    <th>Note</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="e : ${result.entries()}">
-                    <td>
-                        <a th:if="${!e.debtAccountCode().isEmpty()}" th:href="@{/ui/debt-accounts/{c}(c=${e.debtAccountCode()})}"
-                           th:text="${e.accountName() != null ? e.accountName() : e.debtAccountCode()}"></a>
-                        <span th:if="${e.debtAccountCode().isEmpty()}" class="text-muted">—</span>
-                    </td>
-                    <td class="small text-muted" th:text="${e.fileName()}"></td>
-                    <td><span class="badge bg-light text-dark border" th:text="${e.mode()}"></span></td>
-                    <td>
-                        <span th:switch="${e.outcome().name()}">
-                            <span th:case="'APPLIED'" class="badge bg-success">APPLIED</span>
-                            <span th:case="'NO_CHANGES'" class="badge bg-info text-dark">UP TO DATE</span>
-                            <span th:case="'SKIPPED'" class="badge bg-secondary">SKIPPED</span>
-                            <span th:case="'FAILED'" class="badge bg-danger">FAILED</span>
-                        </span>
-                    </td>
-                    <td class="text-center" th:text="${e.inserted()}"></td>
-                    <td class="text-center" th:text="${e.updated()}"></td>
-                    <td class="text-center" th:text="${e.deactivated()}"></td>
-                    <td class="small text-muted" th:text="${e.note() != null ? e.note() : ''}"></td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
+    <div class="actions-grid">
+        <a class="btn btn-tinted" th:href="@{/ui/bulk-statements}" th:text="#{result.again}">New import</a>
+        <a class="btn btn-primary" th:href="@{/ui/insights}" th:text="#{result.insights}">See Insights</a>
     </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</main>
 </body>
 </html>
