@@ -1,370 +1,250 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Account Detail – Financial Manager</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-</head>
-<body class="bg-light">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{layout/app :: head(${account != null ? account.name : debtAccountCode})}"></head>
+<body class="app">
+<div th:replace="~{layout/app :: nav}"></div>
+<main class="app-main" th:with="loc=${#locale}">
 
-<div th:replace="~{layout/navbar :: navbar}"></div>
-
-<div class="container">
-    <div class="d-flex align-items-center mb-4">
-        <a th:href="@{/ui/providers}" class="btn btn-outline-secondary me-3">
-            <i class="bi bi-arrow-left"></i>
+    <div class="nav-bar">
+        <a class="btn btn-glass btn-icon" th:href="@{/ui/cards}" th:aria-label="#{common.back}">
+            <svg th:replace="~{layout/app :: icon('chevron-left', '')}"></svg>
         </a>
-        <div>
-            <h2 class="fw-bold mb-0">
-                <i class="bi bi-credit-card me-2 text-primary"></i>
-                <span th:text="${account?.name ?: debtAccountCode}">Account</span>
-            </h2>
-            <small class="text-muted font-monospace" th:text="${debtAccountCode}"></small>
+        <span class="nav-bar-title" th:text="${account != null ? account.name : debtAccountCode}">BBVA Azul</span>
+        <button type="button" class="btn btn-glass btn-icon" data-open-sheet="add-debt-sheet" th:aria-label="#{card.addDebt}"
+                th:if="${account != null}">
+            <svg th:replace="~{layout/app :: icon('plus', '')}"></svg>
+        </button>
+    </div>
+
+    <div class="card" th:if="${account == null}">
+        <div class="empty"><span th:text="#{card.notFound}">This card doesn’t exist.</span></div>
+    </div>
+
+    <th:block th:if="${account != null}">
+
+    <div class="notice notice-info" th:if="${parserUpdated != null}" th:text="#{card.parserUpdated(${parserUpdated})}">Statement type changed.</div>
+
+    <div class="row-wrap" style="align-items: stretch">
+        <!-- Card visual -->
+        <div class="pay-card" th:style="${'--card-color:' + color}">
+            <span class="pay-card-top">
+                <span class="pay-card-name" th:text="${account.name}">BBVA Azul</span>
+                <span class="pay-card-sub" th:if="${account.accountStatementType != null}"
+                      th:text="${#strings.replace(account.accountStatementType.name(), '_', ' ')}">BBVA</span>
+            </span>
+            <span style="display: flex; flex-direction: column; gap: 2px">
+                <span class="pay-card-sub" th:text="#{card.thisMonth}">This month</span>
+                <span class="pay-card-big" th:text="${@fmt.money(totalMonthlyPayment)}">$4,773.75</span>
+            </span>
+            <span class="pay-card-bottom">
+                <span th:text="${account.financialProvider != null ? account.financialProvider.name : ''}">BBVA</span>
+                <span th:if="${account.payDay != null}" th:text="#{card.payDay(${account.payDay})}">Pay day 5</span>
+            </span>
+        </div>
+
+        <!-- Key numbers -->
+        <div class="grid-2" style="align-content: stretch">
+            <div class="tile">
+                <span class="tile-label" th:text="#{card.leftToPay}">Left to pay</span>
+                <span class="tile-value" th:text="${@fmt.money0(remaining)}">$31,250</span>
+            </div>
+            <div class="tile">
+                <span class="tile-label" th:text="#{card.ends}">Last payment</span>
+                <span class="tile-value" th:text="${@fmt.monthYear(endsMonth, loc)}">Jun 2027</span>
+                <span class="tile-sub" th:text="#{card.endsIn(${monthsLeft})}">in 8 months</span>
+            </div>
+            <div class="tile">
+                <span class="tile-label" th:text="#{card.lastPaid}">Last recorded payment</span>
+                <span class="tile-value" style="font-size: 20px"
+                      th:text="${lastPayment != null} ? ${#temporals.format(lastPayment, 'd MMM yyyy')} : #{card.never}">5 Oct 2026</span>
+            </div>
+            <div class="tile">
+                <span class="tile-label" th:text="#{card.creditLimit}">Credit limit</span>
+                <span class="tile-value" style="font-size: 20px" th:text="${account.credit != null} ? ${@fmt.money0(account.credit)} : '—'">$60,000</span>
+            </div>
         </div>
     </div>
 
-    <!-- Success message -->
-    <div class="alert alert-success alert-dismissible fade show mb-3" th:if="${successMessage != null}">
-        <i class="bi bi-check-circle me-2"></i><span th:text="${successMessage}"></span>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-
-    <!-- Account Status Cards -->
-    <div class="row g-3 mb-4" th:if="${status != null}">
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm text-bg-primary">
-                <div class="card-body">
-                    <div class="small fw-semibold text-uppercase opacity-75">Monthly Payment</div>
-                    <div class="fs-4 fw-bold" th:text="${'$' + #numbers.formatDecimal(status.monthPayment, 1, 2)}">$0.00</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm text-bg-secondary">
-                <div class="card-body">
-                    <div class="small fw-semibold text-uppercase opacity-75">Active Debts</div>
-                    <div class="fs-4 fw-bold" th:text="${debts.size()}">0</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm text-bg-warning">
-                <div class="card-body">
-                    <div class="small fw-semibold text-uppercase opacity-75">Almost Completed</div>
-                    <div class="fs-4 fw-bold" th:text="${status.almostCompletedDebts?.size() ?: 0}">0</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Actions -->
-    <div class="d-flex gap-2 mb-4 flex-wrap">
-        <a th:href="@{/ui/v2/statements/{code}(code=${debtAccountCode})}" class="btn btn-primary">
-            <i class="bi bi-file-earmark-arrow-up me-2"></i>Import Statement
+    <!-- Main actions -->
+    <div class="actions-grid">
+        <a class="btn btn-primary" th:href="@{/ui/v2/statements/{c}(c=${debtAccountCode})}">
+            <svg th:replace="~{layout/app :: icon('import', 'ic-sm')}"></svg><span th:text="#{card.import}">Import statement</span>
         </a>
-        <a th:href="@{/ui/statements/{code}(code=${debtAccountCode})}" class="btn btn-outline-primary">
-            <i class="bi bi-file-earmark-arrow-up me-2"></i>Upload Statement (legacy)
-        </a>
-        <form th:action="@{/ui/debts/{code}/pay-off(code=${debtAccountCode})}" method="post">
-            <button type="submit" class="btn btn-success"
-                    onclick="return confirm('Pay off all debts for this account?')">
-                <i class="bi bi-check2-circle me-2"></i>Pay Off Debts
+        <form th:action="@{/ui/payments/{c}(c=${debtAccountCode})}" method="post" th:attr="data-confirm=#{card.recordConfirm}">
+            <button type="submit" class="btn btn-tinted">
+                <svg th:replace="~{layout/app :: icon('check', 'ic-sm')}"></svg><span th:text="#{card.recordPayment}">Record payment</span>
             </button>
         </form>
-        <a th:href="@{/ui/payments/{code}(code=${debtAccountCode})}" class="btn btn-outline-secondary">
-            <i class="bi bi-clock-history me-1"></i>Payment History
-        </a>
     </div>
 
-    <!-- Statement Type -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-            <div>
-                <h6 class="mb-0 fw-semibold"><i class="bi bi-gear me-2 text-secondary"></i>Statement Parser</h6>
-                <small class="text-muted">Parser used by the Import Statement flow.</small>
+    <!-- Debts by type -->
+    <section class="section">
+        <h2 class="section-title" th:text="#{card.debts}">Debts</h2>
+        <div class="card" th:if="${debts.isEmpty()}">
+            <div class="empty">
+                <span th:text="#{card.noDebts}">No active debts on this card.</span>
+                <button type="button" class="btn btn-tinted btn-sm" data-open-sheet="add-debt-sheet" th:text="#{card.addDebt}">Add debt</button>
             </div>
-            <span class="badge bg-secondary fs-6" th:text="${account?.accountStatementType}">—</span>
         </div>
-        <div class="card-body">
-            <form th:action="@{/ui/debt-accounts/{code}/statement-type(code=${debtAccountCode})}" method="post"
-                  class="row g-2 align-items-end">
-                <div class="col-sm-8">
-                    <label class="form-label fw-semibold mb-1">Change Parser</label>
-                    <select name="accountStatementType" class="form-select">
-                        <option th:each="type : ${statementTypes}"
-                                th:value="${type}"
-                                th:text="${type}"
-                                th:selected="${account != null and account.accountStatementType == type}">
-                        </option>
-                    </select>
-                </div>
-                <div class="col-sm-4">
-                    <button type="submit" class="btn btn-outline-secondary w-100"
-                            onclick="return confirm('Change the statement parser for this account?')">
-                        <i class="bi bi-arrow-repeat me-1"></i>Update Parser
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+        <th:block th:each="entry : ${debtsByType}">
+            <h3 class="list-header" style="display: flex; justify-content: space-between; margin-top: 6px">
+                <span th:text="#{${'debtType.' + entry.key.name()}}">Card</span>
+                <span class="tabular" th:text="${@fmt.money(typeSubtotals[entry.key])}">$4,773.75</span>
+            </h3>
+            <div class="list">
+                <button type="button" class="list-row" th:each="d : ${entry.value}" data-open-sheet="edit-debt-sheet"
+                        th:attr="data-action=@{/ui/debts/{id}/update(id=${d.id})},
+                                 data-alt-action=@{/ui/debts/{id}(id=${d.id})},
+                                 data-f-description=${d.description},
+                                 data-f-operation-date=${d.operationDate},
+                                 data-f-original-amount=${d.originalAmount},
+                                 data-f-monthly-payment=${d.monthlyPayment},
+                                 data-f-current-installment=${d.currentInstallment},
+                                 data-f-max-financing-term=${d.maxFinancingTerm},
+                                 data-f-debt-type=${d.debtType != null ? d.debtType : 'CARD'}">
+                    <span class="list-row-body" style="padding-top: 12px; padding-bottom: 12px">
+                        <span class="list-row-title" style="gap: 4px">
+                            <span th:text="${d.description}">MacBook Air</span>
+                            <th:block th:if="${d.maxFinancingTerm != null and d.maxFinancingTerm > 0 and d.currentInstallment != null}">
+                                <span th:text="#{card.installment(${d.currentInstallment}, ${d.maxFinancingTerm})}">9 of 12</span>
+                                <span th:class="${'meter' + (d.maxFinancingTerm - d.currentInstallment <= 1 ? ' meter-green' : '')}" style="margin-top: 4px">
+                                    <span th:style="${'width:' + (d.currentInstallment * 100 / d.maxFinancingTerm) + '%'}"></span>
+                                </span>
+                            </th:block>
+                        </span>
+                        <span style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px; padding-left: 8px">
+                            <span class="tabular" style="font-weight: 600" th:text="${d.monthlyPayment != null} ? ${@fmt.money(d.monthlyPayment)} : '—'">$2,083.25</span>
+                            <span class="small muted" th:if="${d.monthlyPayment != null and d.maxFinancingTerm != null and d.currentInstallment != null}"
+                                  th:text="#{card.left(${@fmt.money0(@fmt.times(d.monthlyPayment, d.maxFinancingTerm - d.currentInstallment))})}">$6,250 left</span>
+                        </span>
+                        <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+                    </span>
+                </button>
+            </div>
+        </th:block>
+    </section>
 
-    <!-- CSV Upload -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-            <div>
-                <h6 class="mb-0 fw-semibold"><i class="bi bi-filetype-csv me-2 text-success"></i>Bulk Upload via CSV</h6>
-                <small class="text-muted">Upload multiple debts at once using a CSV file.</small>
-            </div>
-            <a th:href="@{/ui/debt-accounts/csv-template}" class="btn btn-sm btn-outline-success">
-                <i class="bi bi-download me-1"></i>Download Template
+    <!-- Pending upcoming purchases on this card -->
+    <section class="section" th:unless="${upcoming == null or upcoming.isEmpty()}">
+        <h2 class="section-title" th:text="#{card.comingTitle}">Coming to this card</h2>
+        <div class="list">
+            <a class="list-row" th:each="u : ${upcoming}" th:href="@{/ui/upcoming-debts}">
+                <span class="row-icon bg-orange"><svg th:replace="~{layout/app :: icon('hourglass', '')}"></svg></span>
+                <span class="list-row-body">
+                    <span class="list-row-title">
+                        <span th:text="${u.description}">Dining table</span>
+                        <span th:text="#{card.comingSub(${u.installments}, ${@fmt.money0(u.monthlyPayment)}, ${u.firstPaymentMonth() != null ? @fmt.monthYear(u.firstPaymentMonth(), loc) : '—'})}">12 × $1,100 · first payment Jan 2027</span>
+                    </span>
+                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+                </span>
             </a>
         </div>
-        <div class="card-body">
-            <form th:action="@{/ui/statements/{code}/extract(code=${debtAccountCode})}"
-                  method="post" enctype="multipart/form-data" class="row g-2 align-items-end">
-                <input type="hidden" name="accountStatementType" value="CSV_UPLOAD">
-                <div class="col-sm-8">
-                    <label class="form-label fw-semibold mb-1">Select CSV File</label>
-                    <input type="file" name="file" class="form-control" accept=".csv" required>
-                    <div class="form-text">
-                        Required columns: <code>description, operationDate, originalAmount, monthlyPayment, currentInstallment, maxFinancingTerm, debtType</code>
-                    </div>
-                </div>
-                <div class="col-sm-4">
-                    <button type="submit" class="btn btn-success w-100">
-                        <i class="bi bi-upload me-2"></i>Upload &amp; Preview
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+    </section>
 
-    <!-- Add Debt Form -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-white">
-            <h6 class="mb-0 fw-semibold"><i class="bi bi-plus-circle me-2"></i>Add Debt</h6>
-        </div>
-        <div class="card-body">
-            <form th:action="@{/ui/debts/{code}(code=${debtAccountCode})}" method="post">
-                <div class="row g-2">
-                    <div class="col-sm-4">
-                        <input type="text" name="description" class="form-control" placeholder="Description" required>
-                    </div>
-                    <div class="col-sm-2">
-                        <input type="date" name="operationDate" class="form-control">
-                    </div>
-                    <div class="col-sm-2">
-                        <input type="number" name="originalAmount" step="0.01" class="form-control" placeholder="Amount">
-                    </div>
-                    <div class="col-sm-1">
-                        <input type="number" name="currentInstallment" class="form-control" placeholder="Inst." min="1">
-                    </div>
-                    <div class="col-sm-1">
-                        <input type="number" name="maxFinancingTerm" class="form-control" placeholder="Max" min="1">
-                    </div>
-                    <div class="col-sm-1">
-                        <input type="number" name="monthlyPayment" step="0.01" class="form-control" placeholder="Monthly">
-                    </div>
-                    <div class="col-sm-1">
-                        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-lg"></i></button>
-                    </div>
-                </div>
-                <div class="row g-2 mt-1 align-items-center">
-                    <div class="col-auto">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="active" value="true" id="activeCheck" checked>
-                            <label class="form-check-label" for="activeCheck">Active</label>
-                        </div>
-                    </div>
-                    <div class="col-sm-2">
-                        <select name="debtType" class="form-select form-select-sm">
-                            <option th:each="dtype : ${debtTypes}"
-                                    th:value="${dtype}"
-                                    th:text="${dtype}"
-                                    th:selected="${dtype.name() == 'CARD'}"></option>
-                        </select>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Debts Table grouped by type -->
-    <div class="card shadow-sm" th:if="${!debts.empty}">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 fw-semibold"><i class="bi bi-list-ul me-2"></i>Active Debts</h5>
-            <span class="fw-bold text-primary"
-                  th:text="${'Total: $' + #numbers.formatDecimal(totalMonthlyPayment, 1, 2)}"></span>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead class="table-dark">
-                <tr>
-                    <th>Description</th>
-                    <th>Date</th>
-                    <th>Original Amount</th>
-                    <th>Monthly Payment</th>
-                    <th>Progress</th>
-                    <th></th>
-                </tr>
-                </thead>
-                <tbody>
-                <th:block th:each="entry : ${debtsByType}">
-                    <!-- Type section header -->
-                    <tr class="table-secondary">
-                        <td colspan="6" class="fw-semibold py-2">
-                            <i class="bi bi-tag-fill me-1 text-secondary"></i>
-                            <span th:text="${entry.key}"></span>
-                            <span class="ms-2 text-muted fw-normal small"
-                                  th:text="${'$' + #numbers.formatDecimal(typeSubtotals[entry.key], 1, 2)}"></span>
-                        </td>
-                    </tr>
-                    <!-- Debt rows for this type -->
-                    <tr th:each="debt : ${entry.value}">
-                        <td th:text="${debt.description}"></td>
-                        <td th:text="${debt.operationDate}"></td>
-                        <td th:text="${debt.originalAmount != null ? '$' + #numbers.formatDecimal(debt.originalAmount, 1, 2) : '-'}"></td>
-                        <td th:text="${debt.monthlyPayment != null ? '$' + #numbers.formatDecimal(debt.monthlyPayment, 1, 2) : '-'}"></td>
-                        <td style="min-width: 140px;" th:if="${debt.maxFinancingTerm != null and debt.maxFinancingTerm > 0}">
-                            <div class="d-flex align-items-center gap-1">
-                                <div class="progress flex-grow-1" style="height: 6px;">
-                                    <div class="progress-bar"
-                                         th:style="${'width: ' + (debt.currentInstallment * 100 / debt.maxFinancingTerm) + '%'}"></div>
-                                </div>
-                                <small class="text-muted text-nowrap"
-                                       th:text="${debt.currentInstallment + '/' + debt.maxFinancingTerm}"></small>
-                            </div>
-                        </td>
-                        <td th:unless="${debt.maxFinancingTerm != null and debt.maxFinancingTerm > 0}">
-                            <span class="text-muted">—</span>
-                        </td>
-                        <td>
-                            <div class="d-flex gap-1">
-                                <button type="button" class="btn btn-sm btn-outline-secondary"
-                                        data-bs-toggle="modal" data-bs-target="#editDebtModal"
-                                        th:attr="
-                                            data-id=${debt.id},
-                                            data-description=${debt.description},
-                                            data-date=${debt.operationDate},
-                                            data-amount=${debt.originalAmount},
-                                            data-monthly=${debt.monthlyPayment},
-                                            data-current=${debt.currentInstallment},
-                                            data-max=${debt.maxFinancingTerm},
-                                            data-type=${debt.debtType}">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                <form th:action="@{/ui/debts/{id}(id=${debt.id})}" method="post">
-                                    <input type="hidden" name="_method" value="DELETE">
-                                    <input type="hidden" name="debtAccountCode" th:value="${debtAccountCode}">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger"
-                                            onclick="return confirm('Delete this debt?')">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                </th:block>
-                <!-- Grand total footer -->
-                <tr class="table-dark fw-bold">
-                    <td colspan="3">Total Monthly Payment</td>
-                    <td th:text="${'$' + #numbers.formatDecimal(totalMonthlyPayment, 1, 2)}"></td>
-                    <td colspan="2"></td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <div class="alert alert-info" th:if="${debts.empty}">
-        <i class="bi bi-info-circle me-2"></i>No active debts for this account.
-    </div>
-</div>
-
-<!-- Edit Debt Modal -->
-<div class="modal fade" id="editDebtModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-semibold">
-                    <i class="bi bi-pencil me-2"></i>Edit Debt
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <!-- Settings -->
+    <section class="section">
+        <h2 class="section-title" th:text="#{card.settings}">Settings</h2>
+        <div class="list">
+            <a class="list-row" th:href="@{/ui/payments/{c}(c=${debtAccountCode})}">
+                <span class="row-icon bg-green"><svg th:replace="~{layout/app :: icon('calendar', '')}"></svg></span>
+                <span class="list-row-body">
+                    <span class="list-row-title"><span th:text="#{card.history}">Payment history</span></span>
+                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+                </span>
+            </a>
+            <div class="list-row" style="align-items: flex-start">
+                <span class="row-icon" th:style="${'background:' + color}" style="margin-top: 12px"><svg th:replace="~{layout/app :: icon('cards', '')}"></svg></span>
+                <form class="list-row-body" style="flex-direction: column; align-items: stretch; gap: 10px"
+                      th:action="@{/ui/debt-accounts/{c}/color(c=${debtAccountCode})}" method="post">
+                    <span style="display: flex; justify-content: space-between; align-items: center">
+                        <span th:text="#{cards.color}">Colour</span>
+                        <button type="submit" class="btn btn-tinted btn-sm" th:text="#{common.save}">Save</button>
+                    </span>
+                    <div th:replace="~{cards/fragments :: swatches(${account.color})}"></div>
+                </form>
             </div>
-            <form id="editDebtForm" method="post">
-                <input type="hidden" name="debtAccountCode" th:value="${debtAccountCode}">
-                <div class="modal-body">
-                    <div class="row g-3">
-                        <div class="col-12">
-                            <label class="form-label fw-semibold">Description</label>
-                            <input type="text" name="description" id="edit-description" class="form-control" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Operation Date</label>
-                            <input type="text" name="operationDate" id="edit-date" class="form-control" placeholder="yyyy-MM-dd">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Original Amount</label>
-                            <div class="input-group">
-                                <span class="input-group-text">$</span>
-                                <input type="number" step="0.01" name="originalAmount" id="edit-amount" class="form-control">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Monthly Payment</label>
-                            <div class="input-group">
-                                <span class="input-group-text">$</span>
-                                <input type="number" step="0.01" name="monthlyPayment" id="edit-monthly" class="form-control" required>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Current Installment</label>
-                            <input type="number" name="currentInstallment" id="edit-current" class="form-control" min="0" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Max Term</label>
-                            <input type="number" name="maxFinancingTerm" id="edit-max" class="form-control" min="1" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Type</label>
-                            <select name="debtType" id="edit-type" class="form-select" required>
-                                <option th:each="dtype : ${debtTypes}"
-                                        th:value="${dtype}"
-                                        th:text="${dtype}"></option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-floppy me-1"></i>Save Changes
-                    </button>
-                </div>
+            <div class="list-row" style="align-items: flex-start">
+                <span class="row-icon bg-gray" style="margin-top: 12px"><svg th:replace="~{layout/app :: icon('receipt', '')}"></svg></span>
+                <form class="list-row-body" style="flex-direction: column; align-items: stretch; gap: 10px"
+                      th:action="@{/ui/debt-accounts/{c}/statement-type(c=${debtAccountCode})}" method="post">
+                    <label for="parser" th:text="#{card.parser}">Statement type</label>
+                    <span style="display: flex; gap: 10px">
+                        <select class="field" id="parser" name="accountStatementType" style="height: 44px">
+                            <option th:each="t : ${statementTypes}" th:value="${t}"
+                                    th:selected="${account.accountStatementType == t}"
+                                    th:text="${#strings.replace(t.name(), '_', ' ')}">BBVA</option>
+                        </select>
+                        <button type="submit" class="btn btn-tinted btn-sm" style="height: 44px" th:text="#{common.save}">Save</button>
+                    </span>
+                </form>
+            </div>
+            <div class="list-row" style="align-items: flex-start">
+                <span class="row-icon bg-teal" style="margin-top: 12px"><svg th:replace="~{layout/app :: icon('import', '')}"></svg></span>
+                <form class="list-row-body" style="flex-direction: column; align-items: stretch; gap: 10px"
+                      th:action="@{/ui/statements/{c}/extract(c=${debtAccountCode})}" method="post" enctype="multipart/form-data">
+                    <input type="hidden" name="accountStatementType" value="CSV_UPLOAD">
+                    <span style="display: flex; justify-content: space-between; align-items: center; gap: 8px">
+                        <label for="csv" th:text="#{card.csv}">Upload debts from CSV</label>
+                        <a class="small" th:href="@{/ui/debt-accounts/csv-template}" th:text="#{card.csvTemplate}">Download template</a>
+                    </span>
+                    <input class="field" type="file" id="csv" name="file" accept=".csv" required>
+                    <span class="small muted" th:text="#{card.csvHelp}">Columns: …</span>
+                    <button type="submit" class="btn btn-tinted btn-sm" style="align-self: flex-start" th:text="#{card.csvUpload}">Upload &amp; preview</button>
+                </form>
+            </div>
+            <a class="list-row" th:href="@{/ui/statements/{c}(c=${debtAccountCode})}">
+                <span class="row-icon bg-gray"><svg th:replace="~{layout/app :: icon('import', '')}"></svg></span>
+                <span class="list-row-body">
+                    <span class="list-row-title"><span th:text="#{card.legacy}">Older statement upload</span></span>
+                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+                </span>
+            </a>
+            <form class="inline" th:action="@{/ui/debts/{c}/pay-off(c=${debtAccountCode})}" method="post">
+                <button type="submit" class="list-row action" th:attr="data-confirm=#{card.payOffConfirm}">
+                    <span class="row-icon bg-green"><svg th:replace="~{layout/app :: icon('check', '')}"></svg></span>
+                    <span class="list-row-body"><span class="list-row-title"><span th:text="#{card.payOff}">Pay off all debts</span></span></span>
+                </button>
+            </form>
+            <form class="inline" th:action="@{/ui/debt-accounts/{c}(c=${debtAccountCode})}" method="post">
+                <input type="hidden" name="_method" value="DELETE">
+                <button type="submit" class="list-row danger" th:attr="data-confirm=#{card.deleteConfirm}">
+                    <span class="row-icon bg-pink"><svg th:replace="~{layout/app :: icon('close', '')}"></svg></span>
+                    <span class="list-row-body"><span class="list-row-title"><span th:text="#{card.delete}">Delete card</span></span></span>
+                </button>
             </form>
         </div>
-    </div>
-</div>
+    </section>
+    </th:block>
+</main>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-document.getElementById('editDebtModal').addEventListener('show.bs.modal', function (e) {
-    var btn = e.relatedTarget;
-    var id = btn.getAttribute('data-id');
-    document.getElementById('editDebtForm').action = '/ui/debts/' + id + '/update';
-    document.getElementById('edit-description').value = btn.getAttribute('data-description') || '';
-    document.getElementById('edit-date').value       = btn.getAttribute('data-date') || '';
-    document.getElementById('edit-amount').value     = btn.getAttribute('data-amount') || '';
-    document.getElementById('edit-monthly').value    = btn.getAttribute('data-monthly') || '';
-    document.getElementById('edit-current').value    = btn.getAttribute('data-current') || '';
-    document.getElementById('edit-max').value        = btn.getAttribute('data-max') || '';
-    var typeSelect = document.getElementById('edit-type');
-    var debtType = btn.getAttribute('data-type') || '';
-    for (var i = 0; i < typeSelect.options.length; i++) {
-        typeSelect.options[i].selected = (typeSelect.options[i].value === debtType);
-    }
-});
-</script>
+<!-- Add debt -->
+<dialog class="sheet" id="add-debt-sheet" th:aria-label="#{debt.add}" th:if="${account != null}">
+    <form th:action="@{/ui/debts/{c}(c=${debtAccountCode})}" method="post">
+        <input type="hidden" name="active" value="true">
+        <div class="sheet-head">
+            <button type="button" class="btn btn-plain btn-sm" data-close-sheet th:text="#{common.cancel}">Cancel</button>
+            <strong th:text="#{debt.add}">New debt</strong>
+            <button type="submit" class="btn btn-plain btn-sm" style="font-weight: 700" th:text="#{common.add}">Add</button>
+        </div>
+        <div class="sheet-body" th:insert="~{debt-accounts/fragments :: debtFields('add')}"></div>
+    </form>
+</dialog>
+
+<!-- Edit debt (filled from the tapped row) -->
+<dialog class="sheet" id="edit-debt-sheet" th:aria-label="#{debt.edit}" th:if="${account != null}">
+    <form method="post">
+        <input type="hidden" name="debtAccountCode" th:value="${debtAccountCode}">
+        <div class="sheet-head">
+            <button type="button" class="btn btn-plain btn-sm" data-close-sheet th:text="#{common.cancel}">Cancel</button>
+            <strong th:text="#{debt.edit}">Edit debt</strong>
+            <button type="submit" class="btn btn-plain btn-sm" style="font-weight: 700" th:text="#{common.save}">Save</button>
+        </div>
+        <div class="sheet-body">
+            <th:block th:insert="~{debt-accounts/fragments :: debtFields('edit')}"></th:block>
+            <button type="submit" class="btn btn-danger btn-block" name="_method" value="DELETE"
+                    data-alt-submit formnovalidate th:attr="data-confirm=#{debt.deleteConfirm}" th:text="#{debt.delete}">Delete debt</button>
+        </div>
+    </form>
+</dialog>
 </body>
 </html>

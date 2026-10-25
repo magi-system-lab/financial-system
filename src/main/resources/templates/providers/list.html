@@ -1,130 +1,97 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Providers – Financial Manager</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-</head>
-<body class="bg-light">
-
-<div th:replace="~{layout/navbar :: navbar}"></div>
-
-<div class="container">
-    <h2 class="mb-4 fw-bold"><i class="bi bi-bank me-2 text-primary"></i>Financial Providers</h2>
-
-    <div class="row g-4">
-        <!-- Provider Catalogs -->
-        <div class="col-lg-5">
-            <div class="card shadow-sm">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0 fw-semibold"><i class="bi bi-collection me-2"></i>Provider Catalog</h5>
-                </div>
-                <div class="card-body">
-                    <form th:action="@{/ui/providers/catalog}" method="post" class="d-flex gap-2 mb-3">
-                        <input type="text" name="name" class="form-control" placeholder="New catalog name" required>
-                        <button type="submit" class="btn btn-primary text-nowrap">
-                            <i class="bi bi-plus-lg"></i> Add
-                        </button>
-                    </form>
-                    <div class="list-group" th:if="${!catalogs.empty}">
-                        <div th:each="catalog : ${catalogs}"
-                             class="list-group-item d-flex justify-content-between align-items-center">
-                            <span><i class="bi bi-tag me-2 text-muted"></i>
-                                <span th:text="${catalog.name}"></span>
-                                <small class="text-muted ms-2">#<span th:text="${catalog.id}"></span></small>
-                            </span>
-                            <form th:action="@{/ui/providers/catalog/{id}(id=${catalog.id})}" method="post">
-                                <input type="hidden" name="_method" value="DELETE">
-                                <button type="submit" class="btn btn-outline-danger btn-sm"
-                                        onclick="return confirm('Delete this catalog?')">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                    <p class="text-muted text-center mt-3" th:if="${catalogs.empty}">
-                        <i class="bi bi-inbox me-1"></i>No catalogs yet.
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <!-- My Providers -->
-        <div class="col-lg-7">
-            <div class="card shadow-sm">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0 fw-semibold"><i class="bi bi-building me-2"></i>My Providers</h5>
-                </div>
-                <div class="card-body">
-                    <!-- Add Provider Form -->
-                    <form th:action="@{/ui/providers}" method="post" class="mb-3">
-                        <div class="row g-2">
-                            <div class="col-sm-3">
-                                <input type="text" name="code" class="form-control" placeholder="Code" required>
-                            </div>
-                            <div class="col-sm-4">
-                                <input type="text" name="name" class="form-control" placeholder="Name" required>
-                            </div>
-                            <div class="col-sm-3">
-                                <select name="catalogId" class="form-select" required>
-                                    <option value="">-- Catalog --</option>
-                                    <option th:each="cat : ${catalogs}"
-                                            th:value="${cat.id}"
-                                            th:text="${cat.name}"></option>
-                                </select>
-                            </div>
-                            <div class="col-sm-2">
-                                <button type="submit" class="btn btn-primary w-100">
-                                    <i class="bi bi-plus-lg"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-
-                    <!-- Providers List -->
-                    <div class="table-responsive" th:if="${!providers.empty}">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                            <tr>
-                                <th>Code</th>
-                                <th>Name</th>
-                                <th>Catalog</th>
-                                <th>Actions</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            <tr th:each="provider : ${providers}">
-                                <td class="font-monospace small" th:text="${provider.code}"></td>
-                                <td th:text="${provider.name}"></td>
-                                <td th:text="${provider.financialProviderCatalog?.name}"></td>
-                                <td class="d-flex gap-1">
-                                    <a th:href="@{/ui/debt-accounts(providerCode=${provider.code})}"
-                                       class="btn btn-sm btn-outline-primary">
-                                        <i class="bi bi-credit-card-2-front"></i> Accounts
-                                    </a>
-                                    <form th:action="@{/ui/providers/{code}(code=${provider.code})}" method="post">
-                                        <input type="hidden" name="_method" value="DELETE">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                onclick="return confirm('Delete this provider?')">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <p class="text-muted text-center mt-3" th:if="${providers.empty}">
-                        <i class="bi bi-inbox me-1"></i>No providers yet.
-                    </p>
-                </div>
-            </div>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{layout/app :: head(#{providers.title})}"></head>
+<body class="app">
+<div th:replace="~{layout/app :: nav}"></div>
+<main class="app-main">
+    <div class="nav-bar">
+        <a class="btn btn-glass btn-icon" th:href="@{/ui/cards}" th:aria-label="#{common.back}">
+            <svg th:replace="~{layout/app :: icon('chevron-left', '')}"></svg>
+        </a>
+        <span></span>
+        <button type="button" class="btn btn-glass btn-icon" data-open-sheet="add-provider-sheet" th:aria-label="#{providers.add}">
+            <svg th:replace="~{layout/app :: icon('plus', '')}"></svg>
+        </button>
+    </div>
+    <div class="title-block">
+        <div>
+            <h1 class="large-title" th:text="#{providers.title}">Providers</h1>
+            <p class="subtitle" th:text="#{providers.subtitle}">Banks and stores your cards belong to.</p>
         </div>
     </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <div class="list" th:unless="${providers.isEmpty()}">
+        <div class="list-row" th:each="p : ${providers}">
+            <a class="list-row-body" th:href="@{/ui/cards(provider=${p.code})}" style="color: var(--text)">
+                <span class="list-row-title">
+                    <span th:text="${p.name}">BBVA</span>
+                    <span th:if="${p.financialProviderCatalog != null}" th:text="${p.financialProviderCatalog.name}">Bank</span>
+                </span>
+                <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+            </a>
+            <form th:action="@{/ui/providers/{c}(c=${p.code})}" method="post" style="margin: 0 12px 0 0"
+                  th:attr="data-confirm=#{providers.deleteConfirm}">
+                <input type="hidden" name="_method" value="DELETE">
+                <button type="submit" class="icon-btn danger" th:aria-label="${#messages.msg('common.delete') + ' ' + p.name}">
+                    <svg th:replace="~{layout/app :: icon('close', '')}"></svg>
+                </button>
+            </form>
+        </div>
+    </div>
+    <div class="card" th:if="${providers.isEmpty()}">
+        <div class="empty">
+            <svg th:replace="~{layout/app :: icon('bank', '')}"></svg>
+            <span th:text="#{providers.empty}">No providers yet.</span>
+            <button type="button" class="btn btn-tinted btn-sm" data-open-sheet="add-provider-sheet" th:text="#{providers.add}">Add provider</button>
+        </div>
+    </div>
+
+    <section class="section">
+        <h2 class="list-header" th:text="#{providers.catalogs}">Provider types</h2>
+        <div class="list">
+            <div class="list-row" th:each="cat : ${catalogs}">
+                <span class="list-row-body">
+                    <span class="list-row-title"><span th:text="${cat.name}">Bank</span></span>
+                    <form th:action="@{/ui/providers/catalog/{id}(id=${cat.id})}" method="post" style="margin: 0"
+                          th:attr="data-confirm=#{providers.catalogDeleteConfirm}">
+                        <input type="hidden" name="_method" value="DELETE">
+                        <button type="submit" class="icon-btn danger" th:aria-label="${#messages.msg('common.delete') + ' ' + cat.name}">
+                            <svg th:replace="~{layout/app :: icon('close', '')}"></svg>
+                        </button>
+                    </form>
+                </span>
+            </div>
+            <form class="list-row" th:action="@{/ui/providers/catalog}" method="post" style="margin: 0">
+                <span class="list-row-body">
+                    <input class="field" name="name" required th:placeholder="#{providers.newCatalog}" th:aria-label="#{providers.newCatalog}" style="height: 40px">
+                    <button type="submit" class="btn btn-tinted btn-sm" th:text="#{common.add}">Add</button>
+                </span>
+            </form>
+        </div>
+        <p class="list-footer" th:text="#{providers.catalogsHelp}">Groups for providers.</p>
+    </section>
+</main>
+
+<dialog class="sheet" id="add-provider-sheet" th:aria-label="#{providers.add}">
+    <form th:action="@{/ui/providers}" method="post">
+        <div class="sheet-head">
+            <button type="button" class="btn btn-plain btn-sm" data-close-sheet th:text="#{common.cancel}">Cancel</button>
+            <strong th:text="#{providers.add}">Add provider</strong>
+            <button type="submit" class="btn btn-plain btn-sm" style="font-weight: 700" th:text="#{common.add}">Add</button>
+        </div>
+        <div class="sheet-body">
+            <div>
+                <label class="field-label" for="prov-name" th:text="#{providers.name}">Name</label>
+                <input class="field" id="prov-name" name="name" required autocomplete="off">
+            </div>
+            <div>
+                <label class="field-label" for="prov-cat" th:text="#{providers.catalog}">Type</label>
+                <select class="field" id="prov-cat" name="catalogId" required>
+                    <option th:each="cat : ${catalogs}" th:value="${cat.id}" th:text="${cat.name}">Bank</option>
+                </select>
+            </div>
+        </div>
+    </form>
+</dialog>
 </body>
 </html>

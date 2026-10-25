@@ -58,6 +58,12 @@ function copyEl(btn, el) {
 
     document.addEventListener('submit', (event) => {
         const form = event.target;
+        // <form data-confirm="…"> or <button data-confirm="…">: ask before submitting.
+        const question = (event.submitter && event.submitter.dataset.confirm) || form.dataset.confirm;
+        if (question && !window.confirm(question)) {
+            event.preventDefault();
+            return;
+        }
         // Writes never work offline: stop early with a clear message.
         if (!navigator.onLine) {
             event.preventDefault();
@@ -80,7 +86,10 @@ function copyEl(btn, el) {
         const opener = event.target.closest('[data-open-sheet]');
         if (opener) {
             const sheet = document.getElementById(opener.dataset.openSheet);
-            if (sheet && sheet.showModal) sheet.showModal();
+            if (sheet && sheet.showModal) {
+                fillSheet(sheet, opener);
+                sheet.showModal();
+            }
         }
         const closer = event.target.closest('[data-close-sheet]');
         if (closer) closer.closest('dialog')?.close();
@@ -99,6 +108,29 @@ function copyEl(btn, el) {
             p.hidden = p.dataset.value !== value;
         });
     });
+
+    // An opener can prefill the sheet's form: data-action="/url" sets the form action and
+    // data-f-monthly-payment="12" sets the field named "monthlyPayment".
+    function fillSheet(sheet, opener) {
+        const form = sheet.querySelector('form');
+        if (!form) return;
+        if (opener.dataset.action) form.action = opener.dataset.action;
+        // A second submit button (e.g. Delete) posting elsewhere: data-alt-action on the opener.
+        const alt = form.querySelector('[data-alt-submit]');
+        if (alt) {
+            alt.hidden = !opener.dataset.altAction;
+            if (opener.dataset.altAction) alt.formAction = opener.dataset.altAction;
+        }
+        Object.keys(opener.dataset).forEach((key) => {
+            if (!/^f[A-Z]/.test(key)) return;
+            const name = key.charAt(1).toLowerCase() + key.slice(2);
+            const field = form.elements.namedItem(name);
+            if (field) field.value = opener.dataset[key];
+        });
+        sheet.querySelectorAll('[data-sheet-extra]').forEach((el) => {
+            el.hidden = el.dataset.sheetExtra !== (opener.dataset.mode || '');
+        });
+    }
 
     // Tap outside a bottom sheet closes it.
     document.querySelectorAll('dialog.sheet').forEach((sheet) => {

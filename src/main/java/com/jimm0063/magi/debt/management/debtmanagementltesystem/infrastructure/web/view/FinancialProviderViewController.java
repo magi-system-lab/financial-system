@@ -66,6 +66,7 @@ public class FinancialProviderViewController {
         String email = (String) session.getAttribute("userEmail");
         if (email == null) return "redirect:/ui";
         req.setEmail(email);
+        if (req.getCode() == null || req.getCode().isBlank()) req.setCode(java.util.UUID.randomUUID().toString());
         var saved = financialProviderRepository.save(financialProviderMapper.toModel(req), email, req.getCatalogId());
         activityLogHelper.log(session, "Create Provider", saved);
         return "redirect:/ui/providers";

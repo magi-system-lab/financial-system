@@ -1,7 +1,9 @@
 package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.web.view;
 
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.DoPayment;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.DebtAccountRepository;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.PaymentRepository;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.Payment;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -23,20 +25,27 @@ public class PaymentViewController {
     private final DoPayment doPayment;
     private final PaymentRepository paymentRepository;
     private final ActivityLogHelper activityLogHelper;
+    private final DebtAccountRepository debtAccountRepository;
 
     public PaymentViewController(DoPayment doPayment,
                                  PaymentRepository paymentRepository,
-                                 ActivityLogHelper activityLogHelper) {
+                                 ActivityLogHelper activityLogHelper,
+                                 DebtAccountRepository debtAccountRepository) {
         this.doPayment = doPayment;
         this.paymentRepository = paymentRepository;
         this.activityLogHelper = activityLogHelper;
+        this.debtAccountRepository = debtAccountRepository;
     }
 
     @GetMapping("/{debtAccountCode}")
     public String list(@PathVariable String debtAccountCode, HttpSession session, Model model) {
         String email = (String) session.getAttribute("userEmail");
         if (email == null) return "redirect:/ui";
-        model.addAttribute("payments", paymentRepository.findByDebtAccountCode(debtAccountCode));
+        model.addAttribute("payments", paymentRepository.findByDebtAccountCode(debtAccountCode).stream()
+                .sorted(java.util.Comparator.comparing(Payment::getCreatedAt,
+                        java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder())))
+                .toList());
+        model.addAttribute("account", debtAccountRepository.findDebtAccountByCodeAndActiveTrue(debtAccountCode).orElse(null));
         model.addAttribute("debtAccountCode", debtAccountCode);
         model.addAttribute("email", email);
         return "payments/list";

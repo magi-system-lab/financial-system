@@ -19,6 +19,8 @@ public class DebtAccount implements Serializable {
     private Instant updatedAt;
     private Boolean active;
     private AccountStatementType accountStatementType;
+    /** Card colour on the UI as "#RRGGBB"; null = picked automatically from the bank. */
+    private String color;
     private FinancialProvider financialProvider;
     // List<Debt> debts,
 }

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<body>
+<!-- Debt form fields shared by the add and edit sheets; prefix keeps the ids unique. -->
+<th:block th:fragment="debtFields(prefix)">
+    <div class="form-stack">
+        <div>
+            <label class="field-label" th:for="${prefix + '-desc'}" th:text="#{debt.description}">Description</label>
+            <input class="field" th:id="${prefix + '-desc'}" name="description" required autocomplete="off">
+        </div>
+        <div class="field-row">
+            <div>
+                <label class="field-label" th:for="${prefix + '-monthly'}" th:text="#{debt.monthly}">Monthly payment</label>
+                <input class="field tabular" th:id="${prefix + '-monthly'}" name="monthlyPayment" type="number" inputmode="decimal" step="0.01" min="0" required>
+            </div>
+            <div>
+                <label class="field-label" th:for="${prefix + '-original'}" th:text="#{debt.original}">Original amount</label>
+                <input class="field tabular" th:id="${prefix + '-original'}" name="originalAmount" type="number" inputmode="decimal" step="0.01" min="0">
+            </div>
+        </div>
+        <div class="field-row">
+            <div>
+                <label class="field-label" th:for="${prefix + '-current'}" th:text="#{debt.current}">Installments paid</label>
+                <input class="field tabular" th:id="${prefix + '-current'}" name="currentInstallment" type="number" inputmode="numeric" min="0" required>
+            </div>
+            <div>
+                <label class="field-label" th:for="${prefix + '-term'}" th:text="#{debt.term}">Total installments</label>
+                <input class="field tabular" th:id="${prefix + '-term'}" name="maxFinancingTerm" type="number" inputmode="numeric" min="1" required>
+            </div>
+        </div>
+        <div class="field-row">
+            <div>
+                <label class="field-label" th:for="${prefix + '-date'}" th:text="#{debt.date}">Purchase date</label>
+                <input class="field" th:id="${prefix + '-date'}" name="operationDate" placeholder="yyyy-MM-dd">
+            </div>
+            <div>
+                <label class="field-label" th:for="${prefix + '-type'}" th:text="#{debt.type}">Type</label>
+                <select class="field" th:id="${prefix + '-type'}" name="debtType">
+                    <option th:each="t : ${debtTypes}" th:value="${t}" th:selected="${t.name() == 'CARD'}"
+                            th:text="#{${'debtType.' + t.name()}}">Card</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</th:block>
+</body>
+</html>

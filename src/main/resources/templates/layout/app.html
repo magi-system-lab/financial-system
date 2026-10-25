@@ -39,7 +39,7 @@
         <a class="fm-tab" th:href="@{/ui/insights}" th:aria-current="${navSection == 'insights'} ? 'page'">
             <svg th:replace="~{layout/app :: icon('insights', '')}"></svg><span th:text="#{nav.insights}">Insights</span>
         </a>
-        <a class="fm-tab" th:href="@{/ui/providers}" th:aria-current="${navSection == 'cards'} ? 'page'">
+        <a class="fm-tab" th:href="@{/ui/cards}" th:aria-current="${navSection == 'cards'} ? 'page'">
             <svg th:replace="~{layout/app :: icon('cards', '')}"></svg><span th:text="#{nav.cards}">Cards</span>
         </a>
         <a class="fm-tab" th:href="@{/ui/bulk-statements}" th:aria-current="${navSection == 'import'} ? 'page'">
@@ -60,7 +60,7 @@
             <a class="fm-side-item" th:href="@{/ui/insights}" th:aria-current="${navSection == 'insights'} ? 'page'">
                 <svg th:replace="~{layout/app :: icon('insights', '')}"></svg><span th:text="#{nav.insights}">Insights</span>
             </a>
-            <a class="fm-side-item" th:href="@{/ui/providers}" th:aria-current="${navSection == 'cards'} ? 'page'">
+            <a class="fm-side-item" th:href="@{/ui/cards}" th:aria-current="${navSection == 'cards'} ? 'page'">
                 <svg th:replace="~{layout/app :: icon('cards', '')}"></svg><span th:text="#{nav.cards}">Cards</span>
             </a>
             <a class="fm-side-item" th:href="@{/ui/bulk-statements}" th:aria-current="${navSection == 'import'} ? 'page'">

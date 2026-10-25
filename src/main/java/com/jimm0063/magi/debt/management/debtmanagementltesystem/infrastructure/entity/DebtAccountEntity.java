@@ -30,6 +30,8 @@ public class DebtAccountEntity implements Serializable {
     @Column(name = "account_statement_type")
     @Enumerated(EnumType.STRING)
     private AccountStatementType accountStatementType;
+    @Column(length = 7)
+    private String color;
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "financial_provider", nullable = false)
     private FinancialProviderEntity financialProvider;
