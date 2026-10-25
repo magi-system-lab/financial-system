@@ -243,7 +243,8 @@ the user can recognise the purchase and mark it as started. PENDING items are ad
 
 ### Spring Data REST (HAL-JSON)
 ```
-/jpa/*   Auto-generated CRUD for all JPA entities (HAL format with _embedded collections)
+/data/*  Auto-generated CRUD for every JPA repository (HAL format with _embedded collections, e.g. /data/debtEntities;
+         base path `spring.data.rest.base-path`). Unauthenticated like everything else, including DELETE.
 ```
 
 ### Web UI (Thymeleaf)
@@ -289,7 +290,9 @@ No Bootstrap, no CDN scripts — everything is in `app.css` / `app.js` / inline 
   the `fm_lang` cookie (`WebConfig`). All templates use `#{...}` keys.
 - **Offline:** `static/sw.js` saves each `/ui` page you open (network first, 6s timeout) and shows the saved copy with an
   "Offline · updated …" banner when there is no connection; forms are blocked offline; the copies are deleted on login /
-  switch user. Service workers need HTTPS (or localhost).
+  switch user. Service workers need HTTPS (or localhost). Warm-up: a few seconds after a page loads online (at most every
+  30 min, `localStorage.fm_warmed`), `app.js` posts the tab URLs from the nav's `data-warm` to the service worker, which
+  saves them plus the card / loan / payments pages they link to — so every tab works offline, not only visited ones.
 - **Done:** shell + login + More/Activity (phase 1), Insights (phase 2: `InsightsViewController`, view model
   `InsightsView` built from `GetDebtProgressionUseCase` over a 120-month horizon for the debt-free date; month
   panels switch client-side via `data-select` / `data-select-panel`). Money/month formatting for templates:

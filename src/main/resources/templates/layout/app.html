@@ -30,7 +30,8 @@
 <svg th:fragment="icon(name, cls)" th:class="${'ic ' + cls}" aria-hidden="true"><use th:href="@{/img/icons.svg} + '#' + ${name}"></use></svg>
 
 <div th:fragment="nav" class="fm-nav" data-from-cache="false"
-     th:attr="data-rendered=${#dates.createNow().getTime()},data-offline-form=#{offline.formBlocked}">
+     th:attr="data-rendered=${#dates.createNow().getTime()},data-offline-form=#{offline.formBlocked},
+              data-warm=${currentUser != null ? '/ui/insights /ui/cards /ui/upcoming-debts /ui/more /ui/receivables /ui/fixed-expenses /ui/providers /ui/ignorable-debts' : null}">
 
     <div class="fm-offline glass" role="status" hidden th:text="#{offline.banner}" th:attr="data-updated=#{offline.updated}">Offline</div>
 

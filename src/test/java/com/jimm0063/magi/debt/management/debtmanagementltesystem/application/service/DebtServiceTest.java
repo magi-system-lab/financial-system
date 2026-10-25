@@ -4,8 +4,10 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.Acco
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.DebtTypeEnum;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.Debt;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.DebtAccount;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.IgnorableDebt;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.DebtAccountRepository;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.DebtRepository;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.IgnorableDebtRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +38,9 @@ class DebtServiceTest {
 
     @Mock
     DebtAccountRepository debtAccountRepository;
+
+    @Mock
+    IgnorableDebtRepository ignorableDebtRepository;
 
     @InjectMocks
     DebtService debtService;
@@ -74,6 +79,24 @@ class DebtServiceTest {
         assertThat(result.newDebts()).hasSize(1).extracting(Debt::getDescription).containsExactly("Coffee Machine");
         assertThat(result.installmentUpdates()).isEmpty();
         assertThat(result.completedDebts()).isEmpty();
+    }
+
+    @Test
+    void preview_moves_ignorable_debt_to_ignored_with_its_reason() {
+        when(debtRepository.findAllDebtsByDebtAccountAndActiveTrue(ACCOUNT_CODE)).thenReturn(List.of());
+        IgnorableDebt rule = new IgnorableDebt();
+        rule.setHashSum("hash-ig");
+        rule.setReason("Borrowed by a relative");
+        when(ignorableDebtRepository.findByHashSumIn(anyList())).thenReturn(List.of(rule));
+
+        Debt mine = withHash(makeDebt("Coffee Machine", new BigDecimal("500.00"), 1, 6, DebtTypeEnum.CARD), "hash-1");
+        Debt theirs = withHash(makeDebt("Phone", new BigDecimal("900.00"), 1, 12, DebtTypeEnum.CARD), "hash-ig");
+
+        AccountStatementPreviewDto result = debtService.previewAccountStatement(List.of(mine, theirs), ACCOUNT_CODE);
+
+        assertThat(result.newDebts()).extracting(Debt::getDescription).containsExactly("Coffee Machine");
+        assertThat(result.ignoredDebts()).hasSize(1);
+        assertThat(result.ignoredDebts().get(0).getReason()).isEqualTo("Borrowed by a relative");
     }
 
     @Test
