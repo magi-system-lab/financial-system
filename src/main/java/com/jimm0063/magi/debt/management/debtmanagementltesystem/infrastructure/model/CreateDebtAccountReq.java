@@ -12,4 +12,5 @@ public class CreateDebtAccountReq {
     private Double credit;
     private Boolean active;
     private AccountStatementType accountStatementType;
+    private String color;
 }

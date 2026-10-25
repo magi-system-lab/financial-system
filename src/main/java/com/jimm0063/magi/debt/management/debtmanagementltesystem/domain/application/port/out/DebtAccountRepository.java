@@ -14,5 +14,7 @@ public interface DebtAccountRepository {
     DebtAccount save(DebtAccount debtAccount, String financialProviderCode);
     DebtAccount update(DebtAccount debtAccount);
     DebtAccount updateStatementType(String code, AccountStatementType accountStatementType);
+    /** color "#RRGGBB", or null to go back to the automatic colour. */
+    DebtAccount updateColor(String code, String color);
     void delete(String debtAccountCode);
 }

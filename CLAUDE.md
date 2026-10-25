@@ -258,11 +258,16 @@ GET    /ui/dashboard         Old dashboard URL → redirects to /ui/insights
 GET    /ui/more              "More" tab: secondary sections + settings (language, switch user)
 GET    /ui/activity          Activity log of the current session
 GET    /ui/fixed-expenses    Fixed expenses management
-GET    /ui/debt-accounts     Debt account management
+GET    /ui/cards             Cards tab: Wallet-style stack of every card (?provider=code filters one provider);
+                             "Add card" sheet (provider, name, pay day, credit, statement type, colour)
+GET    /ui/debt-accounts/{code}  One card: totals, record payment, import statement, debts (add/edit/delete sheets),
+                             pending upcoming purchases, settings (colour, statement type, CSV upload, pay off, delete)
+POST   /ui/debt-accounts/{code}/color  Card colour "#RRGGBB" ("auto" = default from the bank)
+GET    /ui/debt-accounts?providerCode=  Old per-provider list → redirects to /ui/cards?provider=
 GET    /ui/progression       Old month-by-month page → redirects to /ui/insights?months=24
 GET    /ui/statements        Statement upload interface
-GET    /ui/payments          Payment history
-GET    /ui/providers         Provider management
+GET    /ui/payments/{code}   Payment history of one card + record payment
+GET    /ui/providers         Providers (banks/stores) + provider types; tap one to see its cards
 GET    /ui/receivables       Money lent out (e.g. to relatives) + repayment tracking
 GET    /ui/receivables/{id}  One receivable: KPIs, balance-over-time + monthly charts, dated payment history
 GET    /ui/upcoming-debts    Upcoming (deferred) purchases pile + month-by-month projection + what-if simulator
@@ -289,7 +294,10 @@ The UI is being redesigned section by section (iPhone first, also iPad and Mac; 
 - **Done:** shell + login + More/Activity (phase 1), Insights (phase 2: `InsightsViewController`, view model
   `InsightsView` built from `GetDebtProgressionUseCase` over a 120-month horizon for the debt-free date; month
   panels switch client-side via `data-select` / `data-select-panel`). Money/month formatting for templates:
-  `@fmt` (`UiFormat`). Next: Cards → Import → Plan → More (receivables, fixed expenses, ignored debts).
+  `@fmt` (`UiFormat`). Cards (phase 3: `CardsViewController`, card detail, payments, providers; card colour in
+  `debt_account.color`, resolved by `@cardColors` / `CardColors` — chosen colour, else bank default, else palette).
+  Sheets: `data-open-sheet` + `data-action` / `data-alt-action` / `data-f-<field>` prefill the sheet's form;
+  `data-confirm` asks before submitting. Next: Import → Plan → More (receivables, fixed expenses, ignored debts).
 - **Static files** are fingerprinted (`app-<hash>.css`) through `@{...}` and cached for 7 days.
 
 ### Bulk Statement Import (Web UI)

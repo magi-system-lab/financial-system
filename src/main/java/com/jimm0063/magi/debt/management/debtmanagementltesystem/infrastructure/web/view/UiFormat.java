@@ -46,6 +46,11 @@ public class UiFormat {
         return (v.signum() < 0 ? "−" : "+") + money0(v.abs());
     }
 
+    /** value × count (e.g. monthly payment × installments left); null value counts as 0. */
+    public BigDecimal times(Number value, int count) {
+        return toBigDecimal(value).multiply(BigDecimal.valueOf(count));
+    }
+
     /** "November 2026" / "Noviembre 2026". */
     public String month(YearMonth month, Locale locale) {
         return capitalize(month.format(DateTimeFormatter.ofPattern("MMMM yyyy", locale)), locale);

@@ -70,6 +70,11 @@ public class DebtAccountRepositoryAdapter implements DebtAccountRepository {
     @Override
     public DebtAccount update(DebtAccount debtAccount) {
         DebtAccountEntity debtAccountEntity = debtAccountMapper.toEntity(debtAccount);
+        // Clients that don't know about the card colour must not erase it.
+        if (debtAccountEntity.getColor() == null && debtAccount.getCode() != null) {
+            debtAccountJpaRepository.findById(debtAccount.getCode())
+                    .ifPresent(existing -> debtAccountEntity.setColor(existing.getColor()));
+        }
         return this.debtAccountMapper.toModel(debtAccountJpaRepository.save(debtAccountEntity));
     }
 
@@ -78,6 +83,14 @@ public class DebtAccountRepositoryAdapter implements DebtAccountRepository {
         DebtAccountEntity entity = debtAccountJpaRepository.findById(code)
                 .orElseThrow(() -> new EntityNotFoundException("Debt account " + code + " not found"));
         entity.setAccountStatementType(accountStatementType);
+        return debtAccountMapper.toModel(debtAccountJpaRepository.save(entity));
+    }
+
+    @Override
+    public DebtAccount updateColor(String code, String color) {
+        DebtAccountEntity entity = debtAccountJpaRepository.findById(code)
+                .orElseThrow(() -> new EntityNotFoundException("Debt account " + code + " not found"));
+        entity.setColor(color);
         return debtAccountMapper.toModel(debtAccountJpaRepository.save(entity));
     }
 

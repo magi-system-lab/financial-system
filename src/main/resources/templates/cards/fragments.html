@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<body>
+<!-- Colour picker: "Automatic" + the palette, as radio buttons named "color". -->
+<div th:fragment="swatches(selected)" class="swatches" role="radiogroup" th:aria-label="#{cards.color}">
+    <label class="swatch swatch-auto" th:title="#{common.auto}">
+        <input type="radio" name="color" value="auto" th:checked="${selected == null}" th:aria-label="#{common.auto}">
+        <span>A</span>
+    </label>
+    <label class="swatch" th:each="c : ${@cardColors.palette()}" th:style="${'--swatch:' + c}">
+        <input type="radio" name="color" th:value="${c}" th:checked="${selected == c}" th:aria-label="${c}">
+        <span></span>
+    </label>
+</div>
+</body>
+</html>

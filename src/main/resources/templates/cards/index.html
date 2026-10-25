@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{layout/app :: head(#{cards.title})}"></head>
+<body class="app">
+<div th:replace="~{layout/app :: nav}"></div>
+<main class="app-main">
+
+    <div class="title-block">
+        <div>
+            <span class="eyebrow" th:text="#{cards.summary(${cards.size()}, ${@fmt.money0(monthlyTotal)})}">5 cards · $11,022 this month</span>
+            <h1 class="large-title" th:text="#{cards.title}">Cards</h1>
+        </div>
+        <button type="button" class="btn btn-glass btn-icon" data-open-sheet="add-card-sheet" th:aria-label="#{cards.add}">
+            <svg th:replace="~{layout/app :: icon('plus', '')}"></svg>
+        </button>
+    </div>
+
+    <div class="notice notice-info" th:if="${provider != null}" style="align-items: center; justify-content: space-between">
+        <span th:text="#{cards.showing(${providerName})}">Showing BBVA</span>
+        <a class="btn btn-tinted btn-sm" th:href="@{/ui/cards}" th:text="#{cards.showAll}">Show all</a>
+    </div>
+
+    <div class="wallet" th:unless="${cards.isEmpty()}">
+        <a class="pay-card" th:each="c : ${cards}"
+           th:href="@{/ui/debt-accounts/{code}(code=${c.account().code})}"
+           th:style="${'--card-color:' + c.color()}"
+           th:aria-label="${c.account().name + ', ' + @fmt.money(c.monthly())}">
+            <span style="display: flex; flex-direction: column; gap: 4px">
+                <span class="pay-card-top">
+                    <span class="pay-card-name" th:text="${c.account().name}">BBVA Azul</span>
+                    <span class="pay-card-amount" th:text="${@fmt.money(c.monthly())}">$4,773.75</span>
+                </span>
+                <span class="pay-card-sub" th:text="#{cards.debtsLeft(${c.activeDebts()}, ${@fmt.money0(c.remaining())})}">4 debts · $31,250 left</span>
+            </span>
+            <span class="pay-card-bottom">
+                <span th:text="${c.providerName()}">BBVA</span>
+                <span th:if="${c.account().payDay != null}" th:text="#{card.payDay(${c.account().payDay})}">Pay day 5</span>
+            </span>
+        </a>
+    </div>
+
+    <div class="card" th:if="${cards.isEmpty()}">
+        <div class="empty">
+            <svg th:replace="~{layout/app :: icon('cards', '')}"></svg>
+            <span th:text="${provider != null} ? #{cards.emptyProvider} : #{cards.empty}">No cards yet.</span>
+            <button type="button" class="btn btn-tinted btn-sm" data-open-sheet="add-card-sheet" th:text="#{cards.add}">Add card</button>
+        </div>
+    </div>
+
+    <section class="section">
+        <div class="list">
+            <a class="list-row" th:href="@{/ui/providers}">
+                <span class="row-icon bg-blue"><svg th:replace="~{layout/app :: icon('bank', '')}"></svg></span>
+                <span class="list-row-body">
+                    <span class="list-row-title">
+                        <span th:text="#{cards.providers}">Providers</span>
+                        <span th:text="#{cards.providersSub}">Banks and stores your cards belong to</span>
+                    </span>
+                    <span class="list-row-value" th:text="${providers.size()}">4</span>
+                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+                </span>
+            </a>
+        </div>
+    </section>
+</main>
+
+<!-- Add card -->
+<dialog class="sheet" id="add-card-sheet" th:aria-label="#{cards.add}">
+    <form method="post" id="add-card-form"
+          th:action="${providers.isEmpty()} ? @{/ui/providers} : @{/ui/debt-accounts/{p}(p=${provider != null ? provider : providers[0].code})}">
+        <div class="sheet-head">
+            <button type="button" class="btn btn-plain btn-sm" data-close-sheet th:text="#{common.cancel}">Cancel</button>
+            <strong th:text="#{cards.add}">Add card</strong>
+            <button type="submit" class="btn btn-plain btn-sm" style="font-weight: 700" th:disabled="${providers.isEmpty()}" th:text="#{common.add}">Add</button>
+        </div>
+        <div class="sheet-body">
+            <p class="notice notice-warn" th:if="${providers.isEmpty()}">
+                <a th:href="@{/ui/providers}" th:text="#{cards.noProviders}">Add a provider first.</a>
+            </p>
+            <th:block th:unless="${providers.isEmpty()}">
+                <div>
+                    <label class="field-label" for="card-provider" th:text="#{cards.provider}">Provider</label>
+                    <select class="field" id="card-provider" required
+                            onchange="this.form.action = this.value">
+                        <option th:each="p : ${providers}" th:value="@{/ui/debt-accounts/{c}(c=${p.code})}"
+                                th:selected="${p.code == provider}" th:text="${p.name}">BBVA</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label" for="card-name" th:text="#{cards.name}">Card name</label>
+                    <input class="field" id="card-name" name="name" required autocomplete="off">
+                </div>
+                <div class="field-row">
+                    <div>
+                        <label class="field-label" for="card-payday" th:text="#{cards.payDay}">Pay day</label>
+                        <input class="field tabular" id="card-payday" name="payDay" type="number" inputmode="numeric" min="1" max="31">
+                    </div>
+                    <div>
+                        <label class="field-label" for="card-credit" th:text="#{cards.credit}">Credit limit</label>
+                        <input class="field tabular" id="card-credit" name="credit" type="number" inputmode="decimal" step="0.01" min="0">
+                    </div>
+                </div>
+                <div>
+                    <label class="field-label" for="card-parser" th:text="#{cards.parser}">Statement type</label>
+                    <select class="field" id="card-parser" name="accountStatementType">
+                        <option th:each="t : ${statementTypes}" th:value="${t}" th:text="${#strings.replace(t.name(), '_', ' ')}">BBVA</option>
+                    </select>
+                </div>
+                <div>
+                    <span class="field-label" th:text="#{cards.color}">Colour</span>
+                    <div th:replace="~{cards/fragments :: swatches(null)}"></div>
+                </div>
+            </th:block>
+        </div>
+    </form>
+</dialog>
+</body>
+</html>

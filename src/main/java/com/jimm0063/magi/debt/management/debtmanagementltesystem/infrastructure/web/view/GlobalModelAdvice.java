@@ -42,7 +42,7 @@ public class GlobalModelAdvice {
 
     static String sectionFor(String path) {
         if (path.startsWith("/ui/insights")) return "insights";
-        if (path.startsWith("/ui/providers") || path.startsWith("/ui/debt-accounts")
+        if (path.startsWith("/ui/cards") || path.startsWith("/ui/providers") || path.startsWith("/ui/debt-accounts")
                 || path.startsWith("/ui/debts") || path.startsWith("/ui/payments")
                 || path.startsWith("/ui/statements") || path.startsWith("/ui/v2/statements")) return "cards";
         if (path.startsWith("/ui/bulk-statements")) return "import";
