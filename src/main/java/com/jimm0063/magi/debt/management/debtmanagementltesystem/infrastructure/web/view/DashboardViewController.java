@@ -1,39 +1,21 @@
 package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.web.view;
 
-import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetFinancialStatusUseCase;
-import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.UserRepository;
-import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.exceptions.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import java.util.Map;
-
+/** Login / session entry points. The old dashboard now lives on as the Insights tab. */
 @Controller
 @RequestMapping("/ui")
 public class DashboardViewController {
 
-    private final GetFinancialStatusUseCase getFinancialStatusUseCase;
-    private final UserRepository userRepository;
-    private final ActivityLogHelper activityLogHelper;
-
     @Value("${app.default-user-email:}")
     private String defaultUserEmail;
-
-    public DashboardViewController(GetFinancialStatusUseCase getFinancialStatusUseCase,
-                                   UserRepository userRepository,
-                                   ActivityLogHelper activityLogHelper) {
-        this.getFinancialStatusUseCase = getFinancialStatusUseCase;
-        this.userRepository = userRepository;
-        this.activityLogHelper = activityLogHelper;
-    }
 
     @GetMapping
     public String home(HttpSession session,
@@ -48,7 +30,7 @@ public class DashboardViewController {
             session.setAttribute("userEmail", defaultUserEmail);
         }
         if (session.getAttribute("userEmail") != null) {
-            return "redirect:/ui/dashboard";
+            return "redirect:/ui/insights";
         }
         return "home";
     }
@@ -58,7 +40,7 @@ public class DashboardViewController {
         String trimmed = email.trim();
         session.setAttribute("userEmail", trimmed);
         RememberedUser.remember(response, trimmed);
-        return "redirect:/ui/dashboard";
+        return "redirect:/ui/insights";
     }
 
     /** "Switch user": forgets the remembered email and shows the email screen without auto-login. */
@@ -68,30 +50,9 @@ public class DashboardViewController {
         return "redirect:/ui?switch";
     }
 
+    /** Old bookmarks / Home Screen shortcuts. */
     @GetMapping("/dashboard")
-    public String dashboard(HttpSession session, HttpServletResponse response, Model model) {
-        String email = (String) session.getAttribute("userEmail");
-        if (email == null) return "redirect:/ui";
-        try {
-            model.addAttribute("dashboard", getFinancialStatusUseCase.getUserStatus(email));
-            model.addAttribute("email", email);
-            return "dashboard/index";
-        } catch (EntityNotFoundException e) {
-            activityLogHelper.log(session, "Login ERROR",
-                    Map.of("reason", "email not found", "email", email));
-            RememberedUser.forget(session, response);
-            return "redirect:/ui?error=email_not_found";
-        }
-    }
-
-    @PutMapping("/financials")
-    public String updateFinancials(@RequestParam(required = false) Double salary,
-                                   @RequestParam(required = false) Double savings,
-                                   HttpSession session) {
-        String email = (String) session.getAttribute("userEmail");
-        if (email == null) return "redirect:/ui";
-        var updated = userRepository.updateFinancials(email, salary, savings);
-        activityLogHelper.log(session, "Update Salary & Savings", updated);
-        return "redirect:/ui/dashboard";
+    public String dashboard() {
+        return "redirect:/ui/insights";
     }
 }

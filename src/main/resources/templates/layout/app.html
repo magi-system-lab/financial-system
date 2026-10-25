@@ -36,7 +36,7 @@
 
     <!-- Phones / iPad portrait: floating glass tab bar -->
     <nav class="fm-tabbar glass" th:aria-label="#{nav.main}">
-        <a class="fm-tab" th:href="@{/ui/dashboard}" th:aria-current="${navSection == 'insights'} ? 'page'">
+        <a class="fm-tab" th:href="@{/ui/insights}" th:aria-current="${navSection == 'insights'} ? 'page'">
             <svg th:replace="~{layout/app :: icon('insights', '')}"></svg><span th:text="#{nav.insights}">Insights</span>
         </a>
         <a class="fm-tab" th:href="@{/ui/providers}" th:aria-current="${navSection == 'cards'} ? 'page'">
@@ -57,7 +57,7 @@
     <aside class="fm-sidebar glass">
         <span class="fm-side-title" th:text="#{app.shortName}">Finances</span>
         <nav th:aria-label="#{nav.main}">
-            <a class="fm-side-item" th:href="@{/ui/dashboard}" th:aria-current="${navSection == 'insights'} ? 'page'">
+            <a class="fm-side-item" th:href="@{/ui/insights}" th:aria-current="${navSection == 'insights'} ? 'page'">
                 <svg th:replace="~{layout/app :: icon('insights', '')}"></svg><span th:text="#{nav.insights}">Insights</span>
             </a>
             <a class="fm-side-item" th:href="@{/ui/providers}" th:aria-current="${navSection == 'cards'} ? 'page'">
@@ -77,9 +77,6 @@
             </a>
             <a class="fm-side-item" th:href="@{/ui/fixed-expenses}" th:aria-current="${#strings.startsWith(currentPath, '/ui/fixed-expenses')} ? 'page'">
                 <svg th:replace="~{layout/app :: icon('receipt', '')}"></svg><span th:text="#{nav.fixedExpenses}">Fixed expenses</span>
-            </a>
-            <a class="fm-side-item" th:href="@{/ui/progression}" th:aria-current="${#strings.startsWith(currentPath, '/ui/progression')} ? 'page'">
-                <svg th:replace="~{layout/app :: icon('calendar', '')}"></svg><span th:text="#{nav.monthByMonth}">Month by month</span>
             </a>
             <a class="fm-side-item" th:href="@{/ui/ignorable-debts}" th:aria-current="${#strings.startsWith(currentPath, '/ui/ignorable-debts')} ? 'page'">
                 <svg th:replace="~{layout/app :: icon('eye-off', '')}"></svg><span th:text="#{nav.ignored}">Ignored debts</span>

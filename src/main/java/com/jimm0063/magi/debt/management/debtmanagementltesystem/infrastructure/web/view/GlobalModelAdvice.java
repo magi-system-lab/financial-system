@@ -41,7 +41,7 @@ public class GlobalModelAdvice {
     }
 
     static String sectionFor(String path) {
-        if (path.startsWith("/ui/dashboard")) return "insights";
+        if (path.startsWith("/ui/insights")) return "insights";
         if (path.startsWith("/ui/providers") || path.startsWith("/ui/debt-accounts")
                 || path.startsWith("/ui/debts") || path.startsWith("/ui/payments")
                 || path.startsWith("/ui/statements") || path.startsWith("/ui/v2/statements")) return "cards";
