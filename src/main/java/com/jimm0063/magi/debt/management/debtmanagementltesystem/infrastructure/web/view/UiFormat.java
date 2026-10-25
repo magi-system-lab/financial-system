@@ -1,7 +1,5 @@
 package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.web.view;
 
-import org.springframework.stereotype.Component;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
@@ -13,8 +11,8 @@ import java.util.Locale;
 /**
  * Money formatting for the redesigned templates, used as {@code ${@fmt.money(x)}}.
  * Always "$1,234.56" (MXN and USD share the format), whatever the UI language.
+ * Registered as the "fmt" bean in WebConfig so web test slices get it too.
  */
-@Component("fmt")
 public class UiFormat {
 
     private static final DecimalFormatSymbols SYMBOLS = DecimalFormatSymbols.getInstance(Locale.US);

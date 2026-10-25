@@ -2,7 +2,6 @@ package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure
 
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.AccountStatementType;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.DebtAccount;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
@@ -11,9 +10,8 @@ import java.util.regex.Pattern;
 /**
  * Card colours for the Wallet-style UI. A card uses its own colour when the user picked one, otherwise
  * a default from its bank (statement type), otherwise a stable pick from the palette. Every colour keeps
- * white text readable (≥ 4.5:1). Used in templates as {@code ${@cardColors.of(account)}}.
+ * white text readable (≥ 4.5:1). Used in templates as {@code ${@cardColors.of(account)}}; registered in WebConfig.
  */
-@Component("cardColors")
 public class CardColors {
 
     public static final List<String> PALETTE = List.of(

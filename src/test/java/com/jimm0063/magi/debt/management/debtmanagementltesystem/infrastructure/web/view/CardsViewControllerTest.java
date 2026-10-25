@@ -23,7 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(CardsViewController.class)
-@Import({SecurityConfig.class, UiFormat.class, CardColors.class})
+@Import(SecurityConfig.class)
 class CardsViewControllerTest {
 
     private static final String EMAIL = "user@test.com";

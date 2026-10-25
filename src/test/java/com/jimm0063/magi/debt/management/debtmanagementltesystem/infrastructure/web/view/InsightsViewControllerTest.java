@@ -33,7 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(InsightsViewController.class)
-@Import({SecurityConfig.class, UiFormat.class})
+@Import(SecurityConfig.class)
 class InsightsViewControllerTest {
 
     private static final String EMAIL = "user@test.com";
