@@ -1,220 +1,188 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title th:text="${receivable.debtorName} + ' – Receivable'">Receivable – Financial Manager</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <style>
-        .chart-box { position: relative; height: 280px; }
-    </style>
-</head>
-<body class="bg-light">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{layout/app :: head(${receivable.debtorName})}"></head>
+<body class="app">
+<div th:replace="~{layout/app :: nav}"></div>
+<main class="app-main" th:with="loc=${#locale}">
+    <div class="nav-bar">
+        <a class="btn btn-glass btn-icon" th:href="@{/ui/receivables}" th:aria-label="#{common.back}">
+            <svg th:replace="~{layout/app :: icon('chevron-left', '')}"></svg>
+        </a>
+        <span class="nav-bar-title" th:text="${receivable.debtorName}">Ana</span>
+        <button type="button" class="btn btn-glass btn-icon" data-open-sheet="pay-sheet" th:aria-label="#{rcv.record}"
+                th:unless="${status.fullyPaid}">
+            <svg th:replace="~{layout/app :: icon('plus', '')}"></svg>
+        </button>
+        <span th:if="${status.fullyPaid}" style="width: 44px"></span>
+    </div>
 
-<div th:replace="~{layout/navbar :: navbar}"></div>
+    <div class="title-block">
+        <div>
+            <h1 class="large-title" th:text="${receivable.debtorName}">Ana</h1>
+            <p class="subtitle">
+                <span th:if="${receivable.description != null and !receivable.description.isBlank()}" th:text="${receivable.description + ' · '}">Laptop · </span><span
+                      th:if="${receivable.lentDate != null}" th:text="#{rcv.lentOn(${#temporals.format(receivable.lentDate, 'd MMM yyyy')})}">Lent 3 Mar 2026</span>
+            </p>
+        </div>
+        <span class="chip" th:classappend="${status.fullyPaid} ? 'chip-green' : 'chip-orange'"
+              th:text="${status.fullyPaid} ? #{rcv.paidBack} : #{rcv.open}">Open</span>
+    </div>
 
-<div class="container pb-5">
-    <a th:href="@{/ui/receivables}" class="text-decoration-none small">
-        <i class="bi bi-arrow-left me-1"></i>Back to receivables
-    </a>
+    <section class="card hero">
+        <span class="hero-label" th:text="#{rcv.pending}">Still owed</span>
+        <div class="hero-amount"><span th:text="${@fmt.whole(status.pendingAmount)}">$17,000</span><small th:text="${@fmt.cents(status.pendingAmount)}">.00</small></div>
+        <span th:class="${'meter' + (status.fullyPaid ? ' meter-green' : '')}" style="height: 6px; border-radius: 3px">
+            <span th:style="${'width:' + #numbers.formatDecimal(status.percentPaid, 1, 'NONE', 1, 'POINT') + '%'}"></span>
+        </span>
+        <div class="hero-sub"><span th:text="#{rcv.percent(${#numbers.formatDecimal(status.percentPaid, 1, 'NONE', 0, 'POINT')})}">8% paid</span></div>
+        <button type="button" class="btn btn-primary btn-block" data-open-sheet="pay-sheet" th:unless="${status.fullyPaid}" th:text="#{rcv.record}">Record payment</button>
+    </section>
 
-    <div class="d-flex flex-wrap align-items-center gap-2 mt-2 mb-4">
-        <h2 class="fw-bold mb-0">
-            <i class="bi bi-person me-2 text-primary"></i>
-            <span th:text="${receivable.debtorName}"></span>
-        </h2>
-        <span class="badge fs-6" th:classappend="${status.fullyPaid} ? 'bg-success' : 'bg-warning text-dark'"
-              th:text="${status.fullyPaid} ? 'Fully Paid' : 'Pending'"></span>
-        <div class="w-100 text-muted">
-            <span th:if="${receivable.description}" th:text="${receivable.description}"></span>
-            <span th:if="${receivable.lentDate}"
-                  th:text="${(receivable.description != null ? ' · ' : '') + 'Lent on ' + #temporals.format(receivable.lentDate, 'dd MMM yyyy')}"></span>
+    <div class="grid-2">
+        <div class="tile">
+            <span class="tile-label" th:text="#{rcv.lent}">Lent</span>
+            <span class="tile-value" th:text="${@fmt.money0(receivable.principalAmount)}">$18,500</span>
+        </div>
+        <div class="tile">
+            <span class="tile-label" th:text="#{rcv.repaid}">Repaid</span>
+            <span class="tile-value text-green" th:text="${@fmt.money0(status.totalRepaid)}">$1,500</span>
+        </div>
+        <div class="tile" style="grid-column: 1 / -1">
+            <span class="tile-label" th:text="#{rcv.payments}">Payments</span>
+            <span class="tile-value" th:text="${history.paymentCount}">2</span>
+            <span class="tile-sub" th:if="${history.paymentCount > 0}">
+                <span th:text="#{rcv.avg(${@fmt.money(history.averagePayment)})}">Average $750.00</span><span
+                      th:if="${history.lastPaymentDate != null}" th:text="${' · ' + #messages.msg('rcv.last', #temporals.format(history.lastPaymentDate, 'd MMM yyyy'), history.daysSinceLastPayment)}"> · Last 2 Oct 2026</span>
+            </span>
         </div>
     </div>
 
-    <!-- KPIs -->
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-lg-3">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-body">
-                    <div class="text-muted small">Lent</div>
-                    <div class="fs-4 fw-bold" th:text="${'$' + #numbers.formatDecimal(receivable.principalAmount, 1, 'COMMA', 2, 'POINT')}"></div>
+    <div class="row-wrap" th:if="${history.paymentCount > 0}">
+        <section class="section">
+            <h2 class="section-title" th:text="#{rcv.balance}">Balance over time</h2>
+            <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+                <div id="balanceChart" class="line-chart" role="img" th:aria-label="#{rcv.balance}"></div>
+                <div class="legend">
+                    <span><span class="dot" style="background: var(--accent)"></span><span th:text="#{rcv.remaining}">Remaining</span></span>
+                    <span><span class="dot" style="background: var(--green)"></span><span th:text="#{rcv.repaidSoFar}">Repaid so far</span></span>
                 </div>
             </div>
-        </div>
-        <div class="col-6 col-lg-3">
-            <div class="card shadow-sm border-0 h-100 bg-success-subtle">
-                <div class="card-body">
-                    <div class="text-muted small">Repaid</div>
-                    <div class="fs-4 fw-bold" th:text="${'$' + #numbers.formatDecimal(status.totalRepaid, 1, 'COMMA', 2, 'POINT')}"></div>
-                    <div class="progress mt-2" style="height: 6px;">
-                        <div class="progress-bar bg-success" th:style="'width: ' + ${status.percentPaid} + '%'"></div>
+        </section>
+        <section class="section">
+            <h2 class="section-title" th:text="#{rcv.perMonth}">Repaid per month</h2>
+            <div class="card hero">
+                <div th:each="b, st : ${monthBars}" data-select-panel="rm" th:attr="data-value=${st.index}" th:hidden="${!st.last}">
+                    <div class="hero-top">
+                        <span class="hero-label" th:text="${@fmt.month(b.month(), loc)}">October 2026</span>
                     </div>
-                    <small class="text-muted" th:text="${#numbers.formatDecimal(status.percentPaid, 1, 1)} + '% paid'"></small>
+                    <div class="tile-value" th:text="${@fmt.money(b.amount())}">$750.00</div>
+                </div>
+                <div th:class="${'bars' + (monthBars.size() > 12 ? ' bars-24' : '')}" style="height: 120px">
+                    <button type="button" class="bar-btn bars-green" th:each="b, st : ${monthBars}"
+                            data-select="rm" th:attr="data-value=${st.index}, aria-pressed=${st.last}"
+                            th:aria-label="${@fmt.month(b.month(), loc) + ': ' + @fmt.money(b.amount())}">
+                        <span class="bar-track">
+                            <span class="bar" th:classappend="${b.percent() == 0} ? 'bar-empty'" th:style="${'height:' + b.percent() + '%'}"></span>
+                        </span>
+                        <span class="bar-label" th:text="${monthBars.size() <= 12 or st.index % 3 == 0} ? ${@fmt.monthInitial(b.month(), loc)} : ''">O</span>
+                    </button>
                 </div>
             </div>
-        </div>
-        <div class="col-6 col-lg-3">
-            <div class="card shadow-sm border-0 h-100 bg-primary-subtle">
-                <div class="card-body">
-                    <div class="text-muted small">Pending</div>
-                    <div class="fs-4 fw-bold" th:text="${'$' + #numbers.formatDecimal(status.pendingAmount, 1, 'COMMA', 2, 'POINT')}"></div>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-lg-3">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-body">
-                    <div class="text-muted small">Payments</div>
-                    <div class="fs-4 fw-bold" th:text="${history.paymentCount}"></div>
-                    <small class="text-muted d-block" th:if="${history.paymentCount > 0}"
-                           th:text="${'Avg $' + #numbers.formatDecimal(history.averagePayment, 1, 'COMMA', 2, 'POINT')}"></small>
-                    <small class="text-muted d-block" th:if="${history.lastPaymentDate}"
-                           th:text="${'Last: ' + #temporals.format(history.lastPaymentDate, 'dd MMM yyyy')
-                                    + ' (' + history.daysSinceLastPayment + ' days ago)'}"></small>
-                </div>
-            </div>
-        </div>
+        </section>
     </div>
 
-    <!-- Register payment -->
-    <div class="card shadow-sm mb-4" th:unless="${status.fullyPaid}">
-        <div class="card-header bg-white">
-            <h6 class="mb-0 fw-semibold"><i class="bi bi-cash-coin me-2"></i>Register Payment</h6>
-        </div>
-        <div class="card-body">
-            <form th:action="@{/ui/receivables/{id}/payment(id=${receivable.id})}" method="post">
-                <input type="hidden" name="returnTo" value="detail">
-                <div class="row g-2">
-                    <div class="col-sm-3">
-                        <label class="form-label small text-muted mb-1">Amount</label>
-                        <input type="number" name="amount" step="0.01" min="0.01" class="form-control" required>
-                    </div>
-                    <div class="col-sm-3">
-                        <label class="form-label small text-muted mb-1">Date received</label>
-                        <input type="date" name="paymentDate" class="form-control" th:value="${today}" th:max="${today}" required>
-                    </div>
-                    <div class="col-sm-5">
-                        <label class="form-label small text-muted mb-1">Note</label>
-                        <input type="text" name="note" class="form-control" placeholder="e.g. transfer, cash, covers Mar–Apr">
-                    </div>
-                    <div class="col-sm-1 d-flex align-items-end">
-                        <button type="submit" class="btn btn-success w-100"><i class="bi bi-plus-lg"></i></button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Charts -->
-    <div class="row g-3 mb-4" th:if="${history.paymentCount > 0}">
-        <div class="col-lg-7">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-white">
-                    <h6 class="mb-0 fw-semibold"><i class="bi bi-graph-down me-2"></i>Balance over time</h6>
-                </div>
-                <div class="card-body">
-                    <div class="chart-box"><canvas id="balanceChart"></canvas></div>
-                </div>
+    <section class="section">
+        <h2 class="section-title" th:text="#{rcv.history}">Payment history</h2>
+        <div class="list" th:if="${history.paymentCount > 0}">
+            <div class="list-row" th:each="row, it : ${history.entries}"
+                 th:with="entry=${history.entries[history.entries.size() - 1 - it.index]}">
+                <span class="row-icon bg-green"><svg th:replace="~{layout/app :: icon('check', '')}"></svg></span>
+                <span class="list-row-body">
+                    <span class="list-row-title">
+                        <span th:text="${#temporals.format(entry.paymentDate, 'd MMM yyyy')}">2 Oct 2026</span>
+                        <span th:text="${entry.note != null and !entry.note.isBlank() ? entry.note + ' · ' : ''} + #{rcv.afterPayment(${@fmt.money(entry.remainingBalance)})}">Transfer · $17,000.00 left</span>
+                    </span>
+                    <span class="list-row-value tabular text-green" style="font-weight: 600" th:text="${'+' + @fmt.money(entry.amount)}">+$750.00</span>
+                </span>
             </div>
         </div>
-        <div class="col-lg-5">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-white">
-                    <h6 class="mb-0 fw-semibold"><i class="bi bi-bar-chart me-2"></i>Repaid per month</h6>
+        <div class="card" th:if="${history.paymentCount == 0}">
+            <p class="muted" th:text="#{rcv.noPayments}">No payments yet.</p>
+        </div>
+    </section>
+
+    <div class="list">
+        <form class="list-row" th:action="@{/ui/receivables/{id}(id=${receivable.id})}" method="post" th:attr="data-confirm=#{rcv.deleteConfirm}">
+            <input type="hidden" name="_method" value="DELETE">
+            <button type="submit" class="link-button list-row-body text-danger-ios" th:text="#{rcv.delete}">Delete loan</button>
+        </form>
+    </div>
+</main>
+
+<dialog class="sheet" id="pay-sheet" th:aria-label="#{rcv.record}">
+    <form th:action="@{/ui/receivables/{id}/payment(id=${receivable.id})}" method="post">
+        <input type="hidden" name="returnTo" value="detail">
+        <div class="sheet-head">
+            <button type="button" class="btn btn-plain btn-sm" data-close-sheet th:text="#{common.cancel}">Cancel</button>
+            <strong th:text="#{rcv.record}">Record payment</strong>
+            <button type="submit" class="btn btn-plain btn-sm" style="font-weight: 700" th:text="#{common.save}">Save</button>
+        </div>
+        <div class="sheet-body form-stack">
+            <div class="field-row">
+                <div>
+                    <label class="field-label" for="p-amount" th:text="#{rcv.paymentAmount}">Amount</label>
+                    <input class="field tabular" id="p-amount" name="amount" type="number" inputmode="decimal" step="0.01" min="0.01" required
+                           th:attr="placeholder=${@fmt.money(status.pendingAmount)}">
                 </div>
-                <div class="card-body">
-                    <div class="chart-box"><canvas id="monthlyChart"></canvas></div>
+                <div>
+                    <label class="field-label" for="p-date" th:text="#{rcv.paymentDate}">Date received</label>
+                    <input class="field" id="p-date" name="paymentDate" type="date" required th:value="${today}" th:max="${today}">
                 </div>
             </div>
+            <div>
+                <label class="field-label" for="p-note" th:text="#{rcv.note}">Note</label>
+                <input class="field" id="p-note" name="note" autocomplete="off" th:placeholder="#{rcv.notePlaceholder}">
+            </div>
         </div>
-    </div>
+    </form>
+</dialog>
 
-    <!-- History -->
-    <div class="card shadow-sm" th:if="${history.paymentCount > 0}">
-        <div class="card-header bg-white">
-            <h6 class="mb-0 fw-semibold"><i class="bi bi-clock-history me-2"></i>Payment history</h6>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover mb-0 align-middle">
-                <thead class="table-dark">
-                <tr>
-                    <th>#</th>
-                    <th>Date received</th>
-                    <th class="text-end">Amount</th>
-                    <th>Note</th>
-                    <th class="text-end">Repaid so far</th>
-                    <th class="text-end">Remaining</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="row, it : ${history.entries}" th:with="entry=${history.entries[history.entries.size() - 1 - it.index]}">
-                    <td class="text-muted" th:text="${history.entries.size() - it.index}"></td>
-                    <td th:text="${#temporals.format(entry.paymentDate, 'dd MMM yyyy')}"></td>
-                    <td class="text-end fw-semibold text-success" th:text="${'$' + #numbers.formatDecimal(entry.amount, 1, 'COMMA', 2, 'POINT')}"></td>
-                    <td th:text="${entry.note}"></td>
-                    <td class="text-end" th:text="${'$' + #numbers.formatDecimal(entry.cumulativeRepaid, 1, 'COMMA', 2, 'POINT')}"></td>
-                    <td class="text-end" th:text="${'$' + #numbers.formatDecimal(entry.remainingBalance, 1, 'COMMA', 2, 'POINT')}"></td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <div class="alert alert-info" th:if="${history.paymentCount == 0}">
-        <i class="bi bi-info-circle me-2"></i>No payments registered yet.
-    </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script th:inline="javascript">
-    const balanceLabels = /*[[${balanceLabels}]]*/ [];
-    const balanceValues = /*[[${balanceValues}]]*/ [];
-    const repaidValues  = /*[[${repaidValues}]]*/ [];
-    const monthLabels   = /*[[${monthLabels}]]*/ [];
-    const monthAmounts  = /*[[${monthAmounts}]]*/ [];
-
-    const money = v => '$' + Number(v).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-
-    const balanceCanvas = document.getElementById('balanceChart');
-    if (balanceCanvas) {
-        new Chart(balanceCanvas, {
-            type: 'line',
-            data: {
-                labels: balanceLabels,
-                datasets: [
-                    {label: 'Remaining', data: balanceValues, stepped: true, fill: true,
-                     borderColor: '#0d6efd', backgroundColor: 'rgba(13,110,253,0.12)'},
-                    {label: 'Repaid so far', data: repaidValues, stepped: true,
-                     borderColor: '#198754', backgroundColor: '#198754'}
-                ]
-            },
-            options: {
-                maintainAspectRatio: false,
-                interaction: {mode: 'index', intersect: false},
-                scales: {y: {beginAtZero: true, ticks: {callback: money}}},
-                plugins: {tooltip: {callbacks: {label: c => c.dataset.label + ': ' + money(c.parsed.y)}}}
-            }
-        });
+(function () {
+    var el = document.getElementById('balanceChart');
+    if (!el) return;
+    var labels = /*[[${balanceLabels}]]*/ [];
+    var remaining = /*[[${balanceValues}]]*/ [];
+    var repaid = /*[[${repaidValues}]]*/ [];
+    if (labels.length < 1) return;
+    var W = 600, H = 220, P = { l: 4, r: 4, t: 22, b: 22 };
+    var times = labels.map(function (d) { return Date.parse(d + 'T00:00:00'); });
+    var t0 = Math.min.apply(null, times), t1 = Math.max(Date.now(), Math.max.apply(null, times));
+    if (t1 === t0) t1 = t0 + 864e5;
+    var max = Math.max.apply(null, remaining.concat(repaid).map(Number)) || 1;
+    function x(t) { return P.l + (t - t0) / (t1 - t0) * (W - P.l - P.r); }
+    function y(v) { return P.t + (1 - v / max) * (H - P.t - P.b); }
+    function steps(values) {
+        var d = 'M' + x(times[0]).toFixed(1) + ',' + y(values[0]).toFixed(1);
+        for (var i = 1; i < values.length; i++) {
+            d += 'H' + x(times[i]).toFixed(1) + 'V' + y(values[i]).toFixed(1);
+        }
+        return d + 'H' + x(t1).toFixed(1);
     }
-
-    const monthlyCanvas = document.getElementById('monthlyChart');
-    if (monthlyCanvas) {
-        new Chart(monthlyCanvas, {
-            type: 'bar',
-            data: {
-                labels: monthLabels,
-                datasets: [{label: 'Repaid', data: monthAmounts, backgroundColor: '#198754'}]
-            },
-            options: {
-                maintainAspectRatio: false,
-                scales: {y: {beginAtZero: true, ticks: {callback: money}}},
-                plugins: {legend: {display: false},
-                          tooltip: {callbacks: {label: c => money(c.parsed.y)}}}
-            }
-        });
-    }
+    var area = steps(remaining) + 'V' + y(0).toFixed(1) + 'H' + x(t0).toFixed(1) + 'Z';
+    var fmt = function (t) { return new Date(t).toLocaleDateString(document.documentElement.lang || 'en', { month: 'short', year: 'numeric' }); };
+    var money0 = function (v) { return '$' + Math.round(v).toLocaleString('en-US'); };
+    el.innerHTML =
+        '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">' +
+        '<line class="grid" x1="0" x2="' + W + '" y1="' + y(max) + '" y2="' + y(max) + '"/>' +
+        '<line class="grid" x1="0" x2="' + W + '" y1="' + y(0) + '" y2="' + y(0) + '"/>' +
+        '<path class="area" d="' + area + '"/>' +
+        '<path class="line" d="' + steps(remaining) + '"/>' +
+        '<path class="line line-green" d="' + steps(repaid) + '"/>' +
+        '</svg>' +
+        '<span class="lc-max">' + money0(max) + '</span>' +
+        '<span class="lc-start">' + fmt(t0) + '</span><span class="lc-end">' + fmt(t1) + '</span>';
+})();
 </script>
 </body>
 </html>

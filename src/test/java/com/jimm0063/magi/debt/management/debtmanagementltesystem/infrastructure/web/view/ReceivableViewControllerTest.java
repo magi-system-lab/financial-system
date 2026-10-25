@@ -97,6 +97,43 @@ class ReceivableViewControllerTest {
         return new ReceivableService(repo, paymentRepo).getHistory(3);
     }
 
+    // ── list ───────────────────────────────────────────────────────────────────
+
+    @Test
+    void list_splits_open_and_paid_back_loans() throws Exception {
+        var open = sampleHistory(EMAIL).getStatus();
+        var paid = sampleHistory(EMAIL).getStatus();
+        paid.getReceivable().setDebtorName("Tío Beto");
+        paid.setFullyPaid(true);
+        when(getReceivableStatusUseCase.getAllStatusesByEmail(EMAIL)).thenReturn(List.of(open, paid));
+
+        mockMvc.perform(get("/ui/receivables").session(session()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Prima Ana")))
+                .andExpect(content().string(containsString("Tío Beto")))
+                .andExpect(content().string(containsString("Paid back")))
+                .andExpect(content().string(containsString("Card purchase · $550 of $1,200 repaid")));
+    }
+
+    @Test
+    void month_bars_are_relative_to_the_best_month() {
+        var bars = ReceivableViewController.monthBars(sampleHistory(EMAIL).getMonthlyTotals());
+        assertThat(bars).extracting(ReceivableViewController.MonthBar::percent).startsWith(0, 100);
+        assertThat(bars.get(0).month()).isEqualTo(java.time.YearMonth.of(2026, 5));
+    }
+
+    @Test
+    void unexpected_error_renders_the_error_page_inside_the_shell() throws Exception {
+        when(getReceivableHistoryUseCase.getHistory(99)).thenThrow(new IllegalStateException("Receivable 99 not found"));
+
+        mockMvc.perform(get("/ui/receivables/99").session(session()))
+                .andExpect(status().isOk())
+                .andExpect(view().name("error/view-error"))
+                .andExpect(content().string(containsString("Something went wrong")))
+                .andExpect(content().string(containsString("Receivable 99 not found")))
+                .andExpect(content().string(containsString("fm-tabbar")));
+    }
+
     // ── detail ─────────────────────────────────────────────────────────────────
 
     @Test
@@ -111,7 +148,7 @@ class ReceivableViewControllerTest {
                 .andExpect(content().string(containsString("14 Jul 2026")))
                 .andExpect(content().string(containsString("$649.50")))  // remaining after both payments
                 .andExpect(content().string(containsString("balanceChart")))
-                .andExpect(content().string(containsString("\"2026-06\"")));
+                .andExpect(content().string(containsString("June 2026: $300.00")));
     }
 
     @Test

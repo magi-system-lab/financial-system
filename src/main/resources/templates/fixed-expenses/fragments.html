@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<body>
+<!-- Fixed expense fields shared by the add and edit sheets; prefix keeps the ids unique. -->
+<th:block th:fragment="fields(prefix)">
+    <div class="form-stack">
+        <div>
+            <label class="field-label" th:for="${prefix + '-name'}" th:text="#{fixed.name}">Name</label>
+            <input class="field" th:id="${prefix + '-name'}" name="name" required autocomplete="off">
+        </div>
+        <div>
+            <label class="field-label" th:for="${prefix + '-desc'}" th:text="#{fixed.description}">Description</label>
+            <input class="field" th:id="${prefix + '-desc'}" name="description" autocomplete="off">
+        </div>
+        <div class="field-row">
+            <div>
+                <label class="field-label" th:for="${prefix + '-cost'}" th:text="#{fixed.cost}">Monthly cost</label>
+                <input class="field tabular" th:id="${prefix + '-cost'}" name="monthlyCost" type="number" inputmode="decimal" step="0.01" min="0" required>
+            </div>
+            <div>
+                <label class="field-label" th:for="${prefix + '-day'}" th:text="#{fixed.day}">Pay day</label>
+                <input class="field tabular" th:id="${prefix + '-day'}" name="paymentDay" type="number" inputmode="numeric" min="1" max="31">
+            </div>
+        </div>
+        <div>
+            <label class="field-label" th:for="${prefix + '-cat'}" th:text="#{fixed.category}">Category</label>
+            <select class="field" th:id="${prefix + '-cat'}" name="catalogId" required>
+                <option value="" th:text="#{fixed.chooseCategory}">Choose a category…</option>
+                <option th:each="c : ${catalogs}" th:value="${c.id}" th:text="${c.name}">Home</option>
+            </select>
+        </div>
+    </div>
+</th:block>
+</body>
+</html>

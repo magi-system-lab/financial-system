@@ -274,20 +274,19 @@ GET    /ui/upcoming-debts    Upcoming (deferred) purchases pile + month-by-month
 GET    /ui/bulk-statements   Bulk statement import (many files → many cards, see below)
 ```
 
-### UI redesign (iOS-style, mobile first) — in progress
-The UI is being redesigned section by section (iPhone first, also iPad and Mac; installed as a Home Screen web app).
+### UI (iOS-style, mobile first)
+Every page is on the iOS-style shell (iPhone first, also iPad and Mac; installed as a Home Screen web app).
+No Bootstrap, no CDN scripts — everything is in `app.css` / `app.js` / inline page scripts.
 - **Shell:** `templates/layout/app.html` — `head(title)` (Home Screen meta tags, manifest, `app.css`, `app.js`),
   `nav` (floating tab bar below 1024px, sidebar from 1024px, offline banner), `icon(name, cls)` (symbols in
-  `static/img/icons.svg`), `langSwitch`. Redesigned pages use `<body class="app">` + `<main class="app-main">`.
-- **Legacy pages** still use Bootstrap; `layout/navbar :: navbar` now renders the new nav (forced light) so every page
-  shares the same navigation until it is migrated. Bootstrap-colliding classes in `app.css` (`.card`, `.btn*`, `.small`)
-  are scoped to `body.app`.
+  `static/img/icons.svg`), `langSwitch`. Every page uses `<body class="app">` + `<main class="app-main">`.
 - **Design tokens / components:** `static/css/app.css` (light + dark via `prefers-color-scheme`); behaviour in `static/js/app.js`.
 - **Active tab:** `GlobalModelAdvice` adds `currentPath`, `navSection` (insights | cards | import | plan | more) and `currentUser`.
+  `@ModelAttribute` advice does not run for `@ExceptionHandler` models, so `GlobalViewExceptionHandler` adds them itself.
 - **Remembered user:** `RememberedUser` (interceptor on `/ui/**`) restores `userEmail` from the `fm_user` cookie —
   iOS drops session cookies whenever it closes a Home Screen app.
 - **Language:** `messages.properties` (English, default) / `messages_es.properties`; `?lang=en|es_MX` switches and is kept in
-  the `fm_lang` cookie (`WebConfig`). New/redesigned templates use `#{...}` keys; legacy pages are not translated yet.
+  the `fm_lang` cookie (`WebConfig`). All templates use `#{...}` keys.
 - **Offline:** `static/sw.js` saves each `/ui` page you open (network first, 6s timeout) and shows the saved copy with an
   "Offline · updated …" banner when there is no connection; forms are blocked offline; the copies are deleted on login /
   switch user. Service workers need HTTPS (or localhost).
@@ -297,11 +296,16 @@ The UI is being redesigned section by section (iPhone first, also iPad and Mac; 
   `@fmt` (`UiFormat`). Cards (phase 3: `CardsViewController`, card detail, payments, providers; card colour in
   `debt_account.color`, resolved by `@cardColors` / `CardColors` — chosen colour, else bank default, else palette).
   Sheets: `data-open-sheet` + `data-action` / `data-alt-action` / `data-f-<field>` prefill the sheet's form;
+  `<form data-action-from="fooAction">` inside a sheet posts to the opener's `data-foo-action` (hidden without it);
   `data-confirm` asks before submitting. Import (phase 4: bulk upload/review/result, single v2 upload/review and the
   older v1 upload/preview incl. CSV, all on the new shell; shared `fragments/statement-diff` (`rows`, `missing`,
   `ignoreSheet`) and `fragments/upcoming-reminder`). `UiFormat` and `CardColors` are registered as beans in `WebConfig`
-  so `@WebMvcTest` slices get them. `body.app [hidden]` always hides. Next: Plan → More (receivables, fixed expenses,
-  ignored debts, error page), then remove Bootstrap and `layout/navbar`.
+  so `@WebMvcTest` slices get them. `body.app [hidden]` always hides. Plan (phase 5: `/ui/upcoming-debts` — stacked
+  projection chart with salary line, per-month breakdown, "What if I buy…" simulator that also answers "can I afford
+  it?", pile with edit/started/cancelled/delete sheet). More pages (phase 6: receivables list/detail with an inline SVG
+  balance chart and monthly bars (`ReceivableViewController.MonthBar`), fixed expenses with the by-category breakdown
+  (`FixedExpenseViewController.CategoryGroup`) + select mode for bulk edit/delete, ignored debts, error page);
+  `layout/navbar` and Bootstrap removed.
 - **Local dev note:** with devtools restart enabled, applying a bulk import fails with a ClassCastException because
   `BulkStatementService` copies the batch via `SerializationUtils.clone` (different class loader). Run with
   `-Dspring-boot.run.jvmArguments="-Dspring.devtools.restart.enabled=false"`; production (no devtools) is unaffected.

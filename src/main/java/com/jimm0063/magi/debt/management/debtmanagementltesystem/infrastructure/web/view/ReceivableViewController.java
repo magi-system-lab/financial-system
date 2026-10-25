@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -109,8 +110,23 @@ public class ReceivableViewController {
         model.addAttribute("balanceLabels", balanceLabels);
         model.addAttribute("balanceValues", balanceValues);
         model.addAttribute("repaidValues", repaidValues);
-        model.addAttribute("monthLabels", history.getMonthlyTotals().stream().map(ReceivableHistoryDto.MonthlyTotal::getMonth).toList());
-        model.addAttribute("monthAmounts", history.getMonthlyTotals().stream().map(ReceivableHistoryDto.MonthlyTotal::getAmount).toList());
+        model.addAttribute("monthBars", monthBars(history.getMonthlyTotals()));
+    }
+
+    /** One bar per month (zero-filled by the service), height relative to the best month. */
+    public record MonthBar(YearMonth month, BigDecimal amount, int percent, int payments) {}
+
+    static List<MonthBar> monthBars(List<ReceivableHistoryDto.MonthlyTotal> totals) {
+        if (totals == null) return List.of();
+        BigDecimal max = totals.stream().map(ReceivableHistoryDto.MonthlyTotal::getAmount)
+                .filter(java.util.Objects::nonNull).max(BigDecimal::compareTo).orElse(BigDecimal.ZERO);
+        return totals.stream().map(t -> {
+            BigDecimal amount = t.getAmount() == null ? BigDecimal.ZERO : t.getAmount();
+            int percent = max.signum() > 0
+                    ? amount.multiply(BigDecimal.valueOf(100)).divide(max, 0, java.math.RoundingMode.HALF_UP).intValue() : 0;
+            return new MonthBar(YearMonth.parse(t.getMonth()), amount, percent,
+                    t.getPaymentCount() == null ? 0 : t.getPaymentCount());
+        }).toList();
     }
 
     @PostMapping

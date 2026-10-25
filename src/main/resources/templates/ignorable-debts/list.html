@@ -1,101 +1,69 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Ignored Debts – Financial Manager</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-</head>
-<body class="bg-light">
-
-<div th:replace="~{layout/navbar :: navbar}"></div>
-
-<div class="container">
-    <h2 class="mb-1 fw-bold"><i class="bi bi-eye-slash me-2 text-secondary"></i>Ignored Debts</h2>
-    <p class="text-muted mb-4">Debts listed here are skipped automatically when extracting from any account statement. Useful for borrowed-card purchases that belong to someone else.</p>
-
-    <div class="row g-4">
-        <!-- Add form -->
-        <div class="col-lg-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-white">
-                    <h6 class="mb-0 fw-semibold"><i class="bi bi-plus-circle me-2"></i>Mark Debt as Ignorable</h6>
-                </div>
-                <div class="card-body">
-                    <form th:action="@{/ui/ignorable-debts}" method="post">
-                        <div class="mb-3">
-                            <label class="form-label">Hash Sum <span class="text-muted small">(64-char SHA-256)</span></label>
-                            <input type="text" name="hashSum" class="form-control font-monospace"
-                                   placeholder="Paste hash from debt detail or statement" required minlength="64" maxlength="64">
-                            <div class="form-text">Copy the hash from the statement preview or a debt's detail page.</div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Reason</label>
-                            <input type="text" name="reason" class="form-control"
-                                   placeholder="e.g. Borrowed by relative" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="bi bi-plus-lg me-1"></i>Add Ignored Debt
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- List -->
-        <div class="col-lg-8">
-            <div class="card shadow-sm">
-                <div class="card-header bg-white">
-                    <h6 class="mb-0 fw-semibold">
-                        <i class="bi bi-list-ul me-2"></i>Active Ignored Debts
-                        <span class="badge text-bg-secondary ms-2" th:text="${ignorableDebts.size()}">0</span>
-                    </h6>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive" th:if="${!ignorableDebts.empty}">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                            <tr>
-                                <th>Hash Sum</th>
-                                <th>Reason</th>
-                                <th>Since</th>
-                                <th></th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            <tr th:each="ig : ${ignorableDebts}">
-                                <td class="font-monospace small text-muted align-middle"
-                                    style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
-                                    th:title="${ig.hashSum}"
-                                    th:text="${#strings.substring(ig.hashSum, 0, 12) + '…'}">
-                                </td>
-                                <td class="align-middle" th:text="${ig.reason}"></td>
-                                <td class="align-middle small text-muted"
-                                    th:text="${ig.createdAt != null ? #temporals.format(ig.createdAt, 'yyyy-MM-dd') : '—'}"></td>
-                                <td class="align-middle text-end">
-                                    <form th:action="@{/ui/ignorable-debts/{h}(h=${ig.hashSum})}" method="post">
-                                        <input type="hidden" name="_method" value="DELETE">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                onclick="return confirm('Remove this ignore rule? The debt will appear again on future statement extractions.')">
-                                            <i class="bi bi-x-circle"></i> Remove
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="p-4 text-center text-muted" th:if="${ignorableDebts.empty}">
-                        <i class="bi bi-eye-slash fs-2 d-block mb-2"></i>
-                        No ignored debts yet. Mark debts as ignorable from the statement preview.
-                    </div>
-                </div>
-            </div>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{layout/app :: head(#{ignored.title})}"></head>
+<body class="app">
+<div th:replace="~{layout/app :: nav}"></div>
+<main class="app-main">
+    <div class="nav-bar">
+        <a class="btn btn-glass btn-icon" th:href="@{/ui/more}" th:aria-label="#{common.back}">
+            <svg th:replace="~{layout/app :: icon('chevron-left', '')}"></svg>
+        </a>
+        <span></span>
+        <button type="button" class="btn btn-glass btn-icon" data-open-sheet="add-sheet" th:aria-label="#{ignored.add}">
+            <svg th:replace="~{layout/app :: icon('plus', '')}"></svg>
+        </button>
+    </div>
+    <div class="title-block">
+        <div>
+            <h1 class="large-title" th:text="#{ignored.title}">Ignored debts</h1>
+            <p class="subtitle" th:text="#{ignored.subtitle}">Skipped automatically on every statement import.</p>
         </div>
     </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <div class="list" th:unless="${ignorableDebts.isEmpty()}">
+        <div class="list-row" th:each="ig : ${ignorableDebts}">
+            <span class="row-icon bg-gray"><svg th:replace="~{layout/app :: icon('eye-off', '')}"></svg></span>
+            <span class="list-row-body">
+                <span class="list-row-title">
+                    <span th:text="${ig.reason}">Borrowed by a relative</span>
+                    <span><span class="mono" th:title="${ig.hashSum}" th:text="${#strings.abbreviate(ig.hashSum, 15)}">3f2a9c0b1d4e…</span><th:block
+                          th:if="${ig.createdAt != null}" th:text="${' · ' + #messages.msg('ignored.since', #temporals.format(ig.createdAt, 'd MMM yyyy'))}"> · Since 3 Oct 2026</th:block></span>
+                </span>
+                <form th:action="@{/ui/ignorable-debts/{h}(h=${ig.hashSum})}" method="post" th:attr="data-confirm=#{ignored.removeConfirm}">
+                    <input type="hidden" name="_method" value="DELETE">
+                    <button type="submit" class="btn btn-plain btn-sm" th:text="#{ignored.remove}">Stop ignoring</button>
+                </form>
+            </span>
+        </div>
+    </div>
+
+    <div class="card" th:if="${ignorableDebts.isEmpty()}">
+        <div class="empty">
+            <svg th:replace="~{layout/app :: icon('eye-off', '')}"></svg>
+            <span th:text="#{ignored.empty}">No ignored debts.</span>
+        </div>
+    </div>
+</main>
+
+<dialog class="sheet" id="add-sheet" th:aria-label="#{ignored.add}">
+    <form th:action="@{/ui/ignorable-debts}" method="post">
+        <div class="sheet-head">
+            <button type="button" class="btn btn-plain btn-sm" data-close-sheet th:text="#{common.cancel}">Cancel</button>
+            <strong th:text="#{ignored.add}">Ignore a debt</strong>
+            <button type="submit" class="btn btn-plain btn-sm" style="font-weight: 700" th:text="#{common.add}">Add</button>
+        </div>
+        <div class="sheet-body form-stack">
+            <div>
+                <label class="field-label" for="i-hash" th:text="#{ignored.hash}">Hash</label>
+                <input class="field mono" id="i-hash" name="hashSum" required minlength="64" maxlength="64" autocomplete="off" spellcheck="false">
+                <p class="list-footer" style="padding: 6px 0 0" th:text="#{ignored.hashHelp}">64-character SHA-256 hash.</p>
+            </div>
+            <div>
+                <label class="field-label" for="i-reason" th:text="#{ignored.reason}">Reason</label>
+                <input class="field" id="i-reason" name="reason" required th:placeholder="#{ignored.reasonPlaceholder}">
+            </div>
+        </div>
+    </form>
+</dialog>
 </body>
 </html>
