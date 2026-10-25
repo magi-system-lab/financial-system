@@ -7,6 +7,7 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.mapper.PaymentMapper;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.persistence.PaymentJpaRepository;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -26,7 +27,9 @@ public class PaymentRepositoryAdapter implements PaymentRepository {
         return paymentMapper.toModel(this.paymentJpaRepository.save(paymentEntity));
     }
 
+    // backup_data is a PostgreSQL large object (oid): it can only be read inside a transaction.
     @Override
+    @Transactional(readOnly = true)
     public List<Payment> findByDebtAccountCode(String debtAccountCode) {
         return paymentJpaRepository.findByDebtAccountCode(debtAccountCode)
                 .stream()
@@ -35,6 +38,7 @@ public class PaymentRepositoryAdapter implements PaymentRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Payment findLatest(String debtAccountCode) {
         return paymentJpaRepository.findTopByDebtAccount_CodeOrderByCreatedAtDesc(debtAccountCode)
                 .map(paymentMapper::toModel)
