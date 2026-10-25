@@ -11,7 +11,9 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-@Table(name = "debt")
+@Table(name = "debt", uniqueConstraints = {
+    @UniqueConstraint(name = "uk_debt_hash_sum", columnNames = {"hash_sum"})
+})
 @Entity
 @Setter
 @Getter
