@@ -38,6 +38,8 @@
     --seg-on: #FFFFFF;
     --bar-dim: #B4D0F4;
     --up-dim: #FFD699;
+    --fixed: #8E8E93;
+    --fixed-dim: #D1D1D6;
     --seg-shadow: 0 3px 8px rgba(0, 0, 0, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
 
     --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, system-ui, sans-serif;
@@ -83,6 +85,8 @@
         --seg-on: #636366;
         --bar-dim: #1E426E;
         --up-dim: #6B4A12;
+        --fixed: #8E8E93;
+        --fixed-dim: #48484A;
         --seg-shadow: none;
     }
 }
@@ -719,3 +723,19 @@ form.inline { margin: 0; display: contents; }
     *, *::before, *::after { animation: none !important; transition: none !important; }
     @view-transition { navigation: none; }
 }
+
+/* ── Plan ───────────────────────────────────────────────────────────────── */
+.bars.has-line { position: relative; }
+.salary-line {
+    position: absolute; left: 0; right: 0; height: 0; pointer-events: none; z-index: 1;
+    bottom: calc(20px + (100% - 24px) * var(--p, 1));
+    border-top: 1.5px dashed var(--green);
+}
+.bar-new { flex: none; background: var(--purple); opacity: 0.85; }
+.bar-rest { flex: 1; }
+.bar-fix { flex: none; background: var(--fixed-dim); }
+.bar-btn[aria-pressed="true"] .bar-fix { background: var(--fixed); }
+.plan-breakdown { display: flex; flex-direction: column; gap: 6px; font-size: 15px; }
+.plan-breakdown > span { display: grid; grid-template-columns: 10px 1fr auto; align-items: center; gap: 10px; }
+.plan-breakdown .tabular { font-weight: 600; }
+.plan-left { border-top: 0.5px solid var(--sep); padding-top: 8px; margin-top: 2px; font-weight: 600; }

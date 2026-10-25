@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<body>
+<!-- Upcoming purchase fields shared by the add and edit sheets; prefix keeps the ids unique. -->
+<th:block th:fragment="fields(prefix)">
+    <div class="form-stack">
+        <div>
+            <label class="field-label" th:for="${prefix + '-desc'}" th:text="#{plan.form.description}">What did you buy?</label>
+            <input class="field" th:id="${prefix + '-desc'}" name="description" required autocomplete="off" placeholder="TV, laptop…">
+        </div>
+        <div>
+            <label class="field-label" th:for="${prefix + '-card'}" th:text="#{plan.form.card}">Card</label>
+            <select class="field" th:id="${prefix + '-card'}" name="debtAccountCode">
+                <option value="" th:text="#{plan.noCard}">No card</option>
+                <optgroup th:each="group : ${accountsByProvider}" th:label="${group.key}">
+                    <option th:each="acc : ${group.value}" th:value="${acc.code}" th:text="${acc.name}">Visa Oro</option>
+                </optgroup>
+            </select>
+        </div>
+        <div class="field-row">
+            <div>
+                <label class="field-label" th:for="${prefix + '-total'}" th:text="#{plan.form.total}">Total amount</label>
+                <input class="field tabular" th:id="${prefix + '-total'}" name="totalAmount" type="number" inputmode="decimal" step="0.01" min="0">
+            </div>
+            <div>
+                <label class="field-label" th:for="${prefix + '-monthly'}" th:text="#{plan.form.monthly}">or monthly payment</label>
+                <input class="field tabular" th:id="${prefix + '-monthly'}" name="monthlyPayment" type="number" inputmode="decimal" step="0.01" min="0">
+            </div>
+        </div>
+        <div class="field-row">
+            <div>
+                <label class="field-label" th:for="${prefix + '-inst'}" th:text="#{plan.form.installments}">Installments</label>
+                <input class="field tabular" th:id="${prefix + '-inst'}" name="installments" type="number" inputmode="numeric" min="1" required value="12">
+            </div>
+            <div>
+                <label class="field-label" th:for="${prefix + '-first'}" th:text="#{plan.form.first}">First payment month</label>
+                <input class="field" th:id="${prefix + '-first'}" name="firstPaymentMonth" type="month" required
+                       th:value="${#temporals.format(currentMonth.plusMonths(1).atDay(1), 'yyyy-MM')}">
+            </div>
+        </div>
+        <div class="field-row">
+            <div>
+                <label class="field-label" th:for="${prefix + '-purchase'}" th:text="#{plan.form.purchase}">Purchase date</label>
+                <input class="field" th:id="${prefix + '-purchase'}" name="purchaseDate" type="date">
+            </div>
+            <div>
+                <label class="field-label" th:for="${prefix + '-type'}" th:text="#{plan.form.type}">Type</label>
+                <select class="field" th:id="${prefix + '-type'}" name="debtType">
+                    <option th:each="t : ${debtTypes}" th:value="${t}" th:selected="${t.name() == 'CARD'}"
+                            th:text="#{${'debtType.' + t.name()}}">Card</option>
+                </select>
+            </div>
+        </div>
+        <p class="list-footer" style="padding: 0" th:text="#{plan.form.help}">Fill in the total or the monthly payment.</p>
+    </div>
+</th:block>
+</body>
+</html>

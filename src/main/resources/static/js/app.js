@@ -127,6 +127,13 @@ function copyEl(btn, el) {
             const field = form.elements.namedItem(name);
             if (field) field.value = opener.dataset[key];
         });
+        // Extra forms inside the sheet (e.g. Cancel / Delete): <form data-action-from="cancelAction">
+        // posts to the opener's data-cancel-action; hidden when the opener has none.
+        sheet.querySelectorAll('form[data-action-from]').forEach((f) => {
+            const url = opener.dataset[f.dataset.actionFrom];
+            f.hidden = !url;
+            if (url) f.action = url;
+        });
         sheet.querySelectorAll('[data-sheet-extra]').forEach((el) => {
             el.hidden = el.dataset.sheetExtra !== (opener.dataset.mode || '');
         });
