@@ -1,123 +1,62 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Upload Statement – Financial Manager</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-</head>
-<body class="bg-light">
-
-<div th:replace="~{layout/navbar :: navbar}"></div>
-
-<div class="container py-2">
-
-    <!-- Header -->
-    <div class="d-flex align-items-center mb-4">
-        <a th:href="@{/ui/debt-accounts/{code}(code=${debtAccountCode})}"
-           class="btn btn-outline-secondary me-3">
-            <i class="bi bi-arrow-left"></i>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{layout/app :: head(#{single.title})}"></head>
+<body class="app">
+<div th:replace="~{layout/app :: nav}"></div>
+<main class="app-main">
+    <div class="nav-bar">
+        <a class="btn btn-glass btn-icon" th:href="@{/ui/debt-accounts/{c}(c=${debtAccountCode})}" th:aria-label="#{common.back}">
+            <svg th:replace="~{layout/app :: icon('chevron-left', '')}"></svg>
         </a>
+        <span class="nav-bar-title" th:text="${account != null ? account.name : debtAccountCode}">Visa Oro</span>
+        <span style="width: 44px"></span>
+    </div>
+    <div class="title-block">
         <div>
-            <h2 class="fw-bold mb-0">
-                <i class="bi bi-file-earmark-arrow-up me-2 text-primary"></i>Import Account Statement
-            </h2>
-            <div class="text-muted small" th:if="${account != null}">
-                <span th:text="${account.name}"></span>
-                <span class="font-monospace ms-2" th:text="${'[' + debtAccountCode + ']'}"></span>
-                <span class="badge bg-secondary ms-2" th:text="${account.accountStatementType}"></span>
-            </div>
+            <h1 class="large-title" th:text="#{single.title}">Import statement</h1>
+            <p class="subtitle" th:if="${account != null and account.accountStatementType != null}"
+               th:text="#{single.parser(${account.accountStatementType})}">Read as BBVA</p>
         </div>
     </div>
 
-    <!-- Password-required notice (not a real error — just needs a password re-submit) -->
-    <div class="alert alert-warning mb-3" th:if="${extractionError != null and needsPdfPassword == true}">
-        <div class="d-flex align-items-center gap-2">
-            <i class="bi bi-lock-fill fs-5"></i>
-            <span th:text="${extractionError}"></span>
-        </div>
-        <div class="small mt-1">Enter the PDF's password below and re-upload the file.</div>
+    <div class="notice notice-warn" role="alert" th:if="${extractionError != null and needsPdfPassword == true}" style="flex-direction: column; gap: 4px">
+        <strong th:text="${extractionError}">The PDF is password protected</strong>
+        <span class="small" th:text="#{single.needsPassword}">Enter the PDF’s password and upload again.</span>
+    </div>
+    <div class="notice notice-error" role="alert" th:if="${extractionError != null and needsPdfPassword != true}" style="flex-direction: column">
+        <strong th:text="#{single.failed}">The statement couldn’t be read</strong>
+        <pre class="code-block" id="extract-error" style="background: transparent; padding: 0" th:text="${extractionError}">error</pre>
+        <span class="small" th:text="#{single.failedHelp}">The Activity log has the full details.</span>
+        <button type="button" class="btn btn-tinted btn-sm" style="align-self: flex-start" data-copy-target="#extract-error">
+            <span th:text="#{payments.copy}" th:attr="data-copied-text=#{activity.copied}">Copy error</span>
+        </button>
     </div>
 
-    <!-- Error alert -->
-    <div class="alert alert-danger mb-3" th:if="${extractionError != null and needsPdfPassword != true}">
-        <div class="d-flex align-items-center gap-2 mb-2">
-            <i class="bi bi-exclamation-triangle-fill fs-5"></i>
-            <strong>Extraction failed</strong>
+    <form th:action="@{/ui/v2/statements/{code}/extract(code=${debtAccountCode})}" method="post" enctype="multipart/form-data"
+          class="card form-stack">
+        <div>
+            <label class="field-label" for="file" th:text="#{single.file}">Statement file</label>
+            <input class="field" type="file" id="file" name="file" required accept=".pdf,.xlsx,.xls,.csv">
+            <span class="small muted" th:text="#{single.fileHelp}">PDF, Excel or CSV</span>
         </div>
-        <div class="position-relative">
-            <div class="font-monospace small p-2 bg-danger bg-opacity-10 rounded border border-danger border-opacity-25"
-                 th:text="${extractionError}"
-                 style="word-break: break-word; white-space: pre-wrap; padding-right: 2.5rem !important;"></div>
-            <button type="button"
-                    class="btn btn-sm btn-outline-secondary position-absolute top-0 end-0 m-1"
-                    title="Copy to clipboard"
-                    onclick="copyEl(this, this.previousElementSibling)">
-                <i class="bi bi-clipboard"></i>
-            </button>
+        <div>
+            <label class="field-label" for="pdfPassword" th:text="#{single.password}">PDF password</label>
+            <input class="field" type="password" id="pdfPassword" name="pdfPassword" autocomplete="off"
+                   th:autofocus="${needsPdfPassword == true}">
+            <span class="small muted" th:text="#{single.passwordHelp}">Only if the PDF is locked.</span>
         </div>
-        <div class="mt-2 small text-muted">
-            <i class="bi bi-terminal me-1"></i>Open the <strong>Activity Log</strong> (top-right) for the full exception details.
+        <button type="submit" class="btn btn-primary btn-block" th:text="#{single.preview}">Preview changes</button>
+    </form>
+
+    <section class="section">
+        <h2 class="list-header" th:text="#{single.howTitle}">What you’ll see</h2>
+        <div class="list">
+            <div class="list-row"><span class="list-row-body"><span class="chip chip-green" th:text="#{diff.new}">New</span><span class="small muted" th:text="#{single.howNew}">…</span></span></div>
+            <div class="list-row"><span class="list-row-body"><span class="chip chip-blue" th:text="#{diff.updated}">Updated</span><span class="small muted" th:text="#{single.howUpdated}">…</span></span></div>
+            <div class="list-row"><span class="list-row-body"><span class="chip chip-orange" th:text="#{diff.completed}">Paid off</span><span class="small muted" th:text="#{single.howCompleted}">…</span></span></div>
+            <div class="list-row"><span class="list-row-body"><span class="chip chip-gray" th:text="#{diff.unchanged}">Unchanged</span><span class="small muted" th:text="#{single.howUnchanged}">…</span></span></div>
         </div>
-    </div>
-
-    <div class="row justify-content-center">
-        <div class="col-lg-6">
-            <div class="card shadow-sm">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0 fw-semibold">
-                        <i class="bi bi-search me-2 text-primary"></i>Extract &amp; Preview Diff
-                    </h5>
-                    <small class="text-muted">
-                        The parser linked to this card
-                        (<strong th:text="${account != null ? account.accountStatementType : '—'}"></strong>)
-                        will be used automatically. Review the diff before any changes are saved.
-                    </small>
-                </div>
-                <div class="card-body">
-                    <form th:action="@{/ui/v2/statements/{code}/extract(code=${debtAccountCode})}"
-                          method="post" enctype="multipart/form-data">
-
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Statement File</label>
-                            <input type="file" name="file" class="form-control" required
-                                   accept=".pdf,.xlsx,.xls,.csv">
-                            <div class="form-text">Accepted formats: PDF, Excel (xlsx / xls), CSV</div>
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="form-label fw-semibold">PDF Password <span class="text-muted fw-normal">(optional)</span></label>
-                            <input type="password" name="pdfPassword" class="form-control" autocomplete="off"
-                                   th:classappend="${needsPdfPassword == true} ? 'border-warning' : ''">
-                            <div class="form-text">Only needed if the PDF is encrypted and won't open without one.</div>
-                        </div>
-
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="bi bi-eye me-2"></i>Preview Changes
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- How it works info card -->
-            <div class="card mt-3 border-0 bg-light">
-                <div class="card-body small text-muted">
-                    <p class="fw-semibold mb-2"><i class="bi bi-info-circle me-1"></i>How it works</p>
-                    <ul class="mb-0 ps-3">
-                        <li><span class="badge bg-success me-1">NEW</span> Debts found in the statement but not in the system yet.</li>
-                        <li><span class="badge bg-warning text-dark me-1">UPDATED</span> Debts whose installment count has advanced.</li>
-                        <li><span class="badge bg-danger me-1">COMPLETED</span> Debts that reached their last installment (N/N) and will be removed.</li>
-                        <li><span class="badge bg-secondary me-1">UNCHANGED</span> Debts with no changes — shown for reference only.</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    </section>
+</main>
 </body>
 </html>

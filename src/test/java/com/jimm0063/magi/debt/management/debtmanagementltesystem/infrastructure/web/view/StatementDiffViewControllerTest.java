@@ -64,8 +64,10 @@ class StatementDiffViewControllerTest {
                 .andExpect(content().string(containsString("New TV")))
                 .andExpect(content().string(containsString("Laptop")))
                 .andExpect(content().string(containsString("Phone")))
-                .andExpect(content().string(containsString(".row-new")))
-                .andExpect(content().string(containsString("Mark as ignorable")));
+                .andExpect(content().string(containsString("3 → 4 of 12")))
+                .andExpect(content().string(containsString("data-open-sheet=\"ignore-sheet\"")))
+                .andExpect(content().string(containsString("Mark as ignorable")))
+                .andExpect(content().string(containsString("action=\"/ui/v2/statements/VISA/mark-ignorable\"")));
     }
 
     @Test

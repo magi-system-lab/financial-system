@@ -1,655 +1,241 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Statement Preview – Financial Manager</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <style>
-        .removed-row { opacity: .35; }
-        .inst-badge { font-size: .8rem; font-weight: 600; letter-spacing: .02em; }
-        .mode-btn { transition: none; }
-        .section-divider {
-            display: flex; align-items: center; gap: 1rem;
-            margin: 1.5rem 0 1rem;
-            color: #6c757d; font-size: .8rem; font-weight: 600;
-            text-transform: uppercase; letter-spacing: .08em;
-        }
-        .section-divider::before, .section-divider::after {
-            content: ''; flex: 1; height: 1px; background: #dee2e6;
-        }
-        .toggle-divider { text-decoration: none; color: inherit; }
-        .toggle-divider:hover { color: #0d6efd; }
-    </style>
-</head>
-<body class="bg-light">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{layout/app :: head(#{legacy.reviewTitle})}"></head>
+<body class="app">
+<div th:replace="~{layout/app :: nav}"></div>
 
-<div th:replace="~{layout/navbar :: navbar}"></div>
-
-<!-- Unified form: inputs in table rows carry form="previewForm"; buttons use formaction -->
+<!-- Unified form: every editable field carries form="previewForm"; the action buttons use formaction. -->
 <form id="previewForm" th:action="@{/ui/statements/{code}/add(code=${debtAccountCode})}" method="post"></form>
 
-<div class="container-fluid px-4 pb-5">
-
-    <!-- ── Header ──────────────────────────────────────────────────────────── -->
-    <div class="d-flex align-items-center mb-3 flex-wrap gap-2">
-        <a th:href="@{/ui/statements/{code}(code=${debtAccountCode})}" class="btn btn-outline-secondary me-3">
-            <i class="bi bi-arrow-left"></i>
+<main class="app-main"
+      th:with="hasMovements=${not (#lists.isEmpty(newDebts) and #lists.isEmpty(installmentUpdates) and #lists.isEmpty(completedDebts))}">
+    <div class="nav-bar">
+        <a class="btn btn-glass btn-icon" th:href="@{/ui/statements/{c}(c=${debtAccountCode})}" th:aria-label="#{common.back}">
+            <svg th:replace="~{layout/app :: icon('chevron-left', '')}"></svg>
         </a>
-        <div>
-            <h2 class="fw-bold mb-0">
-                <i class="bi bi-clipboard-check me-2 text-primary"></i>Statement Preview
-            </h2>
-            <span class="text-muted font-monospace small" th:text="${debtAccountCode}"></span>
-        </div>
-        <div class="ms-auto d-flex gap-2 flex-wrap">
-            <span class="badge bg-secondary fs-6 px-3 py-2">
-                <i class="bi bi-database me-1"></i>
-                <span th:text="${#lists.size(currentDebts)}">0</span> current
-            </span>
-            <span class="badge bg-success fs-6 px-3 py-2" th:if="${not #lists.isEmpty(newDebts)}">
-                <i class="bi bi-plus-circle me-1"></i>
-                <span th:text="${#lists.size(newDebts)}">0</span> new
-            </span>
-            <span class="badge bg-warning text-dark fs-6 px-3 py-2" th:if="${not #lists.isEmpty(installmentUpdates)}">
-                <i class="bi bi-arrow-up-circle me-1"></i>
-                <span th:text="${#lists.size(installmentUpdates)}">0</span> updated
-            </span>
-            <span class="badge bg-danger fs-6 px-3 py-2" th:if="${not #lists.isEmpty(completedDebts)}">
-                <i class="bi bi-x-circle me-1"></i>
-                <span th:text="${#lists.size(completedDebts)}">0</span> completed
-            </span>
-            <span class="badge bg-secondary fs-6 px-3 py-2" th:if="${ignoredDebts != null and not #lists.isEmpty(ignoredDebts)}">
-                <i class="bi bi-eye-slash me-1"></i>
-                <span th:text="${#lists.size(ignoredDebts)}">0</span> ignored
-            </span>
-        </div>
+        <span></span>
+        <span style="width: 44px"></span>
+    </div>
+    <div class="title-block">
+        <div><h1 class="large-title" th:text="#{legacy.reviewTitle}">Statement preview</h1></div>
     </div>
 
-    <!-- ── Mode Toggle ─────────────────────────────────────────────────────── -->
-    <div class="card shadow-sm mb-3">
-        <div class="card-body py-3">
-            <div class="d-flex align-items-center gap-3 flex-wrap">
-                <span class="fw-semibold text-muted small text-uppercase" style="letter-spacing:.05em;">Mode</span>
-                <div class="btn-group" role="group" aria-label="Preview mode">
-                    <button type="button" class="btn btn-outline-success mode-btn"
-                            data-mode="new" onclick="setMode('new')">
-                        <i class="bi bi-plus-circle me-1"></i>Load New Debts
-                    </button>
-                    <button type="button" class="btn btn-outline-warning mode-btn"
-                            data-mode="sync" onclick="setMode('sync')">
-                        <i class="bi bi-arrow-repeat me-1"></i>Sync Debts
-                    </button>
-                    <button type="button" class="btn btn-outline-danger mode-btn"
-                            data-mode="sot" onclick="setMode('sot')">
-                        <i class="bi bi-exclamation-triangle me-1"></i>Replace as Source of Truth
-                    </button>
+    <div class="chips">
+        <span class="chip chip-gray" th:text="#{legacy.current(${#lists.size(currentDebts)})}">4 current</span>
+        <span class="chip chip-green" th:unless="${#lists.isEmpty(newDebts)}" th:text="#{review.new(${#lists.size(newDebts)})}">2 new</span>
+        <span class="chip chip-blue" th:unless="${#lists.isEmpty(installmentUpdates)}" th:text="#{review.updated(${#lists.size(installmentUpdates)})}">3 updated</span>
+        <span class="chip chip-orange" th:unless="${#lists.isEmpty(completedDebts)}" th:text="#{review.completed(${#lists.size(completedDebts)})}">1 completed</span>
+        <span class="chip chip-gray" th:if="${ignoredDebts != null and not #lists.isEmpty(ignoredDebts)}" th:text="#{review.ignored(${#lists.size(ignoredDebts)})}">1 ignored</span>
+    </div>
+
+    <!-- Mode -->
+    <section class="section" id="modes"
+             th:attr="data-help-new=#{legacy.modeNewHelp}, data-help-sync=#{legacy.modeSyncHelp}, data-help-sot=#{legacy.modeSotHelp}">
+        <h2 class="list-header" th:text="#{legacy.mode}">Mode</h2>
+        <div class="seg">
+            <button type="button" data-mode="new" th:text="#{legacy.modeNew}">Load new</button>
+            <button type="button" data-mode="sync" th:text="#{legacy.modeSync}">Sync</button>
+            <button type="button" data-mode="sot" th:text="#{legacy.modeSot}">Replace all</button>
+        </div>
+        <p class="list-footer" id="modeDescription"></p>
+    </section>
+
+    <!-- Current debts (reference) -->
+    <details class="list disclosure">
+        <summary>
+            <span class="list-row-body">
+                <span class="list-row-title"><span th:text="#{legacy.currentDebts}">Current debts on this card</span></span>
+                <span class="list-row-value" th:text="${#lists.size(currentDebts)}">4</span>
+                <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+            </span>
+        </summary>
+        <div class="list-row diff-row muted-row" th:each="d : ${currentDebts}">
+            <span class="list-row-body">
+                <span class="list-row-title" style="gap: 3px">
+                    <span th:text="${d.description}">Laptop</span>
+                    <span th:replace="~{fragments/statement-diff :: debtLine(${d}, ${d.maxFinancingTerm != null and d.maxFinancingTerm > 0 ? #messages.msg('card.installment', d.currentInstallment, d.maxFinancingTerm) : null})}"></span>
+                </span>
+                <th:block th:replace="~{fragments/statement-diff :: ignoreButton(${d}, @{/ui/statements/{c}/mark-ignorable(c=${debtAccountCode})})}"></th:block>
+            </span>
+        </div>
+        <p class="small muted" style="padding: 12px 16px" th:if="${#lists.isEmpty(currentDebts)}" th:text="#{legacy.noCurrent}">No active debts yet.</p>
+    </details>
+
+    <section class="section">
+        <h2 class="section-title" th:text="#{legacy.movements}">Statement movements</h2>
+
+        <!-- New debts: editable, saved in "new" and "sync" modes -->
+        <div class="list" id="tbody-new" hidden th:unless="${#lists.isEmpty(newDebts)}">
+            <div class="diff-row" th:each="debt, it : ${newDebts}" th:id="${'row-' + it.index}" style="border-bottom: 0.5px solid var(--sep)">
+                <div class="list-row">
+                    <span class="list-row-body" style="border-bottom: 0">
+                        <span class="chip chip-green" th:text="#{diff.new}">New</span>
+                        <span class="list-row-title"></span>
+                        <th:block th:replace="~{fragments/statement-diff :: ignoreButton(${debt}, @{/ui/statements/{c}/mark-ignorable(c=${debtAccountCode})})}"></th:block>
+                        <button type="button" class="btn btn-tinted btn-sm" th:attr="data-row=${it.index}, data-excluded=#{legacy.excluded}"
+                                onclick="removeDebtRow(this)" th:text="#{legacy.exclude}">Leave out</button>
+                    </span>
                 </div>
-                <span id="modeDescription" class="text-muted fst-italic small"></span>
-            </div>
-        </div>
-    </div>
-
-    <!-- ── Current Debts (collapsible reference) ───────────────────────────── -->
-    <div class="section-divider">
-        <a class="toggle-divider d-flex align-items-center gap-1"
-           data-bs-toggle="collapse" href="#currentDebtsCollapse" role="button" aria-expanded="false">
-            <i class="bi bi-chevron-right small" id="currentDebtsChevron"></i>Current debts in account
-        </a>
-    </div>
-
-    <div class="collapse" id="currentDebtsCollapse">
-        <div class="card shadow-sm mb-2" th:if="${not #lists.isEmpty(currentDebts)}">
-            <div class="table-responsive">
-                <table class="table table-sm table-hover mb-0 align-middle">
-                    <thead class="table-secondary">
-                    <tr>
-                        <th>Description</th>
-                        <th class="text-end" style="min-width:100px">Amount</th>
-                        <th class="text-end" style="min-width:100px">Monthly</th>
-                        <th style="min-width:110px">Type</th>
-                        <th style="min-width:200px">Installment</th>
-                        <th></th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr th:each="debt : ${currentDebts}">
-                        <td th:text="${debt.description}"></td>
-                        <td class="text-end font-monospace small" th:text="${debt.originalAmount}"></td>
-                        <td class="text-end font-monospace small" th:text="${debt.monthlyPayment}"></td>
-                        <td>
-                            <span class="badge rounded-pill text-bg-secondary small"
-                                  th:text="${debt.debtType ?: 'CARD'}"></span>
-                        </td>
-                        <td>
-                            <div th:if="${debt.maxFinancingTerm != null and debt.maxFinancingTerm > 0}"
-                                 class="d-flex align-items-center gap-2">
-                                <div class="progress flex-grow-1" style="height:6px;">
-                                    <div class="progress-bar bg-secondary"
-                                         th:style="|width: ${debt.currentInstallment * 100 / debt.maxFinancingTerm}%|"></div>
-                                </div>
-                                <span class="inst-badge text-muted text-nowrap"
-                                      th:text="${debt.currentInstallment + '/' + debt.maxFinancingTerm}"></span>
-                            </div>
-                            <span th:unless="${debt.maxFinancingTerm != null and debt.maxFinancingTerm > 0}"
-                                  class="text-muted small">&#8212;</span>
-                        </td>
-                        <td>
-                            <button th:if="${debt.hashSum != null}"
-                                    type="button"
-                                    class="btn btn-sm btn-outline-secondary border-0 text-nowrap"
-                                    data-bs-toggle="modal" data-bs-target="#markIgnorableModal"
-                                    th:data-hash="${debt.hashSum}"
-                                    th:data-desc="${debt.description}"
-                                    title="Mark this debt as ignorable (borrowed card / relative's purchase)">
-                                <i class="bi bi-eye-slash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        <div class="alert alert-light border mb-2 py-2 small text-muted"
-             th:if="${#lists.isEmpty(currentDebts)}">
-            <i class="bi bi-inbox me-1"></i>No active debts in this account yet.
-        </div>
-    </div>
-
-    <!-- ── Movements Table ─────────────────────────────────────────────────── -->
-    <div class="section-divider">Statement movements</div>
-
-    <div class="card shadow-sm mb-3">
-        <div class="card-header bg-white d-flex align-items-center py-2 gap-2 flex-wrap">
-            <span class="fw-semibold small"><i class="bi bi-activity me-1"></i>Detected changes</span>
-            <span id="tableHint" class="text-muted small ms-auto fst-italic"></span>
-        </div>
-
-        <div class="table-responsive">
-            <table class="table table-sm mb-0 align-middle">
-                <thead class="table-light">
-                <tr>
-                    <th style="width:90px">Movement</th>
-                    <th style="min-width:210px">Description</th>
-                    <th style="min-width:115px">Date</th>
-                    <th style="min-width:110px">Amount</th>
-                    <th style="min-width:110px">Monthly</th>
-                    <th style="min-width:100px">Inst.</th>
-                    <th style="min-width:65px">Max</th>
-                    <th style="min-width:130px">Type</th>
-                    <th style="width:46px"></th>
-                </tr>
-                </thead>
-
-                <!-- ── tbody-new: green rows, editable — "new" + "sync" modes ── -->
-                <tbody id="tbody-new" style="display:none"
-                       th:if="${not #lists.isEmpty(newDebts)}">
-                <tr class="table-success" th:each="debt, iterStat : ${newDebts}"
-                    th:id="'row-' + ${iterStat.index}">
-                    <td><span class="badge text-bg-success">NEW</span></td>
-                    <td>
-                        <input type="text" form="previewForm"
-                               th:name="|debts[${iterStat.index}].description|"
-                               th:value="${debt.description}"
-                               class="form-control form-control-sm">
-                    </td>
-                    <td>
-                        <input type="text" form="previewForm"
-                               th:name="|debts[${iterStat.index}].operationDate|"
-                               th:value="${debt.operationDate}"
-                               class="form-control form-control-sm" placeholder="yyyy-MM-dd">
-                    </td>
-                    <td>
-                        <input type="number" step="0.01" form="previewForm"
-                               th:name="|debts[${iterStat.index}].originalAmount|"
-                               th:value="${debt.originalAmount}"
-                               class="form-control form-control-sm">
-                    </td>
-                    <td>
-                        <input type="number" step="0.01" form="previewForm"
-                               th:name="|debts[${iterStat.index}].monthlyPayment|"
-                               th:value="${debt.monthlyPayment}"
-                               class="form-control form-control-sm">
-                    </td>
-                    <td>
-                        <input type="number" form="previewForm"
-                               th:name="|debts[${iterStat.index}].currentInstallment|"
-                               th:value="${debt.currentInstallment}"
-                               class="form-control form-control-sm">
-                    </td>
-                    <td>
-                        <input type="number" form="previewForm"
-                               th:name="|debts[${iterStat.index}].maxFinancingTerm|"
-                               th:value="${debt.maxFinancingTerm}"
-                               class="form-control form-control-sm">
-                    </td>
-                    <td>
-                        <select form="previewForm"
-                                th:name="|debts[${iterStat.index}].debtType|"
-                                class="form-select form-select-sm">
-                            <option th:each="dtype : ${debtTypes}"
-                                    th:value="${dtype}" th:text="${dtype}"
-                                    th:selected="${dtype == debt.debtType}"></option>
-                        </select>
-                    </td>
-                    <td class="text-center text-nowrap">
-                        <button type="button" class="btn btn-sm btn-outline-secondary border-0"
-                                title="Mark as ignorable (borrowed card / relative)"
-                                data-bs-toggle="modal" data-bs-target="#markIgnorableModal"
-                                th:data-hash="${debt.hashSum}"
-                                th:data-desc="${debt.description}">
-                            <i class="bi bi-eye-slash"></i>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-danger border-0"
-                                title="Exclude from save"
-                                th:attr="data-row=${iterStat.index}"
-                                onclick="removeDebtRow(this)">
-                            <i class="bi bi-x-circle"></i>
-                        </button>
-                    </td>
-                </tr>
-                </tbody>
-
-                <!-- ── tbody-sync: yellow rows, type override — "sync" mode only ── -->
-                <tbody id="tbody-sync" style="display:none"
-                       th:if="${not #lists.isEmpty(installmentUpdates)}">
-                <tr class="table-warning" th:each="update, iterStat : ${installmentUpdates}">
-                    <td><span class="badge text-bg-warning text-dark">UPDATED</span></td>
-                    <td class="small fw-semibold" th:text="${update.debt.description}"></td>
-                    <td class="small text-muted" th:text="${update.debt.operationDate ?: '—'}"></td>
-                    <td class="small font-monospace text-end" th:text="${update.debt.originalAmount ?: '—'}"></td>
-                    <td class="small font-monospace text-end" th:text="${update.debt.monthlyPayment ?: '—'}"></td>
-                    <td class="text-nowrap">
-                        <span class="badge rounded-pill text-bg-danger text-decoration-line-through inst-badge"
-                              th:text="${update.previousInstallment}"></span>
-                        <i class="bi bi-arrow-right text-muted mx-1 small"></i>
-                        <span class="badge rounded-pill text-bg-success inst-badge"
-                              th:text="${update.newInstallment}"></span>
-                        <span class="text-muted small ms-1"
-                              th:if="${update.debt.maxFinancingTerm != null and update.debt.maxFinancingTerm > 0}"
-                              th:text="|/ ${update.debt.maxFinancingTerm}|"></span>
-                    </td>
-                    <td class="small text-muted"
-                        th:text="${update.debt.maxFinancingTerm != null ? update.debt.maxFinancingTerm : '—'}"></td>
-                    <td>
-                        <input type="hidden" form="previewForm"
-                               th:name="|typeOverrides[${iterStat.index}].hashSum|"
-                               th:value="${update.debt.hashSum}">
-                        <select form="previewForm"
-                                th:name="|typeOverrides[${iterStat.index}].debtType|"
-                                class="form-select form-select-sm">
-                            <option th:each="dtype : ${debtTypes}"
-                                    th:value="${dtype}" th:text="${dtype}"
-                                    th:selected="${dtype == update.debt.debtType}"></option>
-                        </select>
-                    </td>
-                    <td></td>
-                </tr>
-                </tbody>
-
-                <!-- ── tbody-sync-done: red display-only rows — "sync" mode only ── -->
-                <tbody id="tbody-sync-done" style="display:none"
-                       th:if="${not #lists.isEmpty(completedDebts)}">
-                <tr class="table-danger" th:each="debt : ${completedDebts}">
-                    <td><span class="badge text-bg-danger">DONE</span></td>
-                    <td class="small fw-semibold" th:text="${debt.description}"></td>
-                    <td class="small text-muted" th:text="${debt.operationDate ?: '—'}"></td>
-                    <td class="small font-monospace text-end" th:text="${debt.originalAmount ?: '—'}"></td>
-                    <td class="small font-monospace text-end" th:text="${debt.monthlyPayment ?: '—'}"></td>
-                    <td>
-                        <div th:if="${debt.maxFinancingTerm != null and debt.maxFinancingTerm > 0}"
-                             class="d-flex align-items-center gap-1">
-                            <div class="progress flex-grow-1" style="height:6px;">
-                                <div class="progress-bar bg-danger" style="width:100%"></div>
-                            </div>
-                            <span class="inst-badge text-danger fw-semibold text-nowrap"
-                                  th:text="${debt.maxFinancingTerm + '/' + debt.maxFinancingTerm}"></span>
-                        </div>
-                    </td>
-                    <td class="small text-muted"
-                        th:text="${debt.maxFinancingTerm != null ? debt.maxFinancingTerm : '—'}"></td>
-                    <td>
-                        <select class="form-select form-select-sm" disabled>
-                            <option th:each="dtype : ${debtTypes}"
-                                    th:value="${dtype}" th:text="${dtype}"
-                                    th:selected="${dtype == debt.debtType}"></option>
-                        </select>
-                    </td>
-                    <td></td>
-                </tr>
-                </tbody>
-
-                <!-- ── tbody-sot: all red, typeOverride for every row — "sot" mode only ── -->
-                <tbody id="tbody-sot" style="display:none"
-                       th:if="${not (#lists.isEmpty(newDebts) and #lists.isEmpty(installmentUpdates) and #lists.isEmpty(completedDebts))}">
-
-                <!-- newDebts as red rows -->
-                <tr class="table-danger" th:each="debt, s : ${newDebts}"
-                    th:with="sotIdx=${s.index}">
-                    <td><span class="badge text-bg-danger">NEW</span></td>
-                    <td class="small fw-semibold" th:text="${debt.description}"></td>
-                    <td class="small text-muted" th:text="${debt.operationDate ?: '—'}"></td>
-                    <td class="small font-monospace text-end" th:text="${debt.originalAmount ?: '—'}"></td>
-                    <td class="small font-monospace text-end" th:text="${debt.monthlyPayment ?: '—'}"></td>
-                    <td class="small text-muted text-nowrap"
-                        th:text="${(debt.currentInstallment ?: '—') + ' / ' + (debt.maxFinancingTerm ?: '—')}"></td>
-                    <td class="small text-muted" th:text="${debt.maxFinancingTerm ?: '—'}"></td>
-                    <td>
-                        <input type="hidden" form="previewForm"
-                               th:name="|typeOverrides[${sotIdx}].hashSum|"
-                               th:value="${debt.hashSum}">
-                        <select form="previewForm"
-                                th:name="|typeOverrides[${sotIdx}].debtType|"
-                                class="form-select form-select-sm">
-                            <option th:each="dtype : ${debtTypes}"
-                                    th:value="${dtype}" th:text="${dtype}"
-                                    th:selected="${dtype == debt.debtType}"></option>
-                        </select>
-                    </td>
-                    <td></td>
-                </tr>
-
-                <!-- installmentUpdates as red rows -->
-                <tr class="table-danger" th:each="update, s : ${installmentUpdates}"
-                    th:with="sotIdx=${#lists.size(newDebts) + s.index}">
-                    <td><span class="badge text-bg-danger">UPDATED</span></td>
-                    <td class="small fw-semibold" th:text="${update.debt.description}"></td>
-                    <td class="small text-muted" th:text="${update.debt.operationDate ?: '—'}"></td>
-                    <td class="small font-monospace text-end" th:text="${update.debt.originalAmount ?: '—'}"></td>
-                    <td class="small font-monospace text-end" th:text="${update.debt.monthlyPayment ?: '—'}"></td>
-                    <td class="small text-muted text-nowrap"
-                        th:text="${(update.newInstallment ?: '—') + ' / ' + (update.debt.maxFinancingTerm ?: '—')}"></td>
-                    <td class="small text-muted"
-                        th:text="${update.debt.maxFinancingTerm ?: '—'}"></td>
-                    <td>
-                        <input type="hidden" form="previewForm"
-                               th:name="|typeOverrides[${sotIdx}].hashSum|"
-                               th:value="${update.debt.hashSum}">
-                        <select form="previewForm"
-                                th:name="|typeOverrides[${sotIdx}].debtType|"
-                                class="form-select form-select-sm">
-                            <option th:each="dtype : ${debtTypes}"
-                                    th:value="${dtype}" th:text="${dtype}"
-                                    th:selected="${dtype == update.debt.debtType}"></option>
-                        </select>
-                    </td>
-                    <td></td>
-                </tr>
-
-                <!-- completedDebts as red rows -->
-                <tr class="table-danger" th:each="debt, s : ${completedDebts}"
-                    th:with="sotIdx=${#lists.size(newDebts) + #lists.size(installmentUpdates) + s.index}">
-                    <td><span class="badge text-bg-danger">DONE</span></td>
-                    <td class="small fw-semibold" th:text="${debt.description}"></td>
-                    <td class="small text-muted" th:text="${debt.operationDate ?: '—'}"></td>
-                    <td class="small font-monospace text-end" th:text="${debt.originalAmount ?: '—'}"></td>
-                    <td class="small font-monospace text-end" th:text="${debt.monthlyPayment ?: '—'}"></td>
-                    <td class="small text-muted text-nowrap"
-                        th:text="${(debt.maxFinancingTerm ?: '—') + ' / ' + (debt.maxFinancingTerm ?: '—')}"></td>
-                    <td class="small text-muted" th:text="${debt.maxFinancingTerm ?: '—'}"></td>
-                    <td>
-                        <input type="hidden" form="previewForm"
-                               th:name="|typeOverrides[${sotIdx}].hashSum|"
-                               th:value="${debt.hashSum}">
-                        <select form="previewForm"
-                                th:name="|typeOverrides[${sotIdx}].debtType|"
-                                class="form-select form-select-sm">
-                            <option th:each="dtype : ${debtTypes}"
-                                    th:value="${dtype}" th:text="${dtype}"
-                                    th:selected="${dtype == debt.debtType}"></option>
-                        </select>
-                    </td>
-                    <td></td>
-                </tr>
-
-                </tbody>
-
-                <!-- ── Empty state ── -->
-                <tbody th:if="${#lists.isEmpty(newDebts) and #lists.isEmpty(installmentUpdates) and #lists.isEmpty(completedDebts) and (ignoredDebts == null or #lists.isEmpty(ignoredDebts))}">
-                <tr>
-                    <td colspan="9" class="text-center text-muted py-4">
-                        <i class="bi bi-check-circle text-success me-1"></i>
-                        No movements detected — statement matches the current account state.
-                    </td>
-                </tr>
-                </tbody>
-
-                <!-- ── tbody-ignored: grey rows, always visible in all modes ── -->
-                <tbody id="tbody-ignored" style="display:none"
-                       th:if="${ignoredDebts != null and not #lists.isEmpty(ignoredDebts)}">
-                <tr th:each="ig : ${ignoredDebts}">
-                    <td>
-                        <span class="badge text-bg-secondary">
-                            <i class="bi bi-eye-slash me-1"></i>IGNORED
-                        </span>
-                    </td>
-                    <td class="small text-muted fw-semibold" th:text="${ig.debt.description}"></td>
-                    <td class="small text-muted" th:text="${ig.debt.operationDate ?: '—'}"></td>
-                    <td class="small font-monospace text-end text-muted" th:text="${ig.debt.originalAmount ?: '—'}"></td>
-                    <td class="small font-monospace text-end text-muted" th:text="${ig.debt.monthlyPayment ?: '—'}"></td>
-                    <td class="small text-muted text-nowrap"
-                        th:text="${(ig.debt.currentInstallment ?: '—') + ' / ' + (ig.debt.maxFinancingTerm ?: '—')}"></td>
-                    <td class="small text-muted" th:text="${ig.debt.maxFinancingTerm ?: '—'}"></td>
-                    <td colspan="2">
-                        <span class="fst-italic text-muted small">
-                            <i class="bi bi-info-circle me-1"></i>Won't be saved —
-                            <span th:text="${ig.reason}"></span>
-                        </span>
-                    </td>
-                </tr>
-                </tbody>
-
-            </table>
-        </div>
-    </div>
-
-
-    <!-- ── Action Bar ──────────────────────────────────────────────────────── -->
-    <div class="d-flex justify-content-between align-items-center pb-5">
-        <a th:href="@{/ui/debt-accounts/{code}(code=${debtAccountCode})}"
-           class="btn btn-outline-secondary">
-            <i class="bi bi-x-lg me-1"></i>Cancel
-        </a>
-
-        <!-- Action for "new" mode -->
-        <div data-action-mode="new" style="display:none">
-            <button type="submit" form="previewForm"
-                    th:formaction="@{/ui/statements/{code}/add(code=${debtAccountCode})}"
-                    class="btn btn-success">
-                <i class="bi bi-floppy me-1"></i>Save New Debts
-            </button>
-        </div>
-
-        <!-- Action for "sync" mode -->
-        <div data-action-mode="sync" style="display:none">
-            <button type="submit" form="previewForm"
-                    th:formaction="@{/ui/statements/{code}/sync(code=${debtAccountCode})}"
-                    class="btn btn-warning"
-                    onclick="return confirm('Full Sync will update installments and deactivate debts not in this statement. Continue?')">
-                <i class="bi bi-arrow-repeat me-1"></i>Full Sync
-            </button>
-        </div>
-
-        <!-- Action for "sot" mode -->
-        <div data-action-mode="sot" style="display:none">
-            <button type="button" class="btn btn-danger"
-                    data-bs-toggle="modal" data-bs-target="#confirmReplaceModal">
-                <i class="bi bi-trash3 me-1"></i>Replace as Source of Truth
-            </button>
-        </div>
-    </div>
-
-</div><!-- /container -->
-
-<!-- Mark as Ignorable Modal -->
-<div class="modal fade" id="markIgnorableModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form id="markIgnorableForm" method="post" class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-eye-slash me-2 text-secondary"></i>Mark Debt as Ignorable</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p class="text-muted small">This debt will be skipped automatically on all future statement extractions for this account.</p>
-                <div class="mb-3">
-                    <label class="form-label">Debt</label>
-                    <input type="text" id="ignoreDesc" class="form-control" disabled>
-                </div>
-                <input type="hidden" name="hashSum" id="ignoreHashSum">
-                <div class="mb-0">
-                    <label class="form-label">Reason</label>
-                    <input type="text" name="reason" id="ignoreReason" class="form-control"
-                           placeholder="e.g. Borrowed by relative" required>
+                <div class="edit-grid">
+                    <label class="wide"><span th:text="#{debt.description}">Description</span>
+                        <input class="field" form="previewForm" th:name="|debts[${it.index}].description|" th:value="${debt.description}"></label>
+                    <label><span th:text="#{debt.monthly}">Monthly payment</span>
+                        <input class="field tabular" type="number" step="0.01" form="previewForm" th:name="|debts[${it.index}].monthlyPayment|" th:value="${debt.monthlyPayment}"></label>
+                    <label><span th:text="#{debt.original}">Original amount</span>
+                        <input class="field tabular" type="number" step="0.01" form="previewForm" th:name="|debts[${it.index}].originalAmount|" th:value="${debt.originalAmount}"></label>
+                    <label><span th:text="#{debt.current}">Installments paid</span>
+                        <input class="field tabular" type="number" form="previewForm" th:name="|debts[${it.index}].currentInstallment|" th:value="${debt.currentInstallment}"></label>
+                    <label><span th:text="#{debt.term}">Total installments</span>
+                        <input class="field tabular" type="number" form="previewForm" th:name="|debts[${it.index}].maxFinancingTerm|" th:value="${debt.maxFinancingTerm}"></label>
+                    <label><span th:text="#{debt.date}">Purchase date</span>
+                        <input class="field" form="previewForm" placeholder="yyyy-MM-dd" th:name="|debts[${it.index}].operationDate|" th:value="${debt.operationDate}"></label>
+                    <label><span th:text="#{debt.type}">Type</span>
+                        <select class="field" form="previewForm" th:name="|debts[${it.index}].debtType|">
+                            <option th:each="t : ${debtTypes}" th:value="${t}" th:selected="${t == debt.debtType}" th:text="#{${'debtType.' + t.name()}}">Card</option>
+                        </select></label>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn btn-secondary">
-                    <i class="bi bi-eye-slash me-1"></i>Mark as Ignorable
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
+        </div>
 
-<!-- Source of Truth confirmation modal -->
-<div class="modal fade" id="confirmReplaceModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-danger">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Confirm Source of Truth Replace
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>This will <strong>permanently deactivate all existing debts</strong> for this account and replace them with the debts from the extracted statement.</p>
-                <p class="mb-0 text-danger fw-semibold">This action cannot be undone.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" form="previewForm"
-                        th:formaction="@{/ui/statements/{code}/replace(code=${debtAccountCode})}"
-                        class="btn btn-danger">
-                    <i class="bi bi-trash3 me-1"></i>Yes, Replace Everything
-                </button>
+        <!-- Installment updates: type can be overridden ("sync" mode) -->
+        <div class="list" id="tbody-sync" hidden th:unless="${#lists.isEmpty(installmentUpdates)}">
+            <div class="list-row diff-row" th:each="u, it : ${installmentUpdates}">
+                <span class="list-row-body" style="flex-wrap: wrap">
+                    <span class="list-row-title" style="gap: 3px">
+                        <span th:text="${u.debt.description}">Laptop</span>
+                        <span class="tabular" th:text="${u.previousInstallment + ' → ' + u.newInstallment + (u.debt.maxFinancingTerm != null ? ' / ' + u.debt.maxFinancingTerm : '') + (u.debt.monthlyPayment != null ? ' · ' + @fmt.money(u.debt.monthlyPayment) : '')}">3 → 4 / 12</span>
+                    </span>
+                    <span class="chip chip-blue" th:text="#{diff.updated}">Updated</span>
+                    <input type="hidden" form="previewForm" th:name="|typeOverrides[${it.index}].hashSum|" th:value="${u.debt.hashSum}">
+                    <select class="field" style="height: 36px; width: auto; font-size: 14px" form="previewForm" th:name="|typeOverrides[${it.index}].debtType|" th:aria-label="#{debt.type}">
+                        <option th:each="t : ${debtTypes}" th:value="${t}" th:selected="${t == u.debt.debtType}" th:text="#{${'debtType.' + t.name()}}">Card</option>
+                    </select>
+                </span>
             </div>
         </div>
+
+        <!-- Paid off: display only ("sync" mode) -->
+        <div class="list" id="tbody-sync-done" hidden th:unless="${#lists.isEmpty(completedDebts)}">
+            <div class="list-row diff-row" th:each="d : ${completedDebts}">
+                <span class="list-row-body">
+                    <span class="list-row-title" style="gap: 3px">
+                        <span th:text="${d.description}">Phone</span>
+                        <span th:replace="~{fragments/statement-diff :: debtLine(${d}, ${d.maxFinancingTerm != null ? d.maxFinancingTerm + ' / ' + d.maxFinancingTerm : null})}"></span>
+                    </span>
+                    <span class="chip chip-orange" th:text="#{diff.completed}">Paid off</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- Replace all: every statement debt, type can be overridden ("sot" mode) -->
+        <div class="list" id="tbody-sot" hidden th:if="${hasMovements}">
+            <div class="list-row diff-row" th:each="d, s : ${newDebts}" th:with="idx=${s.index}">
+                <span class="list-row-body" style="flex-wrap: wrap">
+                    <span class="list-row-title" style="gap: 3px"><span th:text="${d.description}">TV</span>
+                        <span th:replace="~{fragments/statement-diff :: debtLine(${d}, null)}"></span></span>
+                    <input type="hidden" form="previewForm" th:name="|typeOverrides[${idx}].hashSum|" th:value="${d.hashSum}">
+                    <select class="field" style="height: 36px; width: auto; font-size: 14px" form="previewForm" th:name="|typeOverrides[${idx}].debtType|" th:aria-label="#{debt.type}">
+                        <option th:each="t : ${debtTypes}" th:value="${t}" th:selected="${t == d.debtType}" th:text="#{${'debtType.' + t.name()}}">Card</option>
+                    </select>
+                </span>
+            </div>
+            <div class="list-row diff-row" th:each="u, s : ${installmentUpdates}" th:with="idx=${#lists.size(newDebts) + s.index}">
+                <span class="list-row-body" style="flex-wrap: wrap">
+                    <span class="list-row-title" style="gap: 3px"><span th:text="${u.debt.description}">Laptop</span>
+                        <span th:replace="~{fragments/statement-diff :: debtLine(${u.debt}, null)}"></span></span>
+                    <input type="hidden" form="previewForm" th:name="|typeOverrides[${idx}].hashSum|" th:value="${u.debt.hashSum}">
+                    <select class="field" style="height: 36px; width: auto; font-size: 14px" form="previewForm" th:name="|typeOverrides[${idx}].debtType|" th:aria-label="#{debt.type}">
+                        <option th:each="t : ${debtTypes}" th:value="${t}" th:selected="${t == u.debt.debtType}" th:text="#{${'debtType.' + t.name()}}">Card</option>
+                    </select>
+                </span>
+            </div>
+            <div class="list-row diff-row" th:each="d, s : ${completedDebts}" th:with="idx=${#lists.size(newDebts) + #lists.size(installmentUpdates) + s.index}">
+                <span class="list-row-body" style="flex-wrap: wrap">
+                    <span class="list-row-title" style="gap: 3px"><span th:text="${d.description}">Phone</span>
+                        <span th:replace="~{fragments/statement-diff :: debtLine(${d}, null)}"></span></span>
+                    <input type="hidden" form="previewForm" th:name="|typeOverrides[${idx}].hashSum|" th:value="${d.hashSum}">
+                    <select class="field" style="height: 36px; width: auto; font-size: 14px" form="previewForm" th:name="|typeOverrides[${idx}].debtType|" th:aria-label="#{debt.type}">
+                        <option th:each="t : ${debtTypes}" th:value="${t}" th:selected="${t == d.debtType}" th:text="#{${'debtType.' + t.name()}}">Card</option>
+                    </select>
+                </span>
+            </div>
+        </div>
+
+        <div class="card" th:if="${!hasMovements and (ignoredDebts == null or #lists.isEmpty(ignoredDebts))}">
+            <p class="small muted" th:text="#{legacy.nothing}">No movements.</p>
+        </div>
+
+        <!-- Ignored: always visible -->
+        <div class="list" id="tbody-ignored" th:if="${ignoredDebts != null and not #lists.isEmpty(ignoredDebts)}">
+            <div class="list-row diff-row muted-row ignored" th:each="ig : ${ignoredDebts}">
+                <span class="list-row-body">
+                    <span class="list-row-title" style="gap: 3px">
+                        <span th:text="${ig.debt.description}">Borrowed</span>
+                        <span th:text="#{legacy.wontSave(${ig.reason})}">Won’t be saved — reason</span>
+                    </span>
+                    <span class="chip chip-gray" th:text="#{diff.ignored}">Ignored</span>
+                </span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Actions per mode -->
+    <div class="form-stack">
+        <button type="submit" form="previewForm" class="btn btn-primary btn-block" data-action-mode="new" hidden
+                th:formaction="@{/ui/statements/{c}/add(c=${debtAccountCode})}" th:text="#{legacy.saveNew}">Save new debts</button>
+        <button type="submit" form="previewForm" class="btn btn-primary btn-block" data-action-mode="sync" hidden
+                th:formaction="@{/ui/statements/{c}/sync(c=${debtAccountCode})}"
+                th:attr="data-confirm=#{legacy.fullSyncConfirm}" th:text="#{legacy.fullSync}">Full sync</button>
+        <button type="submit" form="previewForm" class="btn btn-danger btn-block" data-action-mode="sot" hidden
+                th:formaction="@{/ui/statements/{c}/replace(c=${debtAccountCode})}"
+                th:attr="data-confirm=#{legacy.replaceConfirm}" th:text="#{legacy.replace}">Replace all</button>
+        <a class="btn btn-plain btn-block" th:href="@{/ui/debt-accounts/{c}(c=${debtAccountCode})}" th:text="#{common.cancel}">Cancel</a>
     </div>
-</div>
+</main>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-var ALL_TBODIES = ['tbody-new', 'tbody-sync', 'tbody-sync-done', 'tbody-sot', 'tbody-ignored'];
+<dialog th:replace="~{fragments/statement-diff :: ignoreSheet(@{/ui/statements/{c}/mark-ignorable(c=${debtAccountCode})})}"></dialog>
 
-var MODE_SHOW = {
-    'new':  ['tbody-new', 'tbody-ignored'],
-    'sync': ['tbody-new', 'tbody-sync', 'tbody-sync-done', 'tbody-ignored'],
-    'sot':  ['tbody-sot', 'tbody-ignored']
-};
-
-var MODE_DESC = {
-    'new':  'Shows only new debts — existing debts are left untouched.',
-    'sync': 'Shows new debts (green) and installment changes (yellow). Debts not in the statement will be deactivated.',
-    'sot':  'All statement debts shown in red — this will replace every existing debt for this account. Cannot be undone.'
-};
-
-var MODE_HINT = {
-    'new':  'Edit rows freely. Click × to exclude a row.',
-    'sync': 'Change type on UPDATED rows to override the saved type.',
-    'sot':  'Change type on any row before replacing.'
-};
-
-function setMode(mode) {
-    // Disable + hide all tbodies
-    ALL_TBODIES.forEach(function(id) {
-        var el = document.getElementById(id);
-        if (!el) return;
-        el.querySelectorAll('input, select').forEach(function(i) { i.disabled = true; });
-        el.style.display = 'none';
-    });
-
-    // Enable + show tbodies for this mode
-    (MODE_SHOW[mode] || []).forEach(function(id) {
-        var el = document.getElementById(id);
-        if (!el) return;
-        el.querySelectorAll('input, select').forEach(function(i) { i.disabled = false; });
-        el.style.display = '';
-    });
-
-    // Keep manually removed rows disabled
-    document.querySelectorAll('.removed-row input, .removed-row select')
-            .forEach(function(i) { i.disabled = true; });
-
-    // Swap action buttons
-    document.querySelectorAll('[data-action-mode]').forEach(function(el) {
-        el.style.display = 'none';
-    });
-    var actionEl = document.querySelector('[data-action-mode="' + mode + '"]');
-    if (actionEl) actionEl.style.display = '';
-
-    // Update description + hint
-    var descEl = document.getElementById('modeDescription');
-    if (descEl) descEl.textContent = MODE_DESC[mode] || '';
-    var hintEl = document.getElementById('tableHint');
-    if (hintEl) hintEl.textContent = MODE_HINT[mode] || '';
-
-    // Update toggle button active state
-    document.querySelectorAll('.mode-btn').forEach(function(b) {
-        b.classList.remove('active');
-    });
-    var activeBtn = document.querySelector('[data-mode="' + mode + '"]');
-    if (activeBtn) activeBtn.classList.add('active');
-}
-
-function removeDebtRow(btn) {
-    var index = btn.getAttribute('data-row');
-    var row = document.getElementById('row-' + index);
-    if (!row) return;
-    row.classList.add('removed-row');
-    row.querySelectorAll('input, select').forEach(function(el) { el.disabled = true; });
-    btn.disabled = true;
-}
-
-// Mark-as-ignorable modal wiring
-var markIgnorableModal = document.getElementById('markIgnorableModal');
-if (markIgnorableModal) {
-    markIgnorableModal.addEventListener('show.bs.modal', function(event) {
-        var btn = event.relatedTarget;
-        document.getElementById('ignoreDesc').value = btn.getAttribute('data-desc') || '';
-        document.getElementById('ignoreHashSum').value = btn.getAttribute('data-hash') || '';
-        document.getElementById('ignoreReason').value = '';
-    });
-}
-
-// Collapse chevron icon toggle
-document.addEventListener('DOMContentLoaded', function() {
-    var collapseEl = document.getElementById('currentDebtsCollapse');
-    var icon = document.getElementById('currentDebtsChevron');
-    if (collapseEl && icon) {
-        collapseEl.addEventListener('show.bs.collapse', function() {
-            icon.className = 'bi bi-chevron-down small';
-        });
-        collapseEl.addEventListener('hide.bs.collapse', function() {
-            icon.className = 'bi bi-chevron-right small';
-        });
-    }
-});
-</script>
-
-<!-- Determine initial mode from server-side data and activate it -->
 <script th:inline="javascript">
-(function() {
-    var hasUpdates   = /*[[${not #lists.isEmpty(installmentUpdates)}]]*/ false;
+(function () {
+    var SECTIONS = ['tbody-new', 'tbody-sync', 'tbody-sync-done', 'tbody-sot'];
+    var SHOW = {
+        'new':  ['tbody-new'],
+        'sync': ['tbody-new', 'tbody-sync', 'tbody-sync-done'],
+        'sot':  ['tbody-sot']
+    };
+    var help = document.getElementById('modes').dataset;
+
+    function setMode(mode) {
+        SECTIONS.forEach(function (id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            var on = SHOW[mode].indexOf(id) >= 0;
+            el.hidden = !on;
+            el.querySelectorAll('input, select').forEach(function (i) { i.disabled = !on; });
+        });
+        // Rows the user left out stay out.
+        document.querySelectorAll('.excluded input, .excluded select').forEach(function (i) { i.disabled = true; });
+        document.querySelectorAll('[data-action-mode]').forEach(function (b) { b.hidden = b.dataset.actionMode !== mode; });
+        document.querySelectorAll('[data-mode]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.mode === mode)); });
+        document.getElementById('modeDescription').textContent = help['help' + mode.charAt(0).toUpperCase() + mode.slice(1)] || '';
+    }
+
+    window.removeDebtRow = function (btn) {
+        var row = document.getElementById('row-' + btn.getAttribute('data-row'));
+        if (!row) return;
+        row.classList.add('excluded');
+        row.querySelectorAll('input, select').forEach(function (el) { el.disabled = true; });
+        btn.disabled = true;
+        btn.textContent = btn.getAttribute('data-excluded');
+    };
+
+    document.querySelectorAll('[data-mode]').forEach(function (b) {
+        b.addEventListener('click', function () { setMode(b.dataset.mode); });
+    });
+
+    var hasUpdates = /*[[${not #lists.isEmpty(installmentUpdates)}]]*/ false;
     var hasCompleted = /*[[${not #lists.isEmpty(completedDebts)}]]*/ false;
     setMode((hasUpdates || hasCompleted) ? 'sync' : 'new');
-
-    // Set mark-ignorable form action using server-provided account code
-    var markForm = document.getElementById('markIgnorableForm');
-    if (markForm) {
-        markForm.action = /*[[@{/ui/statements/{c}/mark-ignorable(c=${debtAccountCode})}]]*/ '';
-    }
 })();
 </script>
 </body>

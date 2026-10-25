@@ -1,6 +1,8 @@
 package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.configuration;
 
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.web.view.CardColors;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.web.view.RememberedUser;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.web.view.UiFormat;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.LocaleResolver;
@@ -14,7 +16,7 @@ import java.util.Locale;
 
 /**
  * Web UI wiring: language switch (?lang=en | ?lang=es_MX, remembered in a cookie; English by default)
- * and restoring the remembered user on /ui pages.
+ * restoring the remembered user on /ui pages, and the helper beans the templates use.
  */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
@@ -25,6 +27,18 @@ public class WebConfig implements WebMvcConfigurer {
         resolver.setDefaultLocale(Locale.US);
         resolver.setCookieMaxAge(Duration.ofDays(365));
         return resolver;
+    }
+
+    /** Money / month formatting for templates: {@code ${@fmt.money(x)}}. */
+    @Bean("fmt")
+    public UiFormat uiFormat() {
+        return new UiFormat();
+    }
+
+    /** Card colours for templates and controllers: {@code ${@cardColors.of(account)}}. */
+    @Bean("cardColors")
+    public CardColors cardColors() {
+        return new CardColors();
     }
 
     @Override

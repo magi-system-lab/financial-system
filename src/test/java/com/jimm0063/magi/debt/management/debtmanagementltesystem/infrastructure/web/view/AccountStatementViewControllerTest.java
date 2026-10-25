@@ -5,6 +5,7 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.applicat
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FilterDebtsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllDebtsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.LoadDebtList;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.MarkDebtAsIgnorableUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.SourceOfTruthImportUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.DebtAccountRepository;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.AccountStatementPreviewDto;
@@ -15,6 +16,7 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.De
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.configuration.SecurityConfig;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.mapper.DebtMapper;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.model.CreateDebtReq;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.DebtInstallmentUpdateDto;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -30,6 +32,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
@@ -38,6 +41,8 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -57,6 +62,7 @@ class AccountStatementViewControllerTest {
     @MockBean DebtAccountRepository debtAccountRepository;
     @MockBean FindAllDebtsUseCase findAllDebtsUseCase;
     @MockBean ActivityLogHelper activityLogHelper;
+    @MockBean MarkDebtAsIgnorableUseCase markDebtAsIgnorableUseCase;
 
     private static final String ACC = "VISA_TEST";
 
@@ -124,7 +130,8 @@ class AccountStatementViewControllerTest {
                         .file(file)
                         .param("accountStatementType", "CSV_UPLOAD")
                         .sessionAttr("userEmail", "user@test.com"))
-                .andExpect(redirectedUrl("/ui/statements/" + ACC + "?error=parse_failed"));
+                .andExpect(redirectedUrl("/ui/statements/" + ACC))
+                .andExpect(flash().attributeExists("extractionError"));
     }
 
     @Test
@@ -138,7 +145,43 @@ class AccountStatementViewControllerTest {
                         .file(file)
                         .param("accountStatementType", "CSV_UPLOAD")
                         .sessionAttr("userEmail", "user@test.com"))
-                .andExpect(redirectedUrl("/ui/statements/" + ACC + "?error=missing_fields"));
+                .andExpect(redirectedUrl("/ui/statements/" + ACC))
+                .andExpect(flash().attributeExists("extractionError"));
+    }
+
+    @Test
+    void preview_renders_editable_new_debts_updates_and_mode_actions() throws Exception {
+        Debt tv = new Debt();
+        tv.setDescription("New TV");
+        tv.setMonthlyPayment(new BigDecimal("500.00"));
+        tv.setCurrentInstallment(1);
+        tv.setMaxFinancingTerm(12);
+        tv.setHashSum("hash-tv");
+        tv.setDebtType(DebtTypeEnum.CARD);
+        Debt laptop = new Debt();
+        laptop.setDescription("Laptop");
+        laptop.setMonthlyPayment(new BigDecimal("900.00"));
+        laptop.setMaxFinancingTerm(12);
+        laptop.setHashSum("hash-laptop");
+        DebtInstallmentUpdateDto update = new DebtInstallmentUpdateDto();
+        update.setDebt(laptop);
+        update.setPreviousInstallment(3);
+        update.setNewInstallment(4);
+        AccountStatementPreviewDto preview = new AccountStatementPreviewDto(
+                List.of(tv), List.of(update), List.of(), List.of(), List.of());
+        when(findAllDebtsUseCase.getActiveByDebtAccount(ACC)).thenReturn(List.of());
+
+        mockMvc.perform(get("/ui/statements/" + ACC + "/preview")
+                        .sessionAttr("userEmail", "user@test.com")
+                        .sessionAttr("statementPreview", preview))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("name=\"debts[0].description\"")))
+                .andExpect(content().string(containsString("value=\"New TV\"")))
+                .andExpect(content().string(containsString("3 → 4 / 12")))
+                .andExpect(content().string(containsString("name=\"typeOverrides[0].hashSum\"")))
+                .andExpect(content().string(containsString("formaction=\"/ui/statements/" + ACC + "/sync\"")))
+                .andExpect(content().string(containsString("formaction=\"/ui/statements/" + ACC + "/replace\"")))
+                .andExpect(content().string(containsString("action=\"/ui/statements/" + ACC + "/mark-ignorable\"")));
     }
 
     // ── add ───────────────────────────────────────────────────────────────────

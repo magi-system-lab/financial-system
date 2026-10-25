@@ -297,7 +297,14 @@ The UI is being redesigned section by section (iPhone first, also iPad and Mac; 
   `@fmt` (`UiFormat`). Cards (phase 3: `CardsViewController`, card detail, payments, providers; card colour in
   `debt_account.color`, resolved by `@cardColors` / `CardColors` — chosen colour, else bank default, else palette).
   Sheets: `data-open-sheet` + `data-action` / `data-alt-action` / `data-f-<field>` prefill the sheet's form;
-  `data-confirm` asks before submitting. Next: Import → Plan → More (receivables, fixed expenses, ignored debts).
+  `data-confirm` asks before submitting. Import (phase 4: bulk upload/review/result, single v2 upload/review and the
+  older v1 upload/preview incl. CSV, all on the new shell; shared `fragments/statement-diff` (`rows`, `missing`,
+  `ignoreSheet`) and `fragments/upcoming-reminder`). `UiFormat` and `CardColors` are registered as beans in `WebConfig`
+  so `@WebMvcTest` slices get them. `body.app [hidden]` always hides. Next: Plan → More (receivables, fixed expenses,
+  ignored debts, error page), then remove Bootstrap and `layout/navbar`.
+- **Local dev note:** with devtools restart enabled, applying a bulk import fails with a ClassCastException because
+  `BulkStatementService` copies the batch via `SerializationUtils.clone` (different class loader). Run with
+  `-Dspring-boot.run.jvmArguments="-Dspring.devtools.restart.enabled=false"`; production (no devtools) is unaffected.
 - **Static files** are fingerprinted (`app-<hash>.css`) through `@{...}` and cached for 7 days.
 
 ### Bulk Statement Import (Web UI)
