@@ -1,129 +1,15 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <body>
-<div th:fragment="navbar">
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-    <div class="container-fluid">
-        <a class="navbar-brand fw-bold" th:href="@{/ui/dashboard}">
-            <i class="bi bi-graph-up-arrow me-2"></i>Financial Manager
-        </a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navMenu">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                <li class="nav-item">
-                    <a class="nav-link" th:href="@{/ui/dashboard}">
-                        <i class="bi bi-speedometer2 me-1"></i>Dashboard
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" th:href="@{/ui/providers}">
-                        <i class="bi bi-bank me-1"></i>Providers
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" th:href="@{/ui/fixed-expenses}">
-                        <i class="bi bi-receipt me-1"></i>Fixed Expenses
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" th:href="@{/ui/bulk-statements}">
-                        <i class="bi bi-files me-1"></i>Bulk Statements
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" th:href="@{/ui/progression}">
-                        <i class="bi bi-calendar2-range me-1"></i>Progresión
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" th:href="@{/ui/upcoming-debts}">
-                        <i class="bi bi-hourglass-split me-1"></i>Upcoming
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" th:href="@{/ui/ignorable-debts}">
-                        <i class="bi bi-eye-slash me-1"></i>Ignored Debts
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" th:href="@{/ui/receivables}">
-                        <i class="bi bi-people me-1"></i>Receivables
-                    </a>
-                </li>
-            </ul>
-            <div class="d-flex align-items-center gap-3">
-                <span class="navbar-text text-light" th:if="${email != null}">
-                    <i class="bi bi-person-circle me-1"></i>
-                    <span th:text="${email}"></span>
-                </span>
-                <!-- Activity Log button -->
-                <button class="btn btn-outline-light btn-sm position-relative"
-                        type="button"
-                        data-bs-toggle="offcanvas"
-                        data-bs-target="#activityOffcanvas">
-                    <i class="bi bi-terminal me-1"></i>Activity Log
-                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark"
-                          th:if="${activityLog != null and !activityLog.empty}"
-                          th:text="${activityLog.size()}"></span>
-                </button>
-            </div>
-        </div>
-    </div>
-</nav>
-
-<!-- Activity Log Offcanvas -->
-<div class="offcanvas offcanvas-end" tabindex="-1" id="activityOffcanvas" style="width: 600px;">
-    <div class="offcanvas-header bg-dark text-white">
-        <h5 class="offcanvas-title"><i class="bi bi-terminal me-2"></i>Activity Log</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
-    </div>
-    <div class="offcanvas-body p-0">
-        <div th:if="${activityLog == null or activityLog.empty}" class="p-4 text-center text-muted">
-            <i class="bi bi-inbox fs-2"></i>
-            <p class="mt-2">No activity yet. Actions like creating providers, syncing statements, and processing payments will appear here.</p>
-        </div>
-        <div class="accordion accordion-flush" id="activityAccordion" th:unless="${activityLog == null or activityLog.empty}">
-            <div class="accordion-item" th:each="entry, iterStat : ${activityLog}">
-                <h2 class="accordion-header">
-                    <button class="accordion-button collapsed py-2 px-3" type="button"
-                            data-bs-toggle="collapse"
-                            th:attr="data-bs-target='#entry' + ${iterStat.index}">
-                        <div class="d-flex flex-column w-100 me-2">
-                            <span class="fw-semibold small" th:text="${entry.action()}"></span>
-                            <span class="text-muted" style="font-size: 0.75rem;" th:text="${entry.timestamp()}"></span>
-                        </div>
-                    </button>
-                </h2>
-                <div th:id="${'entry' + iterStat.index}" class="accordion-collapse collapse"
-                     th:classappend="${iterStat.index == 0 ? ' show' : ''}">
-                    <div class="accordion-body p-0 position-relative log-body">
-                        <button type="button"
-                                class="btn btn-sm btn-outline-secondary position-absolute top-0 end-0 m-1"
-                                title="Copy to clipboard"
-                                onclick="copyEl(this, this.closest('.log-body').querySelector('pre'))">
-                            <i class="bi bi-clipboard"></i>
-                        </button>
-                        <pre class="mb-0 p-3 bg-dark text-light" style="font-size: 0.75rem; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;"
-                             th:text="${entry.jsonResponse()}"></pre>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+<!--
+  Legacy pages (still on Bootstrap) include this fragment. It now renders the
+  new navigation shell (layout/app :: nav) forced to light colours until each
+  page is redesigned. The old Activity Log panel moved to /ui/activity.
+-->
+<div th:fragment="navbar" class="fm-legacy">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <div th:replace="~{layout/app :: nav}"></div>
+    <script th:src="@{/js/app.js}" defer></script>
 </div>
-</div>
-<script>
-function copyEl(btn, el) {
-    if (!el) return;
-    navigator.clipboard.writeText(el.textContent).then(() => {
-        const icon = btn.querySelector('i');
-        icon.className = 'bi bi-clipboard-check';
-        btn.title = 'Copied!';
-        setTimeout(() => { icon.className = 'bi bi-clipboard'; btn.title = 'Copy to clipboard'; }, 2000);
-    });
-}
-</script>
 </body>
 </html>

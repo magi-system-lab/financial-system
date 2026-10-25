@@ -3,6 +3,7 @@ package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetFinancialStatusUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.UserRepository;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.exceptions.EntityNotFoundException;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
@@ -36,8 +37,10 @@ public class DashboardViewController {
 
     @GetMapping
     public String home(HttpSession session,
-                       @RequestParam(required = false) String error) {
+                       @RequestParam(required = false) String error,
+                       @RequestParam(name = "switch", required = false) String switchUser) {
         boolean emailNotFound = "email_not_found".equals(error);
+        if (switchUser != null) return "home";
         if (!emailNotFound
                 && session.getAttribute("userEmail") == null
                 && defaultUserEmail != null
@@ -51,13 +54,22 @@ public class DashboardViewController {
     }
 
     @PostMapping("/session")
-    public String setEmail(@RequestParam String email, HttpSession session) {
-        session.setAttribute("userEmail", email);
+    public String setEmail(@RequestParam String email, HttpSession session, HttpServletResponse response) {
+        String trimmed = email.trim();
+        session.setAttribute("userEmail", trimmed);
+        RememberedUser.remember(response, trimmed);
         return "redirect:/ui/dashboard";
     }
 
+    /** "Switch user": forgets the remembered email and shows the email screen without auto-login. */
+    @PostMapping("/session/end")
+    public String endSession(HttpSession session, HttpServletResponse response) {
+        RememberedUser.forget(session, response);
+        return "redirect:/ui?switch";
+    }
+
     @GetMapping("/dashboard")
-    public String dashboard(HttpSession session, Model model) {
+    public String dashboard(HttpSession session, HttpServletResponse response, Model model) {
         String email = (String) session.getAttribute("userEmail");
         if (email == null) return "redirect:/ui";
         try {
@@ -67,7 +79,7 @@ public class DashboardViewController {
         } catch (EntityNotFoundException e) {
             activityLogHelper.log(session, "Login ERROR",
                     Map.of("reason", "email not found", "email", email));
-            session.removeAttribute("userEmail");
+            RememberedUser.forget(session, response);
             return "redirect:/ui?error=email_not_found";
         }
     }

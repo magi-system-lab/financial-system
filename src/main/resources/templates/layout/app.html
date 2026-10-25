@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  Shared shell for the redesigned UI.
+  - head(title): meta tags for the Home Screen app, stylesheet and script
+  - nav: tab bar (phones / iPad portrait) + sidebar (>= 1024px) + offline banner
+  - icon(name, cls): one symbol from /img/icons.svg
+  The active section comes from GlobalModelAdvice (navSection, currentPath).
+-->
+<head th:fragment="head(title)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title th:text="${title} + ' · ' + #{app.name}">Financial Manager</title>
+    <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+    <meta name="color-scheme" content="light dark">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" th:content="#{app.shortName}">
+    <meta name="format-detection" content="telephone=no">
+    <link rel="manifest" th:href="@{/manifest.webmanifest}">
+    <link rel="apple-touch-icon" th:href="@{/img/apple-touch-icon.png}">
+    <link rel="icon" type="image/svg+xml" th:href="@{/img/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <script th:src="@{/js/app.js}" defer></script>
+</head>
+<body>
+
+<svg th:fragment="icon(name, cls)" th:class="${'ic ' + cls}" aria-hidden="true"><use th:href="@{/img/icons.svg} + '#' + ${name}"></use></svg>
+
+<div th:fragment="nav" class="fm-nav" data-from-cache="false"
+     th:attr="data-rendered=${#dates.createNow().getTime()},data-offline-form=#{offline.formBlocked}">
+
+    <div class="fm-offline glass" role="status" hidden th:text="#{offline.banner}" th:attr="data-updated=#{offline.updated}">Offline</div>
+
+    <!-- Phones / iPad portrait: floating glass tab bar -->
+    <nav class="fm-tabbar glass" th:aria-label="#{nav.main}">
+        <a class="fm-tab" th:href="@{/ui/dashboard}" th:aria-current="${navSection == 'insights'} ? 'page'">
+            <svg th:replace="~{layout/app :: icon('insights', '')}"></svg><span th:text="#{nav.insights}">Insights</span>
+        </a>
+        <a class="fm-tab" th:href="@{/ui/providers}" th:aria-current="${navSection == 'cards'} ? 'page'">
+            <svg th:replace="~{layout/app :: icon('cards', '')}"></svg><span th:text="#{nav.cards}">Cards</span>
+        </a>
+        <a class="fm-tab" th:href="@{/ui/bulk-statements}" th:aria-current="${navSection == 'import'} ? 'page'">
+            <svg th:replace="~{layout/app :: icon('import', '')}"></svg><span th:text="#{nav.import}">Import</span>
+        </a>
+        <a class="fm-tab" th:href="@{/ui/upcoming-debts}" th:aria-current="${navSection == 'plan'} ? 'page'">
+            <svg th:replace="~{layout/app :: icon('plan', '')}"></svg><span th:text="#{nav.plan}">Plan</span>
+        </a>
+        <a class="fm-tab" th:href="@{/ui/more}" th:aria-current="${navSection == 'more'} ? 'page'">
+            <svg th:replace="~{layout/app :: icon('more', '')}"></svg><span th:text="#{nav.more}">More</span>
+        </a>
+    </nav>
+
+    <!-- iPad landscape / Mac: floating glass sidebar -->
+    <aside class="fm-sidebar glass">
+        <span class="fm-side-title" th:text="#{app.shortName}">Finances</span>
+        <nav th:aria-label="#{nav.main}">
+            <a class="fm-side-item" th:href="@{/ui/dashboard}" th:aria-current="${navSection == 'insights'} ? 'page'">
+                <svg th:replace="~{layout/app :: icon('insights', '')}"></svg><span th:text="#{nav.insights}">Insights</span>
+            </a>
+            <a class="fm-side-item" th:href="@{/ui/providers}" th:aria-current="${navSection == 'cards'} ? 'page'">
+                <svg th:replace="~{layout/app :: icon('cards', '')}"></svg><span th:text="#{nav.cards}">Cards</span>
+            </a>
+            <a class="fm-side-item" th:href="@{/ui/bulk-statements}" th:aria-current="${navSection == 'import'} ? 'page'">
+                <svg th:replace="~{layout/app :: icon('import', '')}"></svg><span th:text="#{nav.import}">Import</span>
+            </a>
+            <a class="fm-side-item" th:href="@{/ui/upcoming-debts}" th:aria-current="${navSection == 'plan'} ? 'page'">
+                <svg th:replace="~{layout/app :: icon('plan', '')}"></svg><span th:text="#{nav.plan}">Plan</span>
+            </a>
+        </nav>
+        <span class="fm-side-label" th:text="#{nav.manage}">Manage</span>
+        <nav th:aria-label="#{nav.manage}">
+            <a class="fm-side-item" th:href="@{/ui/receivables}" th:aria-current="${#strings.startsWith(currentPath, '/ui/receivables')} ? 'page'">
+                <svg th:replace="~{layout/app :: icon('people', '')}"></svg><span th:text="#{nav.lent}">Money lent</span>
+            </a>
+            <a class="fm-side-item" th:href="@{/ui/fixed-expenses}" th:aria-current="${#strings.startsWith(currentPath, '/ui/fixed-expenses')} ? 'page'">
+                <svg th:replace="~{layout/app :: icon('receipt', '')}"></svg><span th:text="#{nav.fixedExpenses}">Fixed expenses</span>
+            </a>
+            <a class="fm-side-item" th:href="@{/ui/progression}" th:aria-current="${#strings.startsWith(currentPath, '/ui/progression')} ? 'page'">
+                <svg th:replace="~{layout/app :: icon('calendar', '')}"></svg><span th:text="#{nav.monthByMonth}">Month by month</span>
+            </a>
+            <a class="fm-side-item" th:href="@{/ui/ignorable-debts}" th:aria-current="${#strings.startsWith(currentPath, '/ui/ignorable-debts')} ? 'page'">
+                <svg th:replace="~{layout/app :: icon('eye-off', '')}"></svg><span th:text="#{nav.ignored}">Ignored debts</span>
+            </a>
+            <a class="fm-side-item" th:href="@{/ui/activity}" th:aria-current="${#strings.startsWith(currentPath, '/ui/activity')} ? 'page'">
+                <svg th:replace="~{layout/app :: icon('terminal', '')}"></svg><span th:text="#{nav.activity}">Activity log</span>
+            </a>
+            <a class="fm-side-item" th:href="@{/ui/more}" th:aria-current="${#strings.startsWith(currentPath, '/ui/more')} ? 'page'">
+                <svg th:replace="~{layout/app :: icon('more', '')}"></svg><span th:text="#{nav.more}">More</span>
+            </a>
+        </nav>
+        <div class="fm-side-foot">
+            <div class="fm-side-row">
+                <span th:text="#{nav.language}">Language</span>
+                <div th:replace="~{layout/app :: langSwitch}"></div>
+            </div>
+            <span th:if="${currentUser != null}" th:text="${currentUser}">you@example.com</span>
+        </div>
+    </aside>
+</div>
+
+<div th:fragment="langSwitch" class="seg seg-inline">
+    <a th:href="@{${currentPath}(lang='en')}" lang="en"
+       th:aria-current="${#locale.language != 'es'} ? 'true'">EN</a>
+    <a th:href="@{${currentPath}(lang='es_MX')}" lang="es"
+       th:aria-current="${#locale.language == 'es'} ? 'true'">ES</a>
+</div>
+
+</body>
+</html>

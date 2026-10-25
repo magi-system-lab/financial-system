@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{layout/app :: head(#{activity.title})}"></head>
+<body class="app">
+<div th:replace="~{layout/app :: nav}"></div>
+<main class="app-main">
+    <div class="title-block">
+        <div>
+            <h1 class="large-title" th:text="#{activity.title}">Activity log</h1>
+            <p class="subtitle" th:text="#{activity.subtitle}">The latest actions in this session, newest first.</p>
+        </div>
+    </div>
+
+    <div class="list" th:if="${activityLog.isEmpty()}">
+        <div class="empty">
+            <svg th:replace="~{layout/app :: icon('inbox', '')}"></svg>
+            <p th:text="#{activity.empty}">No activity yet.</p>
+        </div>
+    </div>
+
+    <div class="list" th:unless="${activityLog.isEmpty()}">
+        <details class="disclosure" th:each="entry, it : ${activityLog}" th:open="${it.first}">
+            <summary>
+                <span class="list-row-body">
+                    <span class="list-row-title">
+                        <span th:text="${entry.action()}">Sync statement</span>
+                        <span class="tabular" th:text="${entry.timestamp()}">2026-10-25 10:00:00</span>
+                    </span>
+                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+                </span>
+            </summary>
+            <div style="padding: 0 16px 14px">
+                <pre class="code-block" style="border-radius: 14px" th:id="${'log-' + it.index}" th:text="${entry.jsonResponse()}">{}</pre>
+                <button type="button" class="btn btn-tinted btn-sm" style="margin-top: 10px"
+                        th:attr="data-copy-target=${'#log-' + it.index}">
+                    <svg th:replace="~{layout/app :: icon('copy', 'ic-sm')}"></svg>
+                    <span th:text="#{activity.copy}" th:attr="data-copied-text=#{activity.copied}">Copy</span>
+                </button>
+            </div>
+        </details>
+    </div>
+</main>
+</body>
+</html>

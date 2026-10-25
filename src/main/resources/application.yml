@@ -20,6 +20,17 @@ spring:
         enabled: true
   thymeleaf:
     cache: false
+  web:
+    resources:
+      # Fingerprinted URLs (app-<hash>.css) via @{...} in templates, so static files can be cached for a week.
+      chain:
+        strategy:
+          content:
+            enabled: true
+            paths: /css/**,/js/**,/img/**
+      cache:
+        cachecontrol:
+          max-age: 7d
   servlet:
     multipart:
       max-file-size: 50MB
@@ -27,6 +38,9 @@ spring:
       max-request-size: 300MB
 server:
   port: 666
+  mime-mappings:
+    # Web app manifest for "Add to Home Screen".
+    webmanifest: application/manifest+json
   tomcat:
     # Each bulk-import file adds ~3 multipart parts (file, card, password); Tomcat's default is 50.
     max-part-count: 500
