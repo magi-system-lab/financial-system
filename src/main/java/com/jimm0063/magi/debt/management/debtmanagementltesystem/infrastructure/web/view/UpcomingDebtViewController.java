@@ -5,12 +5,15 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.applicat
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllUpcomingDebtsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetPaymentProjectionUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.ManageUpcomingDebtUseCase;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.ManageWishListUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.UserRepository;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.DebtTypeEnum;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.WishStatus;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.DebtAccount;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.DebtSysUser;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.FinancialProvider;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.UpcomingDebt;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.WishItem;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.model.CreateUpcomingDebtReq;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
@@ -18,7 +21,10 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +46,7 @@ public class UpcomingDebtViewController {
     private final FindAllFinancialProviderUseCase findAllFinancialProviderUseCase;
     private final FindAllDebtAccountUseCase findAllDebtAccountUseCase;
     private final UserRepository userRepository;
+    private final ManageWishListUseCase manageWishListUseCase;
     private final ActivityLogHelper activityLogHelper;
 
     public UpcomingDebtViewController(FindAllUpcomingDebtsUseCase findAllUpcomingDebtsUseCase,
@@ -48,6 +55,7 @@ public class UpcomingDebtViewController {
                                       FindAllFinancialProviderUseCase findAllFinancialProviderUseCase,
                                       FindAllDebtAccountUseCase findAllDebtAccountUseCase,
                                       UserRepository userRepository,
+                                      ManageWishListUseCase manageWishListUseCase,
                                       ActivityLogHelper activityLogHelper) {
         this.findAllUpcomingDebtsUseCase = findAllUpcomingDebtsUseCase;
         this.manageUpcomingDebtUseCase = manageUpcomingDebtUseCase;
@@ -55,6 +63,7 @@ public class UpcomingDebtViewController {
         this.findAllFinancialProviderUseCase = findAllFinancialProviderUseCase;
         this.findAllDebtAccountUseCase = findAllDebtAccountUseCase;
         this.userRepository = userRepository;
+        this.manageWishListUseCase = manageWishListUseCase;
         this.activityLogHelper = activityLogHelper;
     }
 
@@ -90,16 +99,46 @@ public class UpcomingDebtViewController {
         model.addAttribute("newUpcomingDebt", new CreateUpcomingDebtReq());
         model.addAttribute("debtLimitPercent", userRepository.findUserByEmail(email)
                 .map(DebtSysUser::getDebtLimitPercent).orElse(null));
+        List<WishItem> wishes = manageWishListUseCase.getByEmail(email);
+        model.addAttribute("wishes", wishes.stream().filter(WishItem::isWaiting).toList());
+        model.addAttribute("skippedTotal", wishes.stream()
+                .filter(w -> w.getStatus() == WishStatus.DROPPED && w.getPrice() != null)
+                .map(WishItem::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add));
+        model.addAttribute("today", LocalDate.now());
+        model.addAttribute("zone", ZoneId.systemDefault());
         model.addAttribute("email", email);
         return "upcoming-debts/list";
     }
 
+    /** wishId: the purchase comes from the cool-down list, which then marks it as planned. */
     @PostMapping
-    public String create(@ModelAttribute CreateUpcomingDebtReq req, HttpSession session, RedirectAttributes ra) {
+    public String create(@ModelAttribute CreateUpcomingDebtReq req, @RequestParam(required = false) Integer wishId,
+                         HttpSession session, RedirectAttributes ra) {
         String email = (String) session.getAttribute("userEmail");
         if (email == null) return "redirect:/ui";
-        return run(session, ra, "Create Upcoming Debt", null,
-                () -> manageUpcomingDebtUseCase.create(email, req.toCommand()));
+        return run(session, ra, "Create Upcoming Debt", null, () -> {
+            var created = manageUpcomingDebtUseCase.create(email, req.toCommand());
+            if (wishId != null) manageWishListUseCase.markPlanned(wishId);
+            return created;
+        });
+    }
+
+    // ── Cool-down list ──────────────────────────────────────────────────────
+
+    @PostMapping("/wishes")
+    public String addWish(@RequestParam String description, @RequestParam BigDecimal price,
+                          @RequestParam(required = false) Integer installments,
+                          HttpSession session, RedirectAttributes ra) {
+        String email = (String) session.getAttribute("userEmail");
+        if (email == null) return "redirect:/ui";
+        return run(session, ra, "Cool-down: add", BASE + "#cooldown",
+                () -> manageWishListUseCase.add(email, description, price, installments));
+    }
+
+    @PostMapping("/wishes/{id}/drop")
+    public String dropWish(@PathVariable Integer id, HttpSession session, RedirectAttributes ra) {
+        if (session.getAttribute("userEmail") == null) return "redirect:/ui";
+        return run(session, ra, "Cool-down: dropped", BASE + "#cooldown", () -> manageWishListUseCase.drop(id));
     }
 
     @PostMapping("/{id}")

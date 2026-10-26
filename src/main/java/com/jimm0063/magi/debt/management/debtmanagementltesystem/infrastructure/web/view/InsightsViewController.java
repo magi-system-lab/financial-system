@@ -1,5 +1,6 @@
 package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.web.view;
 
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllDebtsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetDebtActivityUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetDebtProgressionUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetFinancialStatusUseCase;
@@ -35,6 +36,7 @@ public class InsightsViewController {
     private final GetDebtProgressionUseCase getDebtProgressionUseCase;
     private final UserRepository userRepository;
     private final GetDebtActivityUseCase getDebtActivityUseCase;
+    private final FindAllDebtsUseCase findAllDebtsUseCase;
     private final ActivityLogHelper activityLogHelper;
 
     /** Months shown in the activity trend (current month included). */
@@ -44,11 +46,13 @@ public class InsightsViewController {
                                   GetDebtProgressionUseCase getDebtProgressionUseCase,
                                   UserRepository userRepository,
                                   GetDebtActivityUseCase getDebtActivityUseCase,
+                                  FindAllDebtsUseCase findAllDebtsUseCase,
                                   ActivityLogHelper activityLogHelper) {
         this.getFinancialStatusUseCase = getFinancialStatusUseCase;
         this.getDebtProgressionUseCase = getDebtProgressionUseCase;
         this.userRepository = userRepository;
         this.getDebtActivityUseCase = getDebtActivityUseCase;
+        this.findAllDebtsUseCase = findAllDebtsUseCase;
         this.activityLogHelper = activityLogHelper;
     }
 
@@ -78,6 +82,7 @@ public class InsightsViewController {
         model.addAttribute("insights", InsightsView.from(progression, range,
                 dashboard.getSalary(), dashboard.getMonthlyFixedExpensesAmount(), dashboard.getSavings(), debtLimit));
         model.addAttribute("activity", activity);
+        model.addAttribute("payoffOptions", InsightsView.payoffOptions(findAllDebtsUseCase.getActiveByUser(email)));
         model.addAttribute("thisMonth", activity.isEmpty()
                 ? new DebtActivityDto(YearMonth.now(), List.of(), BigDecimal.ZERO, List.of(), BigDecimal.ZERO)
                 : activity.get(activity.size() - 1));

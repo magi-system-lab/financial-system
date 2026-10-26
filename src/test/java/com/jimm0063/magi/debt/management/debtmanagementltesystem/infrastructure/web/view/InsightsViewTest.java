@@ -1,5 +1,6 @@
 package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.web.view;
 
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.Debt;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -89,5 +90,28 @@ class InsightsViewTest {
         assertThat(dec.cards().get(0).hasUpcoming()).isTrue();
         assertThat(dec.activeDebts()).isEqualTo(3);
         assertThat(dec.upcoming()).isEqualByComparingTo(BigDecimal.valueOf(200));
+    }
+
+    @Test
+    void payoff_options_skip_last_payments_and_sort_by_balance() {
+        Debt last = InsightsFixtures.phone();      // 1 payment left: paying it early changes nothing
+        last.setCurrentInstallment(11);
+        last.setMaxFinancingTerm(12);
+        Debt big = InsightsFixtures.phone();
+        big.setDescription("Laptop");
+        big.setMonthlyPayment(new BigDecimal("1000"));
+        big.setCurrentInstallment(6);
+        big.setMaxFinancingTerm(12);
+        Debt small = InsightsFixtures.phone();
+        small.setDescription("Shoes");
+        small.setCurrentInstallment(1);
+        small.setMaxFinancingTerm(3);
+
+        var options = InsightsView.payoffOptions(List.of(last, big, small));
+
+        assertThat(options).extracting(InsightsView.PayoffOption::description).containsExactly("Shoes", "Laptop");
+        assertThat(options.get(0).monthsLeft()).isEqualTo(2);
+        assertThat(options.get(0).balance()).isEqualByComparingTo("400");
+        assertThat(options.get(1).balance()).isEqualByComparingTo("6000");
     }
 }

@@ -66,6 +66,29 @@ public record InsightsView(
     public record Card(String code, String name, BigDecimal amount, int activeDebts, boolean hasUpcoming,
                        int barPercent, boolean linkable) {}
 
+    /**
+     * A debt that extra money could pay off today. Interest-free installments cost the same paid
+     * early or late, so the gain is only the monthly payment freed for the months left.
+     */
+    public record PayoffOption(String description, String accountName, BigDecimal monthly, int monthsLeft,
+                               BigDecimal balance) {}
+
+    /** Active debts with at least 2 payments left (paying the last one early changes nothing). */
+    public static List<PayoffOption> payoffOptions(List<Debt> debts) {
+        return debts.stream()
+                .filter(d -> d.getMonthlyPayment() != null && d.getMonthlyPayment().signum() > 0
+                        && d.getMaxFinancingTerm() != null && d.getCurrentInstallment() != null)
+                .filter(d -> d.getMaxFinancingTerm() - d.getCurrentInstallment() >= 2)
+                .map(d -> {
+                    int left = d.getMaxFinancingTerm() - d.getCurrentInstallment();
+                    return new PayoffOption(d.getDescription(),
+                            d.getDebtAccount() != null ? d.getDebtAccount().getName() : "",
+                            d.getMonthlyPayment(), left, d.getMonthlyPayment().multiply(BigDecimal.valueOf(left)));
+                })
+                .sorted(Comparator.comparing(PayoffOption::balance))
+                .toList();
+    }
+
     public record Finishing(String description, String accountName, BigDecimal monthlyPayment,
                             YearMonth lastPayment, int paidAtMonth, int term, String ringDash) {}
 

@@ -5,6 +5,7 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.applicat
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllUpcomingDebtsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetPaymentProjectionUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.ManageUpcomingDebtUseCase;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.ManageWishListUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.UserRepository;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.MonthProjectionDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.PaymentProjectionDto;
@@ -12,6 +13,8 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.De
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.UpcomingDebtStatus;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.DebtAccount;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.UpcomingDebt;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.WishItem;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.WishStatus;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.configuration.SecurityConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +52,7 @@ class UpcomingDebtViewControllerTest {
     @MockBean FindAllFinancialProviderUseCase findAllFinancialProviderUseCase;
     @MockBean FindAllDebtAccountUseCase findAllDebtAccountUseCase;
     @MockBean UserRepository userRepository;
+    @MockBean ManageWishListUseCase manageWishListUseCase;
     @MockBean ActivityLogHelper activityLogHelper;
 
     private static UpcomingDebt upcoming(int id, String desc, YearMonth first, UpcomingDebtStatus status) {
@@ -118,6 +122,41 @@ class UpcomingDebtViewControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("¿Y si compro…?")))
                 .andExpect(content().string(containsString("en 3 meses")));
+    }
+
+    @Test
+    void cool_down_list_shows_days_left_and_plans_into_the_pile() throws Exception {
+        WishItem tv = new WishItem();
+        tv.setId(7);
+        tv.setDescription("OLED TV");
+        tv.setPrice(new BigDecimal("24000"));
+        tv.setInstallments(12);
+        tv.setStatus(WishStatus.WAITING);
+        tv.setActive(true);
+        tv.setCreatedAt(java.time.Instant.now().minus(java.time.Duration.ofDays(3)));
+        WishItem dropped = new WishItem();
+        dropped.setDescription("Sneakers");
+        dropped.setPrice(new BigDecimal("2500"));
+        dropped.setStatus(WishStatus.DROPPED);
+        dropped.setActive(true);
+        when(manageWishListUseCase.getByEmail("user@test.com")).thenReturn(List.of(tv, dropped));
+        when(findAllUpcomingDebtsUseCase.getByEmail("user@test.com")).thenReturn(List.of());
+        PaymentProjectionDto projection = new PaymentProjectionDto();
+        projection.setMonths(List.of());
+        when(getPaymentProjectionUseCase.getProjection("user@test.com", 12)).thenReturn(projection);
+
+        mockMvc.perform(get("/ui/upcoming-debts").sessionAttr("userEmail", "user@test.com"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("OLED TV")))
+                .andExpect(content().string(containsString("4 days left")))
+                .andExpect(content().string(containsString("data-f-wish-id=\"7\"")))
+                .andExpect(content().string(containsString("skipped $2,500")));
+
+        mockMvc.perform(post("/ui/upcoming-debts").sessionAttr("userEmail", "user@test.com")
+                        .param("description", "OLED TV").param("totalAmount", "24000").param("installments", "12")
+                        .param("firstPaymentMonth", "2027-01").param("wishId", "7"))
+                .andExpect(redirectedUrl("/ui/upcoming-debts"));
+        verify(manageWishListUseCase).markPlanned(7);
     }
 
     @Test

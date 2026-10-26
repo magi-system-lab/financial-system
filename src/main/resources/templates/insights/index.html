@@ -266,30 +266,33 @@
     </div>
 
     <div class="row-wrap">
-    <!-- ── Payoff advisor ──────────────────────────────────────────────────── -->
-    <section class="section" th:if="${dashboard.accountSummaries != null and !dashboard.accountSummaries.isEmpty()}">
-        <h2 class="section-title" th:text="#{insights.advisor}">Payoff advisor</h2>
-        <p class="list-footer" style="padding: 0 4px 4px" th:text="#{insights.advisorSub}">Cards your savings could pay off today.</p>
-        <div class="list">
-            <a class="list-row" th:each="acc : ${dashboard.accountSummaries}"
-               th:href="@{/ui/debt-accounts/{code}(code=${acc.code})}">
-                <span class="list-row-body" style="padding-top: 14px; padding-bottom: 14px">
-                    <span class="list-row-title" style="gap: 5px">
-                        <span th:text="${acc.name}">BBVA Azul</span>
-                        <span th:text="#{insights.advisorRow(${acc.activeDebtCount}, ${acc.maxMonthsRemaining}, ${@fmt.money0(acc.monthlyTotal)})}">4 debts · 9 months left · $4,773/mo</span>
-                        <span th:class="${'meter ' + (acc.payoffFeasible ? 'meter-green' : 'meter-orange')}" style="margin-top: 4px">
-                            <span th:style="${'width:' + (acc.savingsCoveragePercent > 100 ? 100 : #numbers.formatDecimal(acc.savingsCoveragePercent, 1, 0)) + '%'}"></span>
-                        </span>
-                        <span th:text="#{insights.coverage(${#numbers.formatDecimal(acc.savingsCoveragePercent, 1, 0)})}">Savings cover 45%</span>
-                    </span>
-                    <span style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px">
-                        <span class="tabular" style="font-weight: 600" th:text="${@fmt.money0(acc.estimatedRemainingBalance)}">$31,250</span>
-                        <span th:class="${'chip ' + (acc.payoffFeasible ? 'chip-green' : 'chip-gray')}"
-                              th:text="${acc.payoffFeasible} ? #{insights.canPayOff} : #{insights.notYet}">Not yet</span>
-                    </span>
-                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
-                </span>
-            </a>
+    <!-- ── Payoff advisor: what extra money (savings, aguinaldo…) frees ────── -->
+    <section class="section" th:unless="${payoffOptions.isEmpty()}">
+        <h2 class="section-title" th:text="#{payoff.title}">Pay off with extra money</h2>
+        <p class="list-footer" style="padding: 0 4px 4px" th:text="#{payoff.sub}">Interest-free installments cost the same…</p>
+        <div class="card form-stack" id="payoff"
+             th:attr="data-t-summary1=#{payoff.summary1('{0}', '{1}', '{2}')}, data-t-summary-n=#{payoff.summaryN('{0}', '{1}', '{2}')}, data-t-leftover=#{payoff.leftover('{0}')},
+                      data-t-none=#{payoff.none('{0}', '{1}')}, data-t-free=#{payoff.free('{0}', '{1}')},
+                      data-t-row=#{payoff.row('{0}', '{1}')}, data-t-lasts=#{payoff.lasts('{0}')},
+                      data-free-next=${insights.hasDebts() and insights.months.size() > 1 ? insights.months[1].leftFromSalary() : null}">
+            <div>
+                <label class="field-label" for="payoffAmount" th:text="#{payoff.amount}">Extra money</label>
+                <input class="field tabular" type="number" inputmode="decimal" min="0" step="100" id="payoffAmount" placeholder="0">
+            </div>
+            <div class="chips">
+                <button type="button" class="chip chip-blue" data-payoff-amount th:if="${dashboard.savings != null and dashboard.savings > 0}"
+                        th:attr="data-value=${dashboard.savings}" th:text="#{payoff.useSavings(${@fmt.money0(dashboard.savings)})}">My savings $20,000</button>
+                <span class="small muted" th:text="#{payoff.bonusHint}">Aguinaldo, PTU or a bonus? Type it to plan it.</span>
+            </div>
+            <div class="seg" role="group" th:aria-label="#{payoff.strategy}">
+                <button type="button" data-payoff-strategy="room" aria-pressed="true" th:text="#{payoff.room}">Most room now</button>
+                <button type="button" data-payoff-strategy="big" aria-pressed="false" th:text="#{payoff.big}">Biggest payments</button>
+            </div>
+            <p class="small muted" data-payoff-help="room" th:text="#{payoff.roomHelp}">Debts with fewer months left free the most per peso, sooner.</p>
+            <p class="small muted" data-payoff-help="big" hidden th:text="#{payoff.bigHelp}">Clears the largest monthly payments first; the room lasts longer.</p>
+            <p id="payoffSummary" style="font-weight: 600" aria-live="polite"></p>
+            <div class="list" id="payoffList" hidden style="box-shadow: none; background: var(--bg)"></div>
+            <p class="small" id="payoffFree" hidden></p>
         </div>
     </section>
 
@@ -355,6 +358,73 @@
         </div>
     </form>
 </dialog>
+<script th:inline="javascript">
+(function () {
+    var box = document.getElementById('payoff');
+    if (!box) return;
+    var options = /*[[${payoffOptions}]]*/ [];
+    var t = box.dataset;
+    var strategy = 'room';
+    var nf0 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+    function money0(v) { return (v < 0 ? '−$' : '$') + nf0.format(Math.abs(v)); }
+    function fill(tpl, args) { return tpl.replace(/\{(\d)\}/g, function (_, i) { return args[+i]; }); }
+    function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+    function update() {
+        var amount = parseFloat(document.getElementById('payoffAmount').value) || 0;
+        var summary = document.getElementById('payoffSummary');
+        var list = document.getElementById('payoffList');
+        var free = document.getElementById('payoffFree');
+        list.innerHTML = '';
+        list.hidden = true; free.hidden = true;
+        if (amount <= 0) { summary.textContent = ''; return; }
+        var sorted = options.slice().sort(strategy === 'room'
+            ? function (a, b) { return a.monthsLeft - b.monthsLeft || b.monthly - a.monthly; }
+            : function (a, b) { return b.monthly - a.monthly || a.monthsLeft - b.monthsLeft; });
+        var left = amount, picked = [];
+        sorted.forEach(function (o) { if (o.balance <= left + 0.005) { picked.push(o); left -= o.balance; } });
+        if (!picked.length) {
+            var cheapest = options.reduce(function (a, o) { return !a || o.balance < a.balance ? o : a; }, null);
+            summary.textContent = fill(t.tNone, [money0(amount), cheapest ? cheapest.description + ' (' + money0(cheapest.balance) + ')' : '—']);
+            return;
+        }
+        var freed = picked.reduce(function (s, o) { return s + o.monthly; }, 0);
+        var spent = amount - left;
+        summary.textContent = fill(picked.length === 1 ? t.tSummary1 : t.tSummaryN, [picked.length, money0(spent), money0(freed)])
+            + (left >= 1 ? ' ' + fill(t.tLeftover, [money0(left)]) : '');
+        picked.forEach(function (o) {
+            var row = el('div', 'list-row');
+            var body = el('span', 'list-row-body');
+            var title = el('span', 'list-row-title');
+            title.appendChild(el('span', '', o.description));
+            title.appendChild(el('span', '', fill(t.tRow, [o.accountName, o.monthsLeft]) + ' · ' + fill(t.tLasts, [money0(o.monthly)])));
+            body.appendChild(title);
+            body.appendChild(el('span', 'list-row-value tabular', money0(o.balance)));
+            row.appendChild(body);
+            list.appendChild(row);
+        });
+        list.hidden = false;
+        if (t.freeNext) {
+            var next = parseFloat(t.freeNext);
+            free.textContent = fill(t.tFree, [money0(next), money0(next + freed)]);
+            free.className = 'small text-green';
+            free.hidden = false;
+        }
+    }
+    document.getElementById('payoffAmount').addEventListener('input', update);
+    box.addEventListener('click', function (e) {
+        var chip = e.target.closest('[data-payoff-amount]');
+        if (chip) { document.getElementById('payoffAmount').value = Math.round(+chip.dataset.value); update(); }
+        var s = e.target.closest('[data-payoff-strategy]');
+        if (s) {
+            strategy = s.dataset.payoffStrategy;
+            box.querySelectorAll('[data-payoff-strategy]').forEach(function (b) { b.setAttribute('aria-pressed', String(b === s)); });
+            box.querySelectorAll('[data-payoff-help]').forEach(function (p) { p.hidden = p.dataset.payoffHelp !== strategy; });
+            update();
+        }
+    });
+})();
+</script>
 <script th:inline="none">
 (function () {
     // Remember Payments / Free to spend between visits.

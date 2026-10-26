@@ -6,6 +6,7 @@ import java.time.YearMonth;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.DebtSysUser;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.Debt;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.DebtActivityDto;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllDebtsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetDebtActivityUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetDebtProgressionUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetFinancialStatusUseCase;
@@ -51,6 +52,7 @@ class InsightsViewControllerTest {
     @MockBean GetDebtProgressionUseCase getDebtProgressionUseCase;
     @MockBean UserRepository userRepository;
     @MockBean GetDebtActivityUseCase getDebtActivityUseCase;
+    @MockBean FindAllDebtsUseCase findAllDebtsUseCase;
     @MockBean ActivityLogHelper activityLogHelper;
 
     @BeforeEach
@@ -75,6 +77,10 @@ class InsightsViewControllerTest {
         when(getFinancialStatusUseCase.getUserStatus(EMAIL)).thenReturn(dashboard);
         when(getDebtProgressionUseCase.getProgression(eq(EMAIL), any())).thenReturn(InsightsFixtures.progression());
         when(getDebtActivityUseCase.getActivity(eq(EMAIL), anyInt())).thenReturn(List.of());
+        Debt phone = InsightsFixtures.phone();   // $200/month
+        phone.setCurrentInstallment(2);
+        phone.setMaxFinancingTerm(12);
+        when(findAllDebtsUseCase.getActiveByUser(EMAIL)).thenReturn(List.of(phone));
     }
 
     @Test
@@ -140,7 +146,8 @@ class InsightsViewControllerTest {
                 .andExpect(content().string(containsString("11/12 paid")))
                 .andExpect(content().string(containsString("href=\"/ui/debt-accounts/VISA\"")))
                 .andExpect(content().string(containsString("Mar 2027")))          // debt-free
-                .andExpect(content().string(containsString("Can pay off")))
+                .andExpect(content().string(containsString("Pay off with extra money")))
+                .andExpect(content().string(containsString("\"monthsLeft\":10")))
                 .andExpect(content().string(containsString("Cards &amp; people")))
                 .andExpect(content().string(containsString("data-select=\"month\"")))
                 .andExpect(content().string(containsString("href=\"/ui/insights\" aria-current=\"page\"")));

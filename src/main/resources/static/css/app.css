@@ -774,3 +774,5 @@ form.inline { margin: 0; display: contents; }
 .bars-trend .bar { background: var(--orange); }
 .bar-value { height: 14px; font-size: 10px; line-height: 14px; text-align: center; color: var(--text-2); white-space: nowrap; overflow: visible; }
 .tile .meter { margin: 4px 0 2px; }
+.wish-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-left: -10px; }
+.wish-actions form { display: contents; }

@@ -149,6 +149,13 @@ GET    /debt/set/hash/sum                    Compute missing SHA-256 hashes (hea
 GET    /debt/activity/{email}?months=6       Per month: purchases that appeared for the first time + debts fully paid off
 PUT    /user/debt-limit/{email}?percent=30   Max share of the salary for debt payments (0 removes it)
 ```
+Cool-down list (`wish_item`, `WishListService`): park a purchase for 7 days before buying.
+```
+GET    /wish/all/{email}                     Every parked purchase (WAITING | PLANNED | DROPPED)
+POST   /wish/{email}?description=&price=&installments=   Park a purchase
+PATCH  /wish/{id}/planned | /wish/{id}/drop  Decide after the cool-down
+DELETE /wish/{id}                            Soft-delete
+```
 `DebtActivityService` counts a purchase as new on the first row saved for its hash (a "rebuild from 0" re-insert is
 not new again) and a debt as finished when it was deactivated with every installment paid (deleted ones don't count).
 
@@ -263,7 +270,9 @@ POST   /ui/session/end       "Switch user": forget the session user and the cook
 GET    /ui/insights          Insights tab (home after login): month-by-month payments or "free to spend"
                              (salary − fixed − payments; ?months=6|12|24), debt limit + safety net tiles, this month's
                              recap (new / finished debts, "put the freed money into savings"), new debt per month,
-                             finishing soon, per card, payoff advisor, spending by category, salary/savings/limit sheet
+                             finishing soon, per card, "pay off with extra money" advisor (client-side over
+                             `InsightsView.payoffOptions`: most room now vs biggest payments), spending by category,
+                             salary/savings/limit sheet
 PUT    /ui/financials        Update salary & savings (returns to Insights)
 GET    /ui/dashboard         Old dashboard URL → redirects to /ui/insights
 GET    /ui/more              "More" tab: secondary sections + settings (language, switch user)
@@ -281,7 +290,9 @@ GET    /ui/payments/{code}   Payment history of one card + record payment
 GET    /ui/providers         Providers (banks/stores) + provider types; tap one to see its cards
 GET    /ui/receivables       Money lent out (e.g. to relatives) + repayment tracking
 GET    /ui/receivables/{id}  One receivable: KPIs, balance-over-time + monthly charts, dated payment history
-GET    /ui/upcoming-debts    Upcoming (deferred) purchases pile + month-by-month projection + what-if simulator
+GET    /ui/upcoming-debts    Upcoming (deferred) purchases pile + month-by-month projection + what-if simulator +
+                             cool-down list (POST /ui/upcoming-debts/wishes, /wishes/{id}/drop; "Still want it" opens the
+                             add sheet with wishId, which marks the wish PLANNED)
 GET    /ui/bulk-statements   Bulk statement import (many files → many cards, see below)
 ```
 
@@ -359,6 +370,7 @@ debt_sys_user (PK: email; salary, savings, debt_limit_percent)
 │                   ├── 1:N → debt
 │                   └── 1:N → payment
 ├── 1:N → fixed_expense
+├── 1:N → wish_item (status WAITING | PLANNED | DROPPED; cool-down list)
 ├── 1:N → upcoming_debt (M:1 optional → debt_account; status PENDING | STARTED | CANCELLED)
 └── 1:N → receivable
           └── 1:N → receivable_payment

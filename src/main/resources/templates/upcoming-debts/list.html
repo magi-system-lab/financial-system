@@ -12,7 +12,7 @@
             <span class="eyebrow" th:text="#{plan.eyebrow}">Projection</span>
             <h1 class="large-title" th:text="#{plan.title}">Plan</h1>
         </div>
-        <button type="button" class="btn btn-glass btn-icon" data-open-sheet="add-sheet" th:aria-label="#{plan.add}">
+        <button type="button" class="btn btn-glass btn-icon" data-open-sheet="add-sheet" data-f-wish-id="" th:aria-label="#{plan.add}">
             <svg th:replace="~{layout/app :: icon('plus', '')}"></svg>
         </button>
     </div>
@@ -110,6 +110,50 @@
         </div>
     </section>
 
+    <!-- ── Cool-down list: wait a few days before buying ───────────────────── -->
+    <section class="section" id="cooldown">
+        <h2 class="section-title" style="display: flex; justify-content: space-between; align-items: center">
+            <span th:text="#{wish.title}">Cool-down list</span>
+            <button type="button" class="btn btn-tinted btn-sm" data-open-sheet="wish-sheet" th:text="#{wish.add}">Park a purchase</button>
+        </h2>
+        <div class="list" th:unless="${wishes.isEmpty()}">
+            <div class="list-row" th:each="w : ${wishes}" th:with="left=${w.daysLeft(today, zone)}" style="align-items: flex-start">
+                <span class="row-icon" th:classappend="${left == 0} ? 'bg-green' : 'bg-gray'" style="margin-top: 12px">
+                    <svg th:replace="~{layout/app :: icon('hourglass', '')}"></svg>
+                </span>
+                <span class="list-row-body" style="flex-direction: column; align-items: stretch; gap: 8px">
+                    <span style="display: flex; align-items: center; gap: 10px">
+                        <span class="list-row-title">
+                            <span th:text="${w.description}">Nintendo Switch 2</span>
+                            <span th:text="${w.installments != null}
+                                    ? #{wish.priceMonths(${@fmt.money0(w.price)}, ${w.installments})}
+                                    : ${@fmt.money0(w.price)}">$9,999 · 12 months</span>
+                        </span>
+                        <span th:class="${'chip ' + (left == 0 ? 'chip-green' : 'chip-gray')}"
+                              th:text="${left == 0} ? #{wish.ready} : #{wish.daysLeft(${left})}">4 days left</span>
+                        <form th:action="@{/ui/upcoming-debts/wishes/{id}/drop(id=${w.id})}" method="post">
+                            <button type="submit" class="icon-btn danger" th:aria-label="${#messages.msg('wish.drop') + ': ' + w.description}" th:title="#{wish.drop}">
+                                <svg th:replace="~{layout/app :: icon('close', '')}"></svg>
+                            </button>
+                        </form>
+                    </span>
+                    <span class="wish-actions">
+                        <button type="button" class="btn btn-plain btn-sm" data-wish-try
+                                th:attr="data-total=${w.price}, data-months=${w.installments != null ? w.installments : 1}"
+                                th:text="#{wish.try}">Try in What if</button>
+                        <button type="button" class="btn btn-sm" th:classappend="${left == 0} ? 'btn-tinted' : 'btn-plain'"
+                                data-open-sheet="add-sheet"
+                                th:attr="data-f-description=${w.description}, data-f-total-amount=${w.price},
+                                         data-f-installments=${w.installments != null ? w.installments : 1}, data-f-wish-id=${w.id}"
+                                th:text="#{wish.plan}">Still want it</button>
+                    </span>
+                </span>
+            </div>
+        </div>
+        <p class="list-footer" th:if="${wishes.isEmpty()}" th:text="#{wish.empty}">Want something? Park it here for 7 days first.</p>
+        <p class="list-footer" th:if="${skippedTotal.signum() > 0}" th:text="#{wish.skipped(${@fmt.money0(skippedTotal)})}">You’ve skipped $4,500 of purchases.</p>
+    </section>
+
     <!-- ── The pile ───────────────────────────────────────────────────────── -->
     <section class="section">
         <h2 class="section-title" th:text="#{plan.pile}">Upcoming purchases</h2>
@@ -148,7 +192,7 @@
             <div class="empty">
                 <svg th:replace="~{layout/app :: icon('hourglass', '')}"></svg>
                 <span th:text="#{plan.pileEmpty}">Nothing on the pile.</span>
-                <button type="button" class="btn btn-tinted btn-sm" data-open-sheet="add-sheet" th:text="#{plan.add}">Add purchase</button>
+                <button type="button" class="btn btn-tinted btn-sm" data-open-sheet="add-sheet" data-f-wish-id="" th:text="#{plan.add}">Add purchase</button>
             </div>
         </div>
         <p class="list-footer" th:text="#{plan.pileHelp}">A reminder only.</p>
@@ -182,6 +226,34 @@
     </div>
 </main>
 
+<!-- Park a purchase in the cool-down list -->
+<dialog class="sheet" id="wish-sheet" th:aria-label="#{wish.add}">
+    <form th:action="@{/ui/upcoming-debts/wishes}" method="post">
+        <div class="sheet-head">
+            <button type="button" class="btn btn-plain btn-sm" data-close-sheet th:text="#{common.cancel}">Cancel</button>
+            <strong th:text="#{wish.add}">Park a purchase</strong>
+            <button type="submit" class="btn btn-plain btn-sm" style="font-weight: 700" th:text="#{common.add}">Add</button>
+        </div>
+        <div class="sheet-body form-stack">
+            <p class="subtitle" th:text="#{wish.help}">Wait 7 days.</p>
+            <div>
+                <label class="field-label" for="w-desc" th:text="#{plan.form.description}">What is it?</label>
+                <input class="field" id="w-desc" name="description" required autocomplete="off">
+            </div>
+            <div class="field-row">
+                <div>
+                    <label class="field-label" for="w-price" th:text="#{plan.whatIfTotal}">Total price</label>
+                    <input class="field tabular" id="w-price" name="price" type="number" inputmode="decimal" step="0.01" min="0.01" required>
+                </div>
+                <div>
+                    <label class="field-label" for="w-months" th:text="#{wish.months}">Months (optional)</label>
+                    <input class="field tabular" id="w-months" name="installments" type="number" inputmode="numeric" min="1" max="120">
+                </div>
+            </div>
+        </div>
+    </form>
+</dialog>
+
 <!-- Add purchase -->
 <dialog class="sheet" id="add-sheet" th:aria-label="#{plan.add}">
     <form th:action="@{/ui/upcoming-debts}" method="post">
@@ -191,6 +263,7 @@
             <button type="submit" class="btn btn-plain btn-sm" style="font-weight: 700" th:text="#{common.add}">Add</button>
         </div>
         <div class="sheet-body">
+            <input type="hidden" name="wishId" value="">
             <th:block th:replace="~{upcoming-debts/fragments :: fields('add')}"></th:block>
         </div>
     </form>
@@ -317,6 +390,14 @@
     }
     ['wiTotal', 'wiMonths', 'wiFirst'].forEach(function (id) {
         document.getElementById(id).addEventListener('input', update);
+    });
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-wish-try]');
+        if (!b) return;
+        document.getElementById('wiTotal').value = b.dataset.total;
+        document.getElementById('wiMonths').value = b.dataset.months;
+        update();
+        box.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
 })();
 </script>
