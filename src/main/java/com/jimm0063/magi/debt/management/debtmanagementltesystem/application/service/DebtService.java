@@ -137,6 +137,11 @@ public class DebtService implements FilterDebtsUseCase, PayOffDebtAccountUseCase
     }
 
     @Override
+    public List<Debt> getActiveByUser(String email) {
+        return debtRepository.findAllDebtsByUser(email);
+    }
+
+    @Override
     public List<Debt> saveUnrepeated(List<Debt> debts, String debtAccountCode, List<String> overrideIgnoredHashes) {
         DebtAccount debtAccount = this.debtAccountRepository.findDebtAccountByCodeAndActiveTrue(debtAccountCode)
                 .orElseThrow(() -> new EntityNotFoundException("Debt Account " + debtAccountCode));

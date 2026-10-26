@@ -20,6 +20,8 @@ public class DebtSysUserEntity implements Serializable {
     private String name;
     private Double salary;
     private Double savings;
+    @Column(name = "debt_limit_percent")
+    private Integer debtLimitPercent;
     @CreationTimestamp
     @Column(name = "created_at")
     private Instant createdAt;

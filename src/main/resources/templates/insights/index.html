@@ -15,36 +15,59 @@
         </a>
     </div>
 
-    <!-- ── Month picker: big total + bar per month ─────────────────────────── -->
-    <section class="card hero" th:if="${insights.hasDebts()}">
+    <!-- ── Month picker: payments or free to spend, one bar per month ──────── -->
+    <section class="card hero" th:if="${insights.hasDebts()}" th:with="hasSalary=${dashboard.salary != null and dashboard.salary > 0}">
+        <div class="seg" role="group" th:if="${hasSalary}" th:aria-label="#{insights.viewFree}">
+            <button type="button" data-select="view" data-value="pay" aria-pressed="true" th:text="#{insights.viewPayments}">Payments</button>
+            <button type="button" data-select="view" data-value="free" aria-pressed="false" th:text="#{insights.viewFree}">Free to spend</button>
+        </div>
+
         <div th:each="m : ${insights.months}" data-select-panel="month" th:attr="data-value=${m.index()}"
              th:hidden="${m.index() != 0}">
-            <div class="hero-top">
-                <span class="hero-label" th:text="${@fmt.month(m.month(), loc)}">November 2026</span>
-                <span th:class="${'chip ' + (m.unchanged() ? 'chip-gray' : (m.paysLess() ? 'chip-green' : 'chip-orange'))}"
-                      style="height: 26px; padding: 0 10px; font-size: 13px"
-                      th:text="${m.unchanged()}
-                          ? (${m.changeVsNext()} ? #{insights.changeSameNext(${@fmt.monthShort(m.compareMonth(), loc)})} : #{insights.changeSame(${@fmt.monthShort(m.compareMonth(), loc)})})
-                          : (${m.changeVsNext()}
-                              ? (${m.paysLess()} ? #{insights.changeLessNext(${@fmt.money0(m.change().abs())}, ${@fmt.monthShort(m.compareMonth(), loc)})}
-                                                 : #{insights.changeMoreNext(${@fmt.money0(m.change().abs())}, ${@fmt.monthShort(m.compareMonth(), loc)})})
-                              : (${m.paysLess()} ? #{insights.changeLess(${@fmt.money0(m.change().abs())}, ${@fmt.monthShort(m.compareMonth(), loc)})}
-                                                 : #{insights.changeMore(${@fmt.money0(m.change().abs())}, ${@fmt.monthShort(m.compareMonth(), loc)})}))">↓ $2,310 in Dec</span>
+            <!-- Payments -->
+            <div data-select-panel="view" data-value="pay">
+                <div class="hero-top">
+                    <span class="hero-label" th:text="${@fmt.month(m.month(), loc)}">November 2026</span>
+                    <span th:class="${'chip ' + (m.unchanged() ? 'chip-gray' : (m.paysLess() ? 'chip-green' : 'chip-orange'))}"
+                          style="height: 26px; padding: 0 10px; font-size: 13px"
+                          th:text="${m.unchanged()}
+                              ? (${m.changeVsNext()} ? #{insights.changeSameNext(${@fmt.monthShort(m.compareMonth(), loc)})} : #{insights.changeSame(${@fmt.monthShort(m.compareMonth(), loc)})})
+                              : (${m.changeVsNext()}
+                                  ? (${m.paysLess()} ? #{insights.changeLessNext(${@fmt.money0(m.change().abs())}, ${@fmt.monthShort(m.compareMonth(), loc)})}
+                                                     : #{insights.changeMoreNext(${@fmt.money0(m.change().abs())}, ${@fmt.monthShort(m.compareMonth(), loc)})})
+                                  : (${m.paysLess()} ? #{insights.changeLess(${@fmt.money0(m.change().abs())}, ${@fmt.monthShort(m.compareMonth(), loc)})}
+                                                     : #{insights.changeMore(${@fmt.money0(m.change().abs())}, ${@fmt.monthShort(m.compareMonth(), loc)})}))">↓ $2,310 in Dec</span>
+                </div>
+                <div class="hero-amount" style="margin-top: 10px"><span th:text="${@fmt.whole(m.total())}">$18,420</span><small th:text="${@fmt.cents(m.total())}">.50</small></div>
+                <div class="hero-sub">
+                    <span>
+                        <span th:text="#{insights.activeDebts(${m.activeDebts()})}">14 active debts</span><span
+                              th:if="${m.upcoming().signum() > 0}" th:text="${' · ' + #messages.msg('insights.inclUpcoming', @fmt.money0(m.upcoming()))}"> · incl. $1,100 upcoming</span>
+                    </span>
+                    <span th:if="${m.leftFromSalary() != null and !m.overspent()}" class="free-line"
+                          th:text="#{insights.leftFromSalary(${@fmt.money0(m.leftFromSalary())})}">Free to spend: $20,000</span>
+                    <span th:if="${m.overspent()}" class="text-orange"
+                          th:text="#{insights.overSalary(${@fmt.money0(m.leftFromSalary().abs())})}">$2,000 over your salary</span>
+                </div>
             </div>
-            <div class="hero-amount" style="margin-top: 10px"><span th:text="${@fmt.whole(m.total())}">$18,420</span><small th:text="${@fmt.cents(m.total())}">.50</small></div>
-            <div class="hero-sub">
-                <span>
-                    <span th:text="#{insights.activeDebts(${m.activeDebts()})}">14 active debts</span><span
-                          th:if="${m.upcoming().signum() > 0}" th:text="${' · ' + #messages.msg('insights.inclUpcoming', @fmt.money0(m.upcoming()))}"> · incl. $1,100 upcoming</span>
-                </span>
-                <span th:if="${m.leftFromSalary() != null and m.leftFromSalary().signum() >= 0}"
-                      th:text="#{insights.leftFromSalary(${@fmt.money0(m.leftFromSalary())})}">Leaves $20,000 of your salary</span>
-                <span th:if="${m.leftFromSalary() != null and m.leftFromSalary().signum() < 0}" class="text-orange"
-                      th:text="#{insights.overSalary(${@fmt.money0(m.leftFromSalary().abs())})}">$2,000 more than your salary</span>
+            <!-- Free to spend -->
+            <div data-select-panel="view" data-value="free" hidden th:if="${hasSalary}">
+                <div class="hero-top">
+                    <span class="hero-label" th:text="${m.overspent()} ? #{insights.freeOver(${@fmt.month(m.month(), loc)})} : #{insights.freeIn(${@fmt.month(m.month(), loc)})}">Free to spend · November 2026</span>
+                    <span th:class="${'chip ' + (m.overLimit() ? 'chip-orange' : 'chip-gray')}" style="height: 26px; padding: 0 10px; font-size: 13px"
+                          th:text="${insights.debtLimitPercent() != null}
+                              ? #{insights.shareLimit(${m.debtSharePercent()}, ${insights.debtLimitPercent()})}
+                              : #{insights.share(${m.debtSharePercent()})}">28% of salary</span>
+                </div>
+                <div th:class="${'hero-amount ' + (m.overspent() ? 'text-orange' : 'text-green')}" style="margin-top: 10px"><span
+                     th:text="${(m.overspent() ? '−' : '') + @fmt.whole(m.leftFromSalary().abs())}">$12,300</span><small th:text="${@fmt.cents(m.leftFromSalary().abs())}">.00</small></div>
+                <div class="hero-sub">
+                    <span th:text="#{insights.freeFormula(${@fmt.money0(dashboard.salary)}, ${@fmt.money0(dashboard.monthlyFixedExpensesAmount != null ? dashboard.monthlyFixedExpensesAmount : 0)}, ${@fmt.money0(m.total())})}">Salary $48,000 − fixed $12,098 − payments $23,602</span>
+                </div>
             </div>
         </div>
 
-        <div th:class="${'bars' + (range == 24 ? ' bars-24' : '')}">
+        <div data-select-panel="view" data-value="pay" th:class="${'bars' + (range == 24 ? ' bars-24' : '')}">
             <button type="button" class="bar-btn" th:each="m : ${insights.months}"
                     data-select="month" th:attr="data-value=${m.index()},aria-pressed=${m.index() == 0}"
                     th:aria-label="${@fmt.month(m.month(), loc) + ': ' + @fmt.money(m.total())}">
@@ -54,16 +77,30 @@
                 <span class="bar-label" th:text="${range <= 12 or m.index() % 3 == 0} ? ${@fmt.monthInitial(m.month(), loc)} : ''">N</span>
             </button>
         </div>
+        <div data-select-panel="view" data-value="free" hidden th:if="${hasSalary}" th:class="${'bars bars-free' + (range == 24 ? ' bars-24' : '')}">
+            <button type="button" class="bar-btn" th:each="m : ${insights.months}"
+                    data-select="month" th:attr="data-value=${m.index()},aria-pressed=${m.index() == 0}"
+                    th:aria-label="${@fmt.month(m.month(), loc) + ': ' + @fmt.money(m.leftFromSalary())}">
+                <span class="bar-track">
+                    <span class="bar" th:classappend="${m.overspent()} ? 'bar-over'" th:style="${'height:' + m.freePercent() + '%'}"></span>
+                </span>
+                <span class="bar-label" th:text="${range <= 12 or m.index() % 3 == 0} ? ${@fmt.monthInitial(m.month(), loc)} : ''">N</span>
+            </button>
+        </div>
 
         <div class="legend">
-            <span><span class="dot" style="background: var(--accent)"></span><span th:text="#{insights.legendDebts}">Debts</span></span>
-            <span><span class="dot" style="background: var(--orange)"></span><span th:text="#{insights.legendUpcoming}">Upcoming purchases</span></span>
+            <span data-select-panel="view" data-value="pay"><span class="dot" style="background: var(--accent)"></span><span th:text="#{insights.legendDebts}">Debts</span></span>
+            <span data-select-panel="view" data-value="pay"><span class="dot" style="background: var(--orange)"></span><span th:text="#{insights.legendUpcoming}">Upcoming purchases</span></span>
+            <span data-select-panel="view" data-value="free" hidden th:if="${hasSalary}"><span class="dot" style="background: var(--green)"></span><span th:text="#{insights.legendFree}">Free to spend</span></span>
+            <span data-select-panel="view" data-value="free" hidden th:if="${hasSalary}"><span class="dot" style="background: var(--red)"></span><span th:text="#{insights.legendOver}">Over budget</span></span>
             <nav class="seg seg-inline" style="margin-left: auto" th:aria-label="#{insights.months}">
                 <a th:href="@{/ui/insights(months=6)}" th:aria-current="${range == 6} ? 'true'">6M</a>
                 <a th:href="@{/ui/insights(months=12)}" th:aria-current="${range == 12} ? 'true'">12M</a>
                 <a th:href="@{/ui/insights(months=24)}" th:aria-current="${range == 24} ? 'true'">24M</a>
             </nav>
         </div>
+        <button type="button" class="link-button small" style="color: var(--accent-text); font-size: 14px" th:unless="${hasSalary}"
+                data-open-sheet="financials-sheet" th:text="#{insights.noSalaryFree}">Add your salary…</button>
     </section>
 
     <section class="card" th:unless="${insights.hasDebts()}">
@@ -95,12 +132,88 @@
             <span class="tile-value" th:text="${@fmt.money0(dashboard.savings)}">$20,000</span>
             <span class="tile-sub" th:text="#{insights.savingsSub}">tap to edit</span>
         </button>
+        <button type="button" class="tile" data-open-sheet="financials-sheet" th:if="${insights.safetyNetMonths() != null}">
+            <span class="tile-label" th:text="#{insights.safety}">Safety net</span>
+            <span th:class="${'tile-value ' + (insights.safetyNetPercent() >= 100 ? 'text-green' : '')}"
+                  th:text="#{insights.safetyMonths(${#numbers.formatDecimal(insights.safetyNetMonths(), 1, 'NONE', 1, 'POINT')})}">1.6 mo</span>
+            <span th:class="${'meter ' + (insights.safetyNetPercent() >= 100 ? 'meter-green' : 'meter-orange')}">
+                <span th:style="${'width:' + insights.safetyNetPercent() + '%'}"></span>
+            </span>
+            <span class="tile-sub" th:text="${insights.safetyNetPercent() >= 100} ? #{insights.safetyDone}
+                    : #{insights.safetyGap(${@fmt.money0(insights.safetyNetGap(dashboard.savings))}, ${insights.safetyGoalMonths()})}">$40,000 to the 3-month goal</span>
+        </button>
+        <button type="button" class="tile" data-open-sheet="financials-sheet"
+                th:if="${dashboard.salary != null and dashboard.salary > 0 and insights.hasDebts()}"
+                th:with="now=${insights.months[0].debtSharePercent()}">
+            <span class="tile-label" th:text="#{insights.limit}">Debt limit</span>
+            <span th:class="${'tile-value ' + (insights.months[0].overLimit() ? 'text-orange' : '')}"
+                  th:text="${insights.debtLimitPercent() != null} ? #{insights.limitValue(${insights.debtLimitPercent()})} : #{insights.limitNone}">30%</span>
+            <span class="tile-sub" th:text="${insights.debtLimitPercent() != null} ? #{insights.limitSub(${now})} : #{insights.limitSubNone}">of salary · now 28%</span>
+        </button>
         <a class="tile" th:href="@{/ui/receivables}"
            th:if="${dashboard.totalPendingReceivables != null and dashboard.totalPendingReceivables > 0}">
             <span class="tile-label" th:text="#{insights.owed}">Owed to you</span>
             <span class="tile-value" th:text="${@fmt.money0(dashboard.totalPendingReceivables)}">$18,500</span>
             <span class="tile-sub" th:text="#{insights.owedSub(${dashboard.activeReceivableCount})}">2 active loans</span>
         </a>
+    </div>
+
+    <!-- ── This month so far + new debt per month ─────────────────────────── -->
+    <div class="row-wrap">
+    <section class="section">
+        <h2 class="section-title" th:text="#{insights.recap(${@fmt.month(thisMonth.month(), loc)})}">October 2026 so far</h2>
+        <div class="list" th:unless="${thisMonth.isEmpty()}">
+            <div class="list-row">
+                <span class="row-icon bg-orange"><svg th:replace="~{layout/app :: icon('plus', '')}"></svg></span>
+                <span class="list-row-body">
+                    <span class="list-row-title">
+                        <span th:text="#{insights.recapAdded(${thisMonth.added().size()})}">2 new purchases</span>
+                        <span th:unless="${thisMonth.added().isEmpty()}" th:text="${#strings.listJoin(thisMonth.added().![description], ', ')}">TV, Laptop</span>
+                    </span>
+                    <span class="list-row-value tabular" th:unless="${thisMonth.added().isEmpty()}"
+                          th:text="#{insights.recapAddedSub(${@fmt.money0(thisMonth.addedMonthly())})}">+$1,200/month</span>
+                </span>
+            </div>
+            <div class="list-row">
+                <span class="row-icon bg-green"><svg th:replace="~{layout/app :: icon('check', '')}"></svg></span>
+                <span class="list-row-body">
+                    <span class="list-row-title">
+                        <span th:text="#{insights.recapFinished(${thisMonth.finished().size()})}">1 debt finished</span>
+                        <span th:unless="${thisMonth.finished().isEmpty()}" th:text="${#strings.listJoin(thisMonth.finished().![description], ', ')}">Fridge</span>
+                    </span>
+                    <span class="list-row-value tabular text-green" th:unless="${thisMonth.finished().isEmpty()}"
+                          th:text="#{insights.recapFreedSub(${@fmt.money0(thisMonth.freedMonthly())})}">−$890/month</span>
+                </span>
+            </div>
+        </div>
+        <div class="card" th:if="${thisMonth.isEmpty()}"><p class="muted" th:text="#{insights.recapEmpty}">Nothing new this month yet.</p></div>
+        <form class="card form-stack" th:if="${thisMonth.freedMonthly().signum() > 0}" th:action="@{/ui/financials}" method="post"
+              th:attr="data-confirm=#{insights.recapSaveConfirm(${@fmt.money0(thisMonth.freedMonthly())})}">
+            <input type="hidden" name="_method" value="PUT">
+            <input type="hidden" name="savings"
+                   th:value="${#numbers.formatDecimal((dashboard.savings != null ? dashboard.savings : 0) + thisMonth.freedMonthly().doubleValue(), 1, 'NONE', 2, 'POINT')}">
+            <p class="small muted" th:text="#{insights.recapSaveHelp(${@fmt.money0(thisMonth.freedMonthly())})}">Those $890 a month were already part of your budget…</p>
+            <button type="submit" class="btn btn-tinted btn-sm" style="align-self: flex-start"
+                    th:text="#{insights.recapSave(${@fmt.money0(thisMonth.freedMonthly())})}">Put the freed $890 into savings</button>
+        </form>
+    </section>
+
+    <section class="section">
+        <h2 class="section-title" th:text="#{insights.trend}">New debt per month</h2>
+        <div class="card hero" style="gap: 10px">
+            <div class="bars bars-trend" style="height: 120px">
+                <div class="bar-btn" th:each="a, st : ${activity}" style="cursor: default">
+                    <span class="bar-value tabular" th:text="${a.addedMonthly().signum() > 0} ? ${@fmt.money0(a.addedMonthly())} : ''">$1,200</span>
+                    <span class="bar-track">
+                        <span class="bar" th:classappend="${a.addedMonthly().signum() == 0} ? 'bar-empty'"
+                              th:style="${'height:' + (maxAdded.signum() > 0 ? #numbers.formatDecimal(a.addedMonthly().doubleValue() * 100 / maxAdded.doubleValue(), 1, 'NONE', 0, 'POINT') : '0') + '%'}"></span>
+                    </span>
+                    <span class="bar-label" th:text="${@fmt.monthShort(a.month(), loc)}">Oct</span>
+                </div>
+            </div>
+            <p class="small muted" th:text="#{insights.trendSub}">Monthly payments added by new purchases.</p>
+        </div>
+    </section>
     </div>
 
     <div class="row-wrap">
@@ -153,30 +266,33 @@
     </div>
 
     <div class="row-wrap">
-    <!-- ── Payoff advisor ──────────────────────────────────────────────────── -->
-    <section class="section" th:if="${dashboard.accountSummaries != null and !dashboard.accountSummaries.isEmpty()}">
-        <h2 class="section-title" th:text="#{insights.advisor}">Payoff advisor</h2>
-        <p class="list-footer" style="padding: 0 4px 4px" th:text="#{insights.advisorSub}">Cards your savings could pay off today.</p>
-        <div class="list">
-            <a class="list-row" th:each="acc : ${dashboard.accountSummaries}"
-               th:href="@{/ui/debt-accounts/{code}(code=${acc.code})}">
-                <span class="list-row-body" style="padding-top: 14px; padding-bottom: 14px">
-                    <span class="list-row-title" style="gap: 5px">
-                        <span th:text="${acc.name}">BBVA Azul</span>
-                        <span th:text="#{insights.advisorRow(${acc.activeDebtCount}, ${acc.maxMonthsRemaining}, ${@fmt.money0(acc.monthlyTotal)})}">4 debts · 9 months left · $4,773/mo</span>
-                        <span th:class="${'meter ' + (acc.payoffFeasible ? 'meter-green' : 'meter-orange')}" style="margin-top: 4px">
-                            <span th:style="${'width:' + (acc.savingsCoveragePercent > 100 ? 100 : #numbers.formatDecimal(acc.savingsCoveragePercent, 1, 0)) + '%'}"></span>
-                        </span>
-                        <span th:text="#{insights.coverage(${#numbers.formatDecimal(acc.savingsCoveragePercent, 1, 0)})}">Savings cover 45%</span>
-                    </span>
-                    <span style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px">
-                        <span class="tabular" style="font-weight: 600" th:text="${@fmt.money0(acc.estimatedRemainingBalance)}">$31,250</span>
-                        <span th:class="${'chip ' + (acc.payoffFeasible ? 'chip-green' : 'chip-gray')}"
-                              th:text="${acc.payoffFeasible} ? #{insights.canPayOff} : #{insights.notYet}">Not yet</span>
-                    </span>
-                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
-                </span>
-            </a>
+    <!-- ── Payoff advisor: what extra money (savings, aguinaldo…) frees ────── -->
+    <section class="section" th:unless="${payoffOptions.isEmpty()}">
+        <h2 class="section-title" th:text="#{payoff.title}">Pay off with extra money</h2>
+        <p class="list-footer" style="padding: 0 4px 4px" th:text="#{payoff.sub}">Interest-free installments cost the same…</p>
+        <div class="card form-stack" id="payoff"
+             th:attr="data-t-summary1=#{payoff.summary1('{0}', '{1}', '{2}')}, data-t-summary-n=#{payoff.summaryN('{0}', '{1}', '{2}')}, data-t-leftover=#{payoff.leftover('{0}')},
+                      data-t-none=#{payoff.none('{0}', '{1}')}, data-t-free=#{payoff.free('{0}', '{1}')},
+                      data-t-row=#{payoff.row('{0}', '{1}')}, data-t-lasts=#{payoff.lasts('{0}')},
+                      data-free-next=${insights.hasDebts() and insights.months.size() > 1 ? insights.months[1].leftFromSalary() : null}">
+            <div>
+                <label class="field-label" for="payoffAmount" th:text="#{payoff.amount}">Extra money</label>
+                <input class="field tabular" type="number" inputmode="decimal" min="0" step="100" id="payoffAmount" placeholder="0">
+            </div>
+            <div class="chips">
+                <button type="button" class="chip chip-blue" data-payoff-amount th:if="${dashboard.savings != null and dashboard.savings > 0}"
+                        th:attr="data-value=${dashboard.savings}" th:text="#{payoff.useSavings(${@fmt.money0(dashboard.savings)})}">My savings $20,000</button>
+                <span class="small muted" th:text="#{payoff.bonusHint}">Aguinaldo, PTU or a bonus? Type it to plan it.</span>
+            </div>
+            <div class="seg" role="group" th:aria-label="#{payoff.strategy}">
+                <button type="button" data-payoff-strategy="room" aria-pressed="true" th:text="#{payoff.room}">Most room now</button>
+                <button type="button" data-payoff-strategy="big" aria-pressed="false" th:text="#{payoff.big}">Biggest payments</button>
+            </div>
+            <p class="small muted" data-payoff-help="room" th:text="#{payoff.roomHelp}">Debts with fewer months left free the most per peso, sooner.</p>
+            <p class="small muted" data-payoff-help="big" hidden th:text="#{payoff.bigHelp}">Clears the largest monthly payments first; the room lasts longer.</p>
+            <p id="payoffSummary" style="font-weight: 600" aria-live="polite"></p>
+            <div class="list" id="payoffList" hidden style="box-shadow: none; background: var(--bg)"></div>
+            <p class="small" id="payoffFree" hidden></p>
         </div>
     </section>
 
@@ -229,6 +345,12 @@
                        th:value="${dashboard.salary != null} ? ${#numbers.formatDecimal(dashboard.salary, 1, 'NONE', 2, 'POINT')}">
             </div>
             <div>
+                <label class="field-label" for="debtLimitPercent" th:text="#{insights.limitField}">Max % of salary on debt payments</label>
+                <input class="field tabular" type="number" inputmode="numeric" min="0" max="100" step="1" id="debtLimitPercent" name="debtLimitPercent"
+                       th:value="${insights.debtLimitPercent() != null ? insights.debtLimitPercent() : 0}">
+                <p class="list-footer" style="padding: 6px 0 0" th:text="#{insights.limitHelp}">A common rule is 30–35%.</p>
+            </div>
+            <div>
                 <label class="field-label" for="savings" th:text="#{insights.savings}">Savings</label>
                 <input class="field tabular" type="number" inputmode="decimal" step="0.01" min="0" id="savings" name="savings"
                        th:value="${dashboard.savings != null} ? ${#numbers.formatDecimal(dashboard.savings, 1, 'NONE', 2, 'POINT')}">
@@ -236,5 +358,86 @@
         </div>
     </form>
 </dialog>
+<script th:inline="javascript">
+(function () {
+    var box = document.getElementById('payoff');
+    if (!box) return;
+    var options = /*[[${payoffOptions}]]*/ [];
+    var t = box.dataset;
+    var strategy = 'room';
+    var nf0 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+    function money0(v) { return (v < 0 ? '−$' : '$') + nf0.format(Math.abs(v)); }
+    function fill(tpl, args) { return tpl.replace(/\{(\d)\}/g, function (_, i) { return args[+i]; }); }
+    function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+    function update() {
+        var amount = parseFloat(document.getElementById('payoffAmount').value) || 0;
+        var summary = document.getElementById('payoffSummary');
+        var list = document.getElementById('payoffList');
+        var free = document.getElementById('payoffFree');
+        list.innerHTML = '';
+        list.hidden = true; free.hidden = true;
+        if (amount <= 0) { summary.textContent = ''; return; }
+        var sorted = options.slice().sort(strategy === 'room'
+            ? function (a, b) { return a.monthsLeft - b.monthsLeft || b.monthly - a.monthly; }
+            : function (a, b) { return b.monthly - a.monthly || a.monthsLeft - b.monthsLeft; });
+        var left = amount, picked = [];
+        sorted.forEach(function (o) { if (o.balance <= left + 0.005) { picked.push(o); left -= o.balance; } });
+        if (!picked.length) {
+            var cheapest = options.reduce(function (a, o) { return !a || o.balance < a.balance ? o : a; }, null);
+            summary.textContent = fill(t.tNone, [money0(amount), cheapest ? cheapest.description + ' (' + money0(cheapest.balance) + ')' : '—']);
+            return;
+        }
+        var freed = picked.reduce(function (s, o) { return s + o.monthly; }, 0);
+        var spent = amount - left;
+        summary.textContent = fill(picked.length === 1 ? t.tSummary1 : t.tSummaryN, [picked.length, money0(spent), money0(freed)])
+            + (left >= 1 ? ' ' + fill(t.tLeftover, [money0(left)]) : '');
+        picked.forEach(function (o) {
+            var row = el('div', 'list-row');
+            var body = el('span', 'list-row-body');
+            var title = el('span', 'list-row-title');
+            title.appendChild(el('span', '', o.description));
+            title.appendChild(el('span', '', fill(t.tRow, [o.accountName, o.monthsLeft]) + ' · ' + fill(t.tLasts, [money0(o.monthly)])));
+            body.appendChild(title);
+            body.appendChild(el('span', 'list-row-value tabular', money0(o.balance)));
+            row.appendChild(body);
+            list.appendChild(row);
+        });
+        list.hidden = false;
+        if (t.freeNext) {
+            var next = parseFloat(t.freeNext);
+            free.textContent = fill(t.tFree, [money0(next), money0(next + freed)]);
+            free.className = 'small text-green';
+            free.hidden = false;
+        }
+    }
+    document.getElementById('payoffAmount').addEventListener('input', update);
+    box.addEventListener('click', function (e) {
+        var chip = e.target.closest('[data-payoff-amount]');
+        if (chip) { document.getElementById('payoffAmount').value = Math.round(+chip.dataset.value); update(); }
+        var s = e.target.closest('[data-payoff-strategy]');
+        if (s) {
+            strategy = s.dataset.payoffStrategy;
+            box.querySelectorAll('[data-payoff-strategy]').forEach(function (b) { b.setAttribute('aria-pressed', String(b === s)); });
+            box.querySelectorAll('[data-payoff-help]').forEach(function (p) { p.hidden = p.dataset.payoffHelp !== strategy; });
+            update();
+        }
+    });
+})();
+</script>
+<script th:inline="none">
+(function () {
+    // Remember Payments / Free to spend between visits.
+    var key = 'fm_insights_view';
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-select="view"]');
+        if (b) { try { localStorage.setItem(key, b.dataset.value); } catch (x) { /* storage blocked */ } }
+    });
+    var saved = null;
+    try { saved = localStorage.getItem(key); } catch (x) { /* storage blocked */ }
+    var btn = saved && document.querySelector('[data-select="view"][data-value="' + saved + '"]');
+    if (btn) btn.click();
+})();
+</script>
 </body>
 </html>

@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface FindAllDebtsUseCase {
     List<Debt> getActiveByDebtAccount(String debtAccountCode);
+    List<Debt> getActiveByUser(String email);
 }
