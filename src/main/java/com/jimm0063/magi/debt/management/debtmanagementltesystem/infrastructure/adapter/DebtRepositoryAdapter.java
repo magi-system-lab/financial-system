@@ -43,6 +43,14 @@ public class DebtRepositoryAdapter implements DebtRepository {
     }
 
     @Override
+    public List<Debt> findDebtHistoryByUser(String email) {
+        return this.debtJpaRepository.findAllByDebtAccount_FinancialProvider_DebtSysUser_Email(email)
+                .stream()
+                .map(debtMapper::toModel)
+                .toList();
+    }
+
+    @Override
     public List<Debt> findAllDebtsByUser(String email) {
         DebtSysUserEntity user = this.debtSysUserJpaRepository.findByEmailAndActiveTrue(email)
                 .orElseThrow(() -> new EntityNotFoundException("User " + email + " not found"));

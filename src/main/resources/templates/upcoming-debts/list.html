@@ -89,7 +89,8 @@
         <div class="card form-stack" id="whatIf"
              th:attr="data-t-result=#{plan.whatIfResult('{0}', '{1}', '{2}', '{3}', '{4}')},
                       data-t-left=#{plan.whatIfLeft('{0}', '{1}')}, data-t-short=#{plan.whatIfShort('{0}', '{1}')},
-                      data-t-empty=#{plan.whatIfEmpty}">
+                      data-t-empty=#{plan.whatIfEmpty}, data-t-limit=#{plan.whatIfLimit('{0}', '{1}', '{2}')},
+                      data-limit=${debtLimitPercent}">
             <div class="field-row">
                 <div>
                     <label class="field-label" for="wiTotal" th:text="#{plan.whatIfTotal}">Total price</label>
@@ -299,7 +300,17 @@
             if (!worst) { verdict.hidden = true; return; }
             var leftover = salary - worst.total;
             verdict.textContent = leftover < 0 ? fill(t.tShort, [worst.label, money0(-leftover)]) : fill(t.tLeft, [worst.label, money0(leftover)]);
-            verdict.className = 'small ' + (leftover < 0 ? 'text-orange' : 'text-green');
+            var over = leftover < 0;
+            // Debt payments only (fixed expenses aside) vs the user's limit
+            var limit = box.dataset.limit ? +box.dataset.limit : 0;
+            if (limit > 0 && salary > 0) {
+                var share = Math.round((worst.debts + worst.up + worst.add) / salary * 100);
+                if (share > limit) {
+                    verdict.textContent += ' ' + fill(t.tLimit, [worst.label, share, limit]);
+                    over = true;
+                }
+            }
+            verdict.className = 'small ' + (over ? 'text-orange' : 'text-green');
             // Jump the chart to that month
             worst.b.click();
         }

@@ -5,8 +5,10 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.applicat
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllUpcomingDebtsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetPaymentProjectionUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.ManageUpcomingDebtUseCase;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.UserRepository;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.DebtTypeEnum;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.DebtAccount;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.DebtSysUser;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.FinancialProvider;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.UpcomingDebt;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.model.CreateUpcomingDebtReq;
@@ -37,6 +39,7 @@ public class UpcomingDebtViewController {
     private final GetPaymentProjectionUseCase getPaymentProjectionUseCase;
     private final FindAllFinancialProviderUseCase findAllFinancialProviderUseCase;
     private final FindAllDebtAccountUseCase findAllDebtAccountUseCase;
+    private final UserRepository userRepository;
     private final ActivityLogHelper activityLogHelper;
 
     public UpcomingDebtViewController(FindAllUpcomingDebtsUseCase findAllUpcomingDebtsUseCase,
@@ -44,12 +47,14 @@ public class UpcomingDebtViewController {
                                       GetPaymentProjectionUseCase getPaymentProjectionUseCase,
                                       FindAllFinancialProviderUseCase findAllFinancialProviderUseCase,
                                       FindAllDebtAccountUseCase findAllDebtAccountUseCase,
+                                      UserRepository userRepository,
                                       ActivityLogHelper activityLogHelper) {
         this.findAllUpcomingDebtsUseCase = findAllUpcomingDebtsUseCase;
         this.manageUpcomingDebtUseCase = manageUpcomingDebtUseCase;
         this.getPaymentProjectionUseCase = getPaymentProjectionUseCase;
         this.findAllFinancialProviderUseCase = findAllFinancialProviderUseCase;
         this.findAllDebtAccountUseCase = findAllDebtAccountUseCase;
+        this.userRepository = userRepository;
         this.activityLogHelper = activityLogHelper;
     }
 
@@ -83,6 +88,8 @@ public class UpcomingDebtViewController {
         model.addAttribute("accountsByProvider", accountsByProvider);
         model.addAttribute("debtTypes", DebtTypeEnum.values());
         model.addAttribute("newUpcomingDebt", new CreateUpcomingDebtReq());
+        model.addAttribute("debtLimitPercent", userRepository.findUserByEmail(email)
+                .map(DebtSysUser::getDebtLimitPercent).orElse(null));
         model.addAttribute("email", email);
         return "upcoming-debts/list";
     }

@@ -10,4 +10,6 @@ import java.util.List;
 @Repository
 public interface DebtJpaRepository extends JpaRepository<DebtEntity, Integer> {
     List<DebtEntity> findAllDebtsByDebtAccount_CodeAndActiveTrue(String debtAccountCode);
+
+    List<DebtEntity> findAllByDebtAccount_FinancialProvider_DebtSysUser_Email(String email);
 }

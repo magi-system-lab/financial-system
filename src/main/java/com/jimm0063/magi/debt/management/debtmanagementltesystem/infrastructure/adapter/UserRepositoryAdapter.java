@@ -36,4 +36,12 @@ public class UserRepositoryAdapter implements UserRepository {
 
         return this.debtSysUserMapper.toModel(this.debtSysUserJpaRepository.save(userEntity));
     }
+
+    @Override
+    public DebtSysUser updateDebtLimit(String email, Integer debtLimitPercent) {
+        DebtSysUserEntity userEntity = this.debtSysUserJpaRepository.findByEmailAndActiveTrue(email)
+                .orElseThrow(() -> new EntityNotFoundException("User " + email + " not found"));
+        userEntity.setDebtLimitPercent(debtLimitPercent == null || debtLimitPercent <= 0 ? null : Math.min(debtLimitPercent, 100));
+        return this.debtSysUserMapper.toModel(this.debtSysUserJpaRepository.save(userEntity));
+    }
 }

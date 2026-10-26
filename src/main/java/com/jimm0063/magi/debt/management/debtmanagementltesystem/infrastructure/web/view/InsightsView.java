@@ -27,8 +27,14 @@ public record InsightsView(
         YearMonth debtFree,
         YearMonth lastPayment,
         YearMonth reliefMonth,
-        BigDecimal relief
+        BigDecimal relief,
+        Integer debtLimitPercent,     // user's max share of salary for debt payments; null = not set
+        BigDecimal monthlyCommitments, // fixed expenses + this month's payments
+        Double safetyNetMonths        // savings / monthlyCommitments; null when it can't be computed
 ) {
+    /** Recommended emergency fund, in months of commitments. */
+    public static final int SAFETY_GOAL_MONTHS = 3;
+
     /** How far ahead the debt-free date is searched. */
     static final int HORIZON_MONTHS = 120;
     /** Finishing soon = the selected month and the next two. */
@@ -42,8 +48,11 @@ public record InsightsView(
             int activeDebts,
             BigDecimal change,            // vs previous month (vs next month for the first one)
             boolean changeVsNext,
-            BigDecimal leftFromSalary,    // salary - fixed expenses - total; null without salary
+            BigDecimal leftFromSalary,    // free to spend: salary - fixed expenses - total; null without salary
             int barPercent,               // height relative to the tallest visible month
+            int freePercent,              // |leftFromSalary| relative to the largest visible one
+            Integer debtSharePercent,     // total / salary; null without salary
+            boolean overLimit,            // debtSharePercent above the user's limit
             int upcomingPercent,          // share of the bar that is upcoming purchases
             List<Card> cards,
             List<Finishing> finishing
@@ -51,6 +60,7 @@ public record InsightsView(
         public YearMonth compareMonth() { return changeVsNext ? month.plusMonths(1) : month.minusMonths(1); }
         public boolean paysLess() { return change.signum() < 0; }
         public boolean unchanged() { return change.abs().compareTo(BigDecimal.ONE) < 0; }
+        public boolean overspent() { return leftFromSalary != null && leftFromSalary.signum() < 0; }
     }
 
     public record Card(String code, String name, BigDecimal amount, int activeDebts, boolean hasUpcoming,
@@ -61,10 +71,35 @@ public record InsightsView(
 
     public boolean hasDebts() { return lastPayment != null; }
 
+    /** Savings still missing to reach {@link #SAFETY_GOAL_MONTHS}; zero once reached. */
+    public BigDecimal safetyNetGap(Double savings) {
+        if (monthlyCommitments == null) return BigDecimal.ZERO;
+        BigDecimal gap = monthlyCommitments.multiply(BigDecimal.valueOf(SAFETY_GOAL_MONTHS))
+                .subtract(BigDecimal.valueOf(savings == null ? 0 : savings));
+        return gap.signum() > 0 ? gap : BigDecimal.ZERO;
+    }
+
+    public int safetyGoalMonths() { return SAFETY_GOAL_MONTHS; }
+
+    public int safetyNetPercent() {
+        if (safetyNetMonths == null) return 0;
+        return (int) Math.min(100, Math.round(safetyNetMonths * 100 / SAFETY_GOAL_MONTHS));
+    }
+
     public static InsightsView from(List<MonthProgressionDto> progression, int visibleMonths,
                                     Double salary, Double fixedExpenses) {
+        return from(progression, visibleMonths, salary, fixedExpenses, null, null);
+    }
+
+    public static InsightsView from(List<MonthProgressionDto> progression, int visibleMonths,
+                                    Double salary, Double fixedExpenses, Double savings, Integer debtLimitPercent) {
         List<MonthProgressionDto> visible = progression.subList(0, Math.min(visibleMonths, progression.size()));
         BigDecimal max = visible.stream().map(MonthProgressionDto::totalPayment)
+                .max(Comparator.naturalOrder()).orElse(BigDecimal.ZERO);
+
+        BigDecimal fixed = BigDecimal.valueOf(fixedExpenses == null ? 0 : fixedExpenses);
+        BigDecimal maxFree = salary == null ? BigDecimal.ZERO : visible.stream()
+                .map(m -> BigDecimal.valueOf(salary).subtract(fixed).subtract(m.totalPayment()).abs())
                 .max(Comparator.naturalOrder()).orElse(BigDecimal.ZERO);
 
         List<Month> months = new ArrayList<>();
@@ -76,12 +111,15 @@ public record InsightsView(
                     : progression.get(i - 1).totalPayment();
             BigDecimal change = vsNext ? other.subtract(m.totalPayment()) : m.totalPayment().subtract(other);
             BigDecimal left = salary == null ? null
-                    : BigDecimal.valueOf(salary)
-                        .subtract(BigDecimal.valueOf(fixedExpenses == null ? 0 : fixedExpenses))
-                        .subtract(m.totalPayment());
+                    : BigDecimal.valueOf(salary).subtract(fixed).subtract(m.totalPayment());
+            Integer share = salary == null || salary <= 0 ? null
+                    : percent(m.totalPayment(), BigDecimal.valueOf(salary));
+            boolean overLimit = share != null && debtLimitPercent != null && share > debtLimitPercent;
             months.add(new Month(i, m.month(), m.totalPayment(), m.totalUpcomingPayment(), m.totalActiveDebtCount()
                     + m.allClosingDebts().size(), change, vsNext, left,
-                    percent(m.totalPayment(), max), percent(m.totalUpcomingPayment(), m.totalPayment()),
+                    percent(m.totalPayment(), max), left == null ? 0 : Math.max(2, percent(left.abs(), maxFree)),
+                    share, overLimit,
+                    percent(m.totalUpcomingPayment(), m.totalPayment()),
                     cards(m), finishing(progression, i)));
         }
 
@@ -93,7 +131,10 @@ public record InsightsView(
         YearMonth reliefMonth = progression.size() > 3 ? progression.get(3).month() : null;
         BigDecimal relief = reliefMonth == null ? BigDecimal.ZERO
                 : progression.get(0).totalPayment().subtract(progression.get(3).totalPayment());
-        return new InsightsView(months, debtFree, last, reliefMonth, relief);
+        BigDecimal commitments = progression.isEmpty() ? fixed : fixed.add(progression.get(0).totalPayment());
+        Double safety = savings == null || commitments.signum() <= 0 ? null
+                : savings / commitments.doubleValue();
+        return new InsightsView(months, debtFree, last, reliefMonth, relief, debtLimitPercent, commitments, safety);
     }
 
     private static List<Card> cards(MonthProgressionDto m) {

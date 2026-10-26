@@ -764,3 +764,13 @@ form.inline { margin: 0; display: contents; }
     .sel-bar { bottom: 24px; left: calc(50% + var(--sidebar-w) / 2); }
 }
 .mono { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0; }
+
+/* ── Insights: free to spend + trend ────────────────────────────────────── */
+.bars-free .bar { background: color-mix(in srgb, var(--green) 35%, transparent); }
+.bars-free .bar.bar-over { background: color-mix(in srgb, var(--red) 35%, transparent); }
+.bars-free .bar-btn[aria-pressed="true"] .bar { background: var(--green); }
+.bars-free .bar-btn[aria-pressed="true"] .bar.bar-over { background: var(--red); }
+.free-line { color: var(--green-text); font-weight: 600; }
+.bars-trend .bar { background: var(--orange); }
+.bar-value { height: 14px; font-size: 10px; line-height: 14px; text-align: center; color: var(--text-2); white-space: nowrap; overflow: visible; }
+.tile .meter { margin: 4px 0 2px; }

@@ -5,6 +5,7 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.applicat
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllUpcomingDebtsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetPaymentProjectionUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.ManageUpcomingDebtUseCase;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.UserRepository;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.MonthProjectionDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.PaymentProjectionDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.DebtTypeEnum;
@@ -47,6 +48,7 @@ class UpcomingDebtViewControllerTest {
     @MockBean GetPaymentProjectionUseCase getPaymentProjectionUseCase;
     @MockBean FindAllFinancialProviderUseCase findAllFinancialProviderUseCase;
     @MockBean FindAllDebtAccountUseCase findAllDebtAccountUseCase;
+    @MockBean UserRepository userRepository;
     @MockBean ActivityLogHelper activityLogHelper;
 
     private static UpcomingDebt upcoming(int id, String desc, YearMonth first, UpcomingDebtStatus status) {

@@ -1,5 +1,12 @@
 package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.web.view;
 
+import static org.mockito.ArgumentMatchers.anyInt;
+import java.util.Optional;
+import java.time.YearMonth;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.DebtSysUser;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.Debt;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.DebtActivityDto;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetDebtActivityUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetDebtProgressionUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetFinancialStatusUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.UserRepository;
@@ -43,6 +50,7 @@ class InsightsViewControllerTest {
     @MockBean GetFinancialStatusUseCase getFinancialStatusUseCase;
     @MockBean GetDebtProgressionUseCase getDebtProgressionUseCase;
     @MockBean UserRepository userRepository;
+    @MockBean GetDebtActivityUseCase getDebtActivityUseCase;
     @MockBean ActivityLogHelper activityLogHelper;
 
     @BeforeEach
@@ -66,6 +74,51 @@ class InsightsViewControllerTest {
         dashboard.setAccountSummaries(List.of(visa));
         when(getFinancialStatusUseCase.getUserStatus(EMAIL)).thenReturn(dashboard);
         when(getDebtProgressionUseCase.getProgression(eq(EMAIL), any())).thenReturn(InsightsFixtures.progression());
+        when(getDebtActivityUseCase.getActivity(eq(EMAIL), anyInt())).thenReturn(List.of());
+    }
+
+    @Test
+    void shows_free_to_spend_limit_and_safety_net() throws Exception {
+        DebtSysUser user = new DebtSysUser();
+        user.setDebtLimitPercent(15);
+        when(userRepository.findUserByEmail(EMAIL)).thenReturn(Optional.of(user));
+
+        // Nov: salary 5,000 − fixed 1,500 − payments 1,000 = 2,500; payments are 20% of salary
+        mockMvc.perform(get("/ui/insights").sessionAttr("userEmail", EMAIL))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Free to spend: $2,500")))
+                .andExpect(content().string(containsString("20% of salary · limit 15%")))
+                .andExpect(content().string(containsString("Salary $5,000 − fixed $1,500 − payments $1,000")))
+                .andExpect(content().string(containsString("8.0 mo")))     // 20,000 / (1,500 + 1,000)
+                .andExpect(content().string(containsString("Goal reached")));
+    }
+
+    @Test
+    void recap_offers_to_move_freed_money_to_savings() throws Exception {
+        Debt fridge = InsightsFixtures.phone();
+        fridge.setDescription("Fridge");
+        Debt tv = InsightsFixtures.phone();
+        tv.setDescription("TV");
+        YearMonth now = YearMonth.now();
+        when(getDebtActivityUseCase.getActivity(eq(EMAIL), anyInt())).thenReturn(List.of(
+                new DebtActivityDto(now.minusMonths(1), List.of(tv), new BigDecimal("300"), List.of(), BigDecimal.ZERO),
+                new DebtActivityDto(now, List.of(), BigDecimal.ZERO, List.of(fridge), new BigDecimal("890"))));
+
+        mockMvc.perform(get("/ui/insights").sessionAttr("userEmail", EMAIL))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("1 debt finished")))
+                .andExpect(content().string(containsString("Fridge")))
+                .andExpect(content().string(containsString("Put the freed $890 into savings")))
+                .andExpect(content().string(containsString("value=\"20890.00\"")))
+                .andExpect(content().string(containsString("New debt per month")));
+    }
+
+    @Test
+    void saving_the_debt_limit() throws Exception {
+        mockMvc.perform(post("/ui/financials").param("_method", "PUT").param("debtLimitPercent", "30")
+                        .sessionAttr("userEmail", EMAIL))
+                .andExpect(redirectedUrl("/ui/insights"));
+        verify(userRepository).updateDebtLimit(EMAIL, 30);
     }
 
     @Test
@@ -81,7 +134,7 @@ class InsightsViewControllerTest {
                 .andExpect(content().string(containsString("November 2026")))
                 .andExpect(content().string(containsString(">$1,000<")))
                 .andExpect(content().string(containsString("↓ $200 in Dec")))
-                .andExpect(content().string(containsString("Leaves $2,500 of your salary after fixed expenses")))
+                .andExpect(content().string(containsString("Free to spend: $2,500")))
                 .andExpect(content().string(containsString("Phone")))
                 .andExpect(content().string(containsString("Visa Oro · last payment Dec")))
                 .andExpect(content().string(containsString("11/12 paid")))

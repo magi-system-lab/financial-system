@@ -144,6 +144,14 @@ GET    /debt/all                             Get all debts (header: email)
 GET    /debt/set/hash/sum                    Compute missing SHA-256 hashes (header: email)
 ```
 
+### Debt Activity & Budget
+```
+GET    /debt/activity/{email}?months=6       Per month: purchases that appeared for the first time + debts fully paid off
+PUT    /user/debt-limit/{email}?percent=30   Max share of the salary for debt payments (0 removes it)
+```
+`DebtActivityService` counts a purchase as new on the first row saved for its hash (a "rebuild from 0" re-insert is
+not new again) and a debt as finished when it was deactivated with every installment paid (deleted ones don't count).
+
 ### Debt Accounts
 ```
 POST   /debt/account/{financialProviderCode} Create account
@@ -252,8 +260,10 @@ the user can recognise the purchase and mark it as started. PENDING items are ad
 GET    /ui                   Home / email login (?switch = show the form, skip the default-email auto-login)
 POST   /ui/session           Set user email in HTTP session + long-lived `fm_user` cookie
 POST   /ui/session/end       "Switch user": forget the session user and the cookie
-GET    /ui/insights          Insights tab (home after login): month-by-month payments (?months=6|12|24), finishing soon,
-                             per card, payoff advisor, spending by category, salary & savings sheet
+GET    /ui/insights          Insights tab (home after login): month-by-month payments or "free to spend"
+                             (salary − fixed − payments; ?months=6|12|24), debt limit + safety net tiles, this month's
+                             recap (new / finished debts, "put the freed money into savings"), new debt per month,
+                             finishing soon, per card, payoff advisor, spending by category, salary/savings/limit sheet
 PUT    /ui/financials        Update salary & savings (returns to Insights)
 GET    /ui/dashboard         Old dashboard URL → redirects to /ui/insights
 GET    /ui/more              "More" tab: secondary sections + settings (language, switch user)
@@ -343,7 +353,7 @@ GET    /v3/api-docs          OpenAPI JSON spec
 Hibernate manages DDL automatically (`ddl-auto: update`). Key relationships:
 
 ```
-debt_sys_user (PK: email)
+debt_sys_user (PK: email; salary, savings, debt_limit_percent)
 ├── 1:N → financial_provider
 │         └── 1:N → debt_account
 │                   ├── 1:N → debt
