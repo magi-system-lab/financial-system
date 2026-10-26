@@ -42,6 +42,23 @@ function copyEl(btn, el) {
     };
     updateBanner();
     window.addEventListener('online', updateBanner);
+
+    // Save every tab (and the cards / loans they link to) for offline use, not only the pages
+    // already opened. At most every 30 minutes, a few seconds after a page loaded online.
+    const WARM_KEY = 'fm_warmed';
+    if (nav && nav.dataset.warm && nav.dataset.fromCache !== 'true' && navigator.onLine && 'serviceWorker' in navigator) {
+        let last = 0;
+        try { last = Number(localStorage.getItem(WARM_KEY)) || 0; } catch (e) { /* storage blocked */ }
+        if (Date.now() - last > 30 * 60 * 1000) {
+            setTimeout(() => {
+                navigator.serviceWorker.ready.then((reg) => {
+                    if (!reg.active) return;
+                    reg.active.postMessage({ type: 'warm', urls: nav.dataset.warm.split(' ') });
+                    try { localStorage.setItem(WARM_KEY, String(Date.now())); } catch (e) { /* storage blocked */ }
+                });
+            }, 3000);
+        }
+    }
     window.addEventListener('offline', updateBanner);
 
     document.addEventListener('submit', (event) => {
@@ -62,6 +79,7 @@ function copyEl(btn, el) {
         if (form.hasAttribute('data-clear-offline') && 'caches' in window) {
             event.preventDefault();
             form.removeAttribute('data-clear-offline');
+            try { localStorage.removeItem(WARM_KEY); } catch (e) { /* storage blocked */ }
             caches.delete('fm-pages').finally(() => form.submit());
         }
     }, true);
