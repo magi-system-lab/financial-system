@@ -158,6 +158,17 @@
         </a>
     </div>
 
+    <!-- ── Coach: the most urgent advice ───────────────────────────────────── -->
+    <section class="section" th:unless="${coachTips.isEmpty()}">
+        <h2 class="section-title" style="display: flex; justify-content: space-between; align-items: center">
+            <span th:text="#{insights.coach}">Coach</span>
+            <a class="btn btn-plain btn-sm" th:href="@{/ui/coach}" th:text="#{insights.coachAll}">See the plan and goals</a>
+        </h2>
+        <div class="list">
+            <th:block th:each="t : ${coachTips}"><th:block th:replace="~{coach/fragments :: tipRow(${t})}"></th:block></th:block>
+        </div>
+    </section>
+
     <!-- ── This month so far + new debt per month ─────────────────────────── -->
     <div class="row-wrap">
     <section class="section">

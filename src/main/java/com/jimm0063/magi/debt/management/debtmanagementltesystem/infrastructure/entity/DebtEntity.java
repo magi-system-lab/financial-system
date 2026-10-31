@@ -45,4 +45,6 @@ public class DebtEntity implements Serializable {
     @Column(name = "debt_type")
     @Enumerated(EnumType.STRING)
     private DebtTypeEnum debtType;
+    @Column(name = "annual_interest_rate")
+    private BigDecimal annualInterestRate;
 }

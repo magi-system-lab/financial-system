@@ -81,7 +81,7 @@ public class StatementDiffSyncService implements SyncStatementDiffUseCase {
         // Insert all non-completed extracted debts as fresh records
         List<Debt> toInsert = Stream.of(diff.newDebts(), diff.updatedDebts(), diff.unchangedDebts())
                 .flatMap(List::stream)
-                .map(DebtDiff::getExtractedDebt)
+                .map(StatementDiffSyncService::withManualFields)
                 .peek(d -> {
                     d.setDebtAccount(debtAccount);
                     d.setActive(true);
@@ -89,5 +89,14 @@ public class StatementDiffSyncService implements SyncStatementDiffUseCase {
                 })
                 .toList();
         if (!toInsert.isEmpty()) debtRepository.saveAll(toInsert);
+    }
+
+    /** Statements don't carry what the user typed by hand (the interest rate): keep it from the matching record. */
+    private static Debt withManualFields(DebtDiff diff) {
+        Debt extracted = diff.getExtractedDebt();
+        Debt existing = diff.getExistingDebt();
+        if (existing != null && extracted.getAnnualInterestRate() == null)
+            extracted.setAnnualInterestRate(existing.getAnnualInterestRate());
+        return extracted;
     }
 }

@@ -103,6 +103,7 @@ public class DebtRepositoryAdapter implements DebtRepository {
         existing.setCurrentInstallment(debt.getCurrentInstallment());
         existing.setMaxFinancingTerm(debt.getMaxFinancingTerm());
         existing.setDebtType(debt.getDebtType());
+        existing.setAnnualInterestRate(debt.getAnnualInterestRate());
         existing.setActive(debt.getActive());
         return debtMapper.toModel(debtJpaRepository.save(existing));
     }

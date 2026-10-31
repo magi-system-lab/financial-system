@@ -41,6 +41,11 @@
                 </select>
             </div>
         </div>
+        <div>
+            <label class="field-label" th:for="${prefix + '-rate'}" th:text="#{debt.rate}">Yearly interest rate (%)</label>
+            <input class="field tabular" th:id="${prefix + '-rate'}" name="annualInterestRate" type="number" inputmode="decimal" step="0.01" min="0" max="300" th:placeholder="#{debt.ratePlaceholder}">
+            <p class="list-footer" style="padding: 6px 0 0" th:text="#{debt.rateHelp}">Leave it empty for interest-free installments.</p>
+        </div>
     </div>
 </th:block>
 </body>

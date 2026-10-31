@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<body>
+<!-- One coach tip as a list row (CoachTipView); a link when there is a page that helps act on it. -->
+<th:block th:fragment="tipRow(t)">
+    <a class="list-row" th:if="${t.link() != null}" th:href="@{${t.link()}}">
+        <th:block th:replace="~{coach/fragments :: tipBody(${t}, true)}"></th:block>
+    </a>
+    <div class="list-row" th:unless="${t.link() != null}">
+        <th:block th:replace="~{coach/fragments :: tipBody(${t}, false)}"></th:block>
+    </div>
+</th:block>
+
+<th:block th:fragment="tipBody(t, linked)">
+    <span class="row-icon coach-tip-icon" th:classappend="${t.iconClass()}">
+        <svg th:replace="~{layout/app :: icon(${t.icon()}, '')}"></svg>
+    </span>
+    <span class="list-row-body">
+        <span class="list-row-title coach-tip">
+            <span th:text="${#messages.msgWithParams(t.titleKey(), t.args())}">Build your safety net first</span>
+            <span th:text="${#messages.msgWithParams(t.bodyKey(), t.args())}">Your savings cover 1.2 months…</span>
+        </span>
+        <th:block th:if="${linked}"><svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg></th:block>
+    </span>
+</th:block>
+</body>
+</html>

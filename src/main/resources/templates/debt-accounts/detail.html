@@ -101,7 +101,8 @@
                                  data-f-monthly-payment=${d.monthlyPayment},
                                  data-f-current-installment=${d.currentInstallment},
                                  data-f-max-financing-term=${d.maxFinancingTerm},
-                                 data-f-debt-type=${d.debtType != null ? d.debtType : 'CARD'}">
+                                 data-f-debt-type=${d.debtType != null ? d.debtType : 'CARD'},
+                                 data-f-annual-interest-rate=${d.annualInterestRate != null ? d.annualInterestRate : ''}">
                     <span class="list-row-body" style="padding-top: 12px; padding-bottom: 12px">
                         <span class="list-row-title" style="gap: 4px">
                             <span th:text="${d.description}">MacBook Air</span>
