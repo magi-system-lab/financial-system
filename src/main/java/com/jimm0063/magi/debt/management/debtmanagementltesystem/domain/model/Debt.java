@@ -24,4 +24,6 @@ public class Debt implements Serializable {
     private DebtAccount debtAccount;
     private DebtTypeEnum debtType;
     private String hashSum;
+    /** Optional yearly rate (e.g. 45.5) for loans that charge interest; null/0 = interest-free installments. */
+    private BigDecimal annualInterestRate;
 }

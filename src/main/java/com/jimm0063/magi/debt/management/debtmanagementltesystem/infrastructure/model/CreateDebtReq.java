@@ -15,4 +15,5 @@ public class CreateDebtReq {
     private Double monthlyPayment;
     private Boolean active;
     private DebtTypeEnum debtType;
+    private Double annualInterestRate;
 }

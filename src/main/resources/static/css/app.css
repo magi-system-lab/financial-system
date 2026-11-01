@@ -776,3 +776,13 @@ form.inline { margin: 0; display: contents; }
 .tile .meter { margin: 4px 0 2px; }
 .wish-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-left: -10px; }
 .wish-actions form { display: contents; }
+
+/* Coach: plan chart (payments with the plan, green = no longer paid) and tip rows */
+.bars-coach .bar { background: color-mix(in srgb, var(--green) 45%, transparent); }
+.bars-coach .bar-plan { flex: none; background: var(--accent); }
+.bars-coach .bar-btn { cursor: default; }
+.coach-tip-icon { align-self: flex-start; margin-top: 12px; }
+.list-row-title.coach-tip > span + span { white-space: normal; line-height: 1.35; }
+.coach-step-action { align-self: flex-start; margin-top: 4px; }
+button.coach-step-action { margin-left: -14px; }
+button.chip { border: 0; font-family: inherit; cursor: pointer; }

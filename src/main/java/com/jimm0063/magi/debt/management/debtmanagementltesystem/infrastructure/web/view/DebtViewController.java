@@ -69,6 +69,7 @@ public class DebtViewController {
             @RequestParam Integer currentInstallment,
             @RequestParam Integer maxFinancingTerm,
             @RequestParam DebtTypeEnum debtType,
+            @RequestParam(required = false) BigDecimal annualInterestRate,
             HttpSession session) {
         if (session.getAttribute("userEmail") == null) return "redirect:/ui";
         Debt debt = new Debt();
@@ -80,6 +81,7 @@ public class DebtViewController {
         debt.setCurrentInstallment(currentInstallment);
         debt.setMaxFinancingTerm(maxFinancingTerm);
         debt.setDebtType(debtType);
+        debt.setAnnualInterestRate(annualInterestRate);
         debt.setActive(true);
         var updated = debtRepository.update(debt);
         activityLogHelper.log(session, "Update Debt — " + debtId, updated);

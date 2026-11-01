@@ -156,6 +156,33 @@ POST   /wish/{email}?description=&price=&installments=   Park a purchase
 PATCH  /wish/{id}/planned | /wish/{id}/drop  Decide after the cool-down
 DELETE /wish/{id}                            Soft-delete
 ```
+### Coach (attack plan, savings goals, advice)
+```
+GET    /coach/plan/{email}?extra=&lump=&strategy=FLOW|SMALLEST|LONGEST&snowball=true   Month-by-month payoff plan
+GET    /coach/tips/{email}                   Rule-based advice, most urgent first (CoachTipDto: type, severity, args)
+GET    /savings/goal/all/{email}             Every goal with progress (SavingsGoalStatusDto)
+GET    /savings/goal/{id}                    One goal (header: email)
+POST   /savings/goal/{email}?name=&targetAmount=&targetDate=&debtId=   Create (debtId → target = that debt's payoff balance)
+PUT    /savings/goal/{id}                    Update (header: email)
+POST   /savings/goal/{id}/contribution?amount=&date=&note=   Put money in (negative = take it out)
+DELETE /savings/goal/contribution/{id}       Soft-delete a movement
+POST   /savings/goal/{id}/pay-off            Pay the linked debt off with the goal's money (header: email)
+PATCH  /savings/goal/{id}/complete | cancel | reopen
+DELETE /savings/goal/{id}                    Soft-delete
+```
+`PayoffSimulator` (domain/utils, pure): every month the extra (+ with snowball every payment that frees up) is put
+aside; when it covers the whole payoff balance of the next debt in strategy order, that debt is paid off (strict order,
+debts with ≥ 2 payments left only). Debts with `annual_interest_rate` always go first; their payoff balance is the
+present value of the payments left (interest-free = monthly × left). FLOW = most monthly payment freed per peso,
+SMALLEST = snowball, LONGEST = brings the debt-free date closer. Goals linked to a debt find it by id, or by hash after a
+"rebuild from 0" re-insert; the target follows its live balance. Goal money is separate from `debt_sys_user.savings`.
+Paying off from a goal sets `currentInstallment = maxFinancingTerm`, `active = false` (so it shows as finished in the
+monthly recap) and records a negative movement. `CoachService` rules: budget (no salary, overspent, over limit),
+safety net < 3 months, interest debts, this month's activity, goals (ready / behind / debt gone), relief next month,
+quick win beyond the safety net, snowball-only gain, cool-down items ready, upcoming purchases starting next month.
+Texts: `coach.tip.<TYPE>.title` / `coach.tip.<TYPE>`; `CoachTipView` formats the args and picks the link.
+The statement rebuild (SOURCE_OF_TRUTH) keeps a debt's hand-typed interest rate from the matching record.
+
 `DebtActivityService` counts a purchase as new on the first row saved for its hash (a "rebuild from 0" re-insert is
 not new again) and a debt as finished when it was deactivated with every installment paid (deleted ones don't count).
 
@@ -294,6 +321,11 @@ GET    /ui/upcoming-debts    Upcoming (deferred) purchases pile + month-by-month
                              cool-down list (POST /ui/upcoming-debts/wishes, /wishes/{id}/drop; "Still want it" opens the
                              add sheet with wishId, which marks the wish PLANNED)
 GET    /ui/bulk-statements   Bulk statement import (many files → many cards, see below)
+GET    /ui/coach             Coach (Plan tab): tips, attack plan form (?f=1&extra=&lump=&strategy=&roll=; extra defaults
+                             to 10% of what's left from the salary), plan chart + payoff steps ("Save for it" opens the
+                             goal sheet), savings goals (put in / take out, pay off now, edit / complete / cancel / delete).
+                             POST /ui/coach/goals[/{id}[/contributions|/pay-off|/complete|/cancel|/reopen]],
+                             DELETE /ui/coach/goals/{id}, DELETE /ui/coach/contributions/{id}. Top 3 tips also on Insights.
 ```
 
 ### UI (iOS-style, mobile first)
@@ -367,10 +399,12 @@ Hibernate manages DDL automatically (`ddl-auto: update`). Key relationships:
 debt_sys_user (PK: email; salary, savings, debt_limit_percent)
 ├── 1:N → financial_provider
 │         └── 1:N → debt_account
-│                   ├── 1:N → debt
+│                   ├── 1:N → debt (annual_interest_rate optional; null = interest-free installments)
 │                   └── 1:N → payment
 ├── 1:N → fixed_expense
 ├── 1:N → wish_item (status WAITING | PLANNED | DROPPED; cool-down list)
+├── 1:N → savings_goal (debt_id + debt_hash optional; status ACTIVE | COMPLETED | CANCELLED)
+│         └── 1:N → savings_goal_contribution (signed amount, contribution_date)
 ├── 1:N → upcoming_debt (M:1 optional → debt_account; status PENDING | STARTED | CANCELLED)
 └── 1:N → receivable
           └── 1:N → receivable_payment
@@ -530,6 +564,9 @@ The Tesseract installation in Docker is required for `LIVERPOOL` statement parsi
 | `application/service/PaymentService.java` | Payment recording + installment increment |
 | `application/service/BulkStatementService.java` | Bulk statement import: per-file extraction/diff + single-transaction sync |
 | `application/service/UpcomingDebtService.java` | Upcoming (deferred) purchases pile + payment projection |
+| `domain/utils/PayoffSimulator.java` | Coach attack plan: month-by-month payoff simulation |
+| `application/service/CoachService.java` | Rule-based coach tips |
+| `application/service/SavingsGoalService.java` | Savings goals: progress, pace, pay a debt off with the goal |
 | `application/service/ReceivableService.java` | Money lent out: pending-balance calculation, auto open/close on repayment |
 | `infrastructure/web/AccountStatementController.java` | Statement extraction endpoints |
 | `domain/utils/DebtComparatorUtil.java` | Diff logic: new vs. existing debts |

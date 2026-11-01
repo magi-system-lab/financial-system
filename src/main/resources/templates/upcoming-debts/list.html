@@ -20,6 +20,19 @@
     <div class="notice notice-error" role="alert" th:if="${formError != null}" th:text="${formError}">Enter the total amount or the monthly payment</div>
     <div class="notice notice-warn" th:if="${dueCount > 0}" th:text="#{plan.due(${dueCount})}">1 purchase reached its first payment month.</div>
 
+    <div class="list">
+        <a class="list-row" th:href="@{/ui/coach}">
+            <span class="row-icon bg-teal"><svg th:replace="~{layout/app :: icon('target', '')}"></svg></span>
+            <span class="list-row-body">
+                <span class="list-row-title">
+                    <span th:text="#{plan.coach}">Coach</span>
+                    <span th:text="#{plan.coachSub}">Attack plan to pay debts off sooner + savings goals</span>
+                </span>
+                <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+            </span>
+        </a>
+    </div>
+
     <!-- ── Month by month: current debts + upcoming purchases + fixed expenses (+ what-if) ── -->
     <section class="card hero" id="projection" th:if="${!projection.months.isEmpty()}"
              th:attr="data-salary=${salary}">

@@ -11,6 +11,13 @@
     <section class="section">
         <h2 class="list-header" th:text="#{more.money}">Money</h2>
         <div class="list">
+            <a class="list-row" th:href="@{/ui/coach}">
+                <span class="row-icon bg-teal"><svg th:replace="~{layout/app :: icon('target', '')}"></svg></span>
+                <span class="list-row-body">
+                    <span class="list-row-title"><span th:text="#{more.coach}">Coach: plan and goals</span></span>
+                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+                </span>
+            </a>
             <a class="list-row" th:href="@{/ui/receivables}">
                 <span class="row-icon bg-green"><svg th:replace="~{layout/app :: icon('people', '')}"></svg></span>
                 <span class="list-row-body">

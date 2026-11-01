@@ -7,6 +7,7 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.De
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.Debt;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.DebtActivityDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllDebtsUseCase;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetCoachTipsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetDebtActivityUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetDebtProgressionUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetFinancialStatusUseCase;
@@ -54,6 +55,7 @@ class InsightsViewControllerTest {
     @MockBean GetDebtActivityUseCase getDebtActivityUseCase;
     @MockBean FindAllDebtsUseCase findAllDebtsUseCase;
     @MockBean ActivityLogHelper activityLogHelper;
+    @MockBean GetCoachTipsUseCase getCoachTipsUseCase;
 
     @BeforeEach
     void setUp() {

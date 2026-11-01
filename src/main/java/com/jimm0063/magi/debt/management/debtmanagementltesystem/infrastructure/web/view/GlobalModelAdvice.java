@@ -46,7 +46,7 @@ public class GlobalModelAdvice {
                 || path.startsWith("/ui/debts") || path.startsWith("/ui/payments")
                 || path.startsWith("/ui/statements") || path.startsWith("/ui/v2/statements")) return "cards";
         if (path.startsWith("/ui/bulk-statements")) return "import";
-        if (path.startsWith("/ui/upcoming-debts")) return "plan";
+        if (path.startsWith("/ui/upcoming-debts") || path.startsWith("/ui/coach")) return "plan";
         return "more";
     }
 }

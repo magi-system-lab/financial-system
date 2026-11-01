@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{layout/app :: head(#{coach.title})}"></head>
+<body class="app">
+<div th:replace="~{layout/app :: nav}"></div>
+<main class="app-main" th:with="loc=${#locale}">
+
+    <div class="title-block">
+        <div>
+            <span class="eyebrow" th:text="#{coach.eyebrow}">Plan</span>
+            <h1 class="large-title" th:text="#{coach.title}">Coach</h1>
+        </div>
+        <button type="button" class="btn btn-glass btn-icon" data-open-sheet="goal-sheet" th:attr="data-action=@{/ui/coach/goals}"
+                data-f-name="" data-f-target-amount="" data-f-target-month="" data-f-debt-id="" th:aria-label="#{coach.goal.add}">
+            <svg th:replace="~{layout/app :: icon('plus', '')}"></svg>
+        </button>
+    </div>
+
+    <div class="notice notice-error" role="alert" th:if="${formError != null}" th:text="${formError}">Enter an amount</div>
+    <div class="notice notice-info" role="status" th:if="${paidOff != null}" th:text="#{coach.goal.paidOff(${paidOff})}">Paid off: TV.</div>
+
+    <!-- ── Advice ──────────────────────────────────────────────────────────── -->
+    <section class="section" th:unless="${tips.isEmpty()}">
+        <h2 class="section-title" th:text="#{coach.tips}">For you today</h2>
+        <div class="list">
+            <th:block th:each="t : ${tips}"><th:block th:replace="~{coach/fragments :: tipRow(${t})}"></th:block></th:block>
+        </div>
+    </section>
+
+    <!-- ── Attack plan ─────────────────────────────────────────────────────── -->
+    <section class="section" id="plan">
+        <h2 class="section-title" th:text="#{coach.plan}">Attack plan</h2>
+        <p class="list-footer" style="padding: 0 4px 4px" th:text="#{coach.plan.sub}">Put money aside every month…</p>
+        <form class="card form-stack" method="get" th:action="@{/ui/coach}" id="planForm">
+            <input type="hidden" name="f" value="1">
+            <div class="field-row">
+                <div>
+                    <label class="field-label" for="extra" th:text="#{coach.plan.extra}">Extra per month</label>
+                    <input class="field tabular" type="number" inputmode="decimal" min="0" step="any" id="extra" name="extra"
+                           th:value="${extra.signum() > 0 ? extra.stripTrailingZeros().toPlainString() : ''}" placeholder="0">
+                </div>
+                <div>
+                    <label class="field-label" for="lump" th:text="#{coach.plan.lump}">One-off today</label>
+                    <input class="field tabular" type="number" inputmode="decimal" min="0" step="any" id="lump" name="lump"
+                           th:value="${lump.signum() > 0 ? lump.stripTrailingZeros().toPlainString() : ''}" placeholder="0">
+                </div>
+            </div>
+            <p class="small muted" th:if="${suggestedExtra.signum() > 0}"
+               th:text="#{coach.plan.suggested(${@fmt.money0(suggestedExtra)})}">Suggested: $1,200 a month (10% of what’s left from your salary).</p>
+            <div class="seg" role="radiogroup" th:aria-label="#{coach.plan.strategy}">
+                <th:block th:each="s : ${strategies}">
+                    <input type="radio" name="strategy" th:id="${'st-' + s}" th:value="${s}" th:checked="${s == strategy}" data-autosubmit>
+                    <label th:for="${'st-' + s}" th:text="#{${'coach.strategy.' + s}}">Most relief</label>
+                </th:block>
+            </div>
+            <p class="small muted" th:text="#{${'coach.strategy.' + strategy + '.help'}}">Debts with fewer months left free the most per peso.</p>
+            <label style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+                <span style="display: flex; flex-direction: column; gap: 2px">
+                    <span th:text="#{coach.plan.snowball}">Snowball</span>
+                    <span class="small muted" th:text="#{coach.plan.snowballHelp}">Every payment that frees up goes to the next debt.</span>
+                </span>
+                <input type="checkbox" class="switch" name="roll" value="1" th:checked="${snowball}" data-autosubmit>
+            </label>
+            <button type="submit" class="btn btn-tinted btn-sm" style="align-self: flex-start" th:text="#{coach.plan.calculate}">Update plan</button>
+        </form>
+
+        <div class="card" th:unless="${plan.hasDebts()}">
+            <div class="empty">
+                <svg th:replace="~{layout/app :: icon('check', '')}"></svg>
+                <span th:text="#{coach.plan.noDebts}">Nothing to pay off. 🎉</span>
+            </div>
+        </div>
+
+        <th:block th:if="${plan.hasDebts()}">
+            <div class="grid-2">
+                <div class="tile">
+                    <span class="tile-label" th:text="#{coach.plan.debtFree}">Debt-free</span>
+                    <span th:class="${'tile-value ' + (plan.monthsSaved() > 0 ? 'text-green' : '')}" th:text="${@fmt.monthYear(plan.planDebtFree(), loc)}">Mar 2027</span>
+                    <span class="tile-sub" th:text="#{coach.plan.without(${@fmt.monthYear(plan.baselineDebtFree(), loc)})}">without the plan: Nov 2027</span>
+                </div>
+                <div class="tile">
+                    <span class="tile-label" th:text="#{coach.plan.sooner}">Sooner</span>
+                    <span th:class="${'tile-value ' + (plan.monthsSaved() > 0 ? 'text-green' : '')}"
+                          th:text="#{coach.plan.months(${plan.monthsSaved()})}">8 months</span>
+                    <span class="tile-sub" th:text="#{coach.plan.paidOff(${plan.steps().size()})}">5 debts paid off early</span>
+                </div>
+                <div class="tile">
+                    <span class="tile-label" th:text="#{coach.plan.total}">Pay everything today</span>
+                    <span class="tile-value" th:text="${@fmt.money0(plan.totalBalance())}">$48,300</span>
+                    <span class="tile-sub" th:text="#{coach.plan.totalSub}">what all your debts cost today</span>
+                </div>
+                <div class="tile" th:if="${plan.interestSaved().signum() > 0}">
+                    <span class="tile-label" th:text="#{coach.plan.interest}">Interest saved</span>
+                    <span class="tile-value text-green" th:text="${@fmt.money0(plan.interestSaved())}">$3,200</span>
+                    <span class="tile-sub" th:text="#{coach.plan.interestSub}">money you no longer pay</span>
+                </div>
+            </div>
+
+            <!-- Payments per month: with the plan (solid) vs what is no longer paid (green) -->
+            <div class="card form-stack" th:unless="${chart.isEmpty()}">
+                <div th:class="${'bars bars-coach' + (chart.size() > 12 ? ' bars-24' : '')}">
+                    <span class="bar-btn" th:each="m, st : ${chart}"
+                          th:title="${@fmt.monthYear(m.month(), loc) + ': ' + @fmt.money0(m.planPayment()) + ' / ' + @fmt.money0(m.baselinePayment())}">
+                        <span class="bar-track">
+                            <span th:class="${'bar' + (m.baselinePayment().signum() == 0 ? ' bar-empty' : '')}"
+                                  th:style="${'height:' + (chartMax.signum() > 0 ? #numbers.formatDecimal(m.baselinePayment() * 100 / chartMax, 1, 'NONE', 1, 'POINT') : '0') + '%'}">
+                                <span class="bar-rest"></span>
+                                <span class="bar-plan" th:style="${'height:' + (m.baselinePayment().signum() > 0 ? #numbers.formatDecimal(m.planPayment() * 100 / m.baselinePayment(), 1, 'NONE', 1, 'POINT') : '0') + '%'}"></span>
+                            </span>
+                        </span>
+                        <span class="bar-label" th:text="${chart.size() <= 12 or st.index % 3 == 0} ? ${@fmt.monthInitial(m.month(), loc)} : ''">N</span>
+                    </span>
+                </div>
+                <div class="legend">
+                    <span><span class="dot" style="background: var(--accent)"></span><span th:text="#{coach.plan.legendPay}">You pay</span></span>
+                    <span><span class="dot" style="background: var(--green)"></span><span th:text="#{coach.plan.legendFreed}">No longer paid</span></span>
+                </div>
+            </div>
+
+            <div class="card" th:unless="${plan.hasSteps()}">
+                <p class="muted" th:text="${extra.signum() == 0 and lump.signum() == 0 and !snowball} ? #{coach.plan.empty} : #{coach.plan.notEnough}">Add some extra money to see what you can pay off.</p>
+            </div>
+            <div class="list" th:if="${plan.hasSteps()}">
+                <div class="list-row" th:each="s, st : ${plan.steps()}" th:if="${st.index < 12}" style="align-items: flex-start">
+                    <span class="row-icon coach-tip-icon" th:classappend="${s.month() == currentMonth} ? 'bg-green' : 'bg-teal'">
+                        <svg th:replace="~{layout/app :: icon('check', '')}"></svg>
+                    </span>
+                    <span class="list-row-body">
+                        <span class="list-row-title coach-tip">
+                            <span th:text="${s.description()}">TV Liverpool</span>
+                            <span th:text="#{coach.step(${s.month() == currentMonth ? #messages.msg('coach.step.today') : @fmt.monthYear(s.month(), loc)}, ${s.accountName()}, ${@fmt.money0(s.monthlyFreed())}, ${s.monthsEarly()})}">Mar 2027 · Visa · frees $850/month · 4 payments fewer</span>
+                            <th:block th:if="${s.debtId() != null}">
+                                <span class="chip chip-green coach-step-action" th:if="${goalDebtIds.contains(s.debtId())}" th:text="#{coach.step.hasGoal}">Goal set</span>
+                                <button type="button" class="btn btn-plain btn-sm coach-step-action" th:unless="${goalDebtIds.contains(s.debtId())}"
+                                        data-open-sheet="goal-sheet" data-f-name="" data-f-target-amount=""
+                                        th:attr="data-action=@{/ui/coach/goals}, data-f-debt-id=${s.debtId()},
+                                                 data-f-target-month=${#temporals.format(s.month().atDay(1), 'yyyy-MM')}"
+                                        th:text="#{coach.step.goal}">Save for it</button>
+                            </th:block>
+                        </span>
+                        <span class="list-row-value tabular" th:text="${@fmt.money0(s.amount())}">$3,400</span>
+                    </span>
+                </div>
+            </div>
+            <p class="list-footer" th:if="${plan.steps().size() > 12}" th:text="#{coach.plan.more(${plan.steps().size() - 12})}">and 4 more</p>
+            <p class="list-footer" th:text="#{coach.plan.msi}">Interest-free installments cost the same paid early or late…</p>
+        </th:block>
+    </section>
+
+    <!-- ── Savings goals ───────────────────────────────────────────────────── -->
+    <section class="section" id="goals">
+        <h2 class="section-title" style="display: flex; justify-content: space-between; align-items: center">
+            <span th:text="#{coach.goals}">Savings goals</span>
+            <button type="button" class="btn btn-tinted btn-sm" data-open-sheet="goal-sheet" th:attr="data-action=@{/ui/coach/goals}"
+                    data-f-name="" data-f-target-amount="" data-f-target-month="" data-f-debt-id="" th:text="#{coach.goal.add}">New goal</button>
+        </h2>
+
+        <div class="card form-stack" th:each="g : ${goals}" th:with="d=${g.debt()}">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px">
+                <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+                    <strong th:text="${g.goal().name}">TV Liverpool</strong>
+                    <span class="small muted" th:if="${d != null}"
+                          th:text="#{coach.goal.debt(${d.debtAccount != null ? d.debtAccount.name : ''}, ${@fmt.money0(d.monthlyPayment)}, ${d.maxFinancingTerm - d.currentInstallment})}">Visa · $850 × 4 left</span>
+                </span>
+                <span class="chip chip-green" th:if="${g.canPayOffDebt()}" th:text="#{coach.goal.ready}">Ready to pay off</span>
+                <span class="chip chip-green" th:if="${!g.canPayOffDebt() and g.reached() and !g.debtGone()}" th:text="#{coach.goal.reached}">Reached</span>
+                <span class="chip chip-gray" th:if="${g.debtGone()}" th:text="#{coach.goal.gone}">Debt finished</span>
+                <span class="chip chip-orange" th:if="${!g.reached() and !g.debtGone() and g.monthsLeft() == 0}" th:text="#{coach.goal.due}">Due</span>
+                <span class="chip chip-orange" th:if="${!g.reached() and !g.debtGone() and g.monthsLeft() != 0 and g.behind()}" th:text="#{coach.goal.behind}">Behind</span>
+                <span class="chip chip-blue" th:if="${!g.reached() and !g.debtGone() and g.monthsLeft() != null and g.monthsLeft() > 0 and !g.behind()}" th:text="#{coach.goal.onTrack}">On track</span>
+            </div>
+            <span th:class="${'meter ' + (g.reached() ? 'meter-green' : '')}"><span th:style="${'width:' + g.percent() + '%'}"></span></span>
+            <div style="display: flex; justify-content: space-between; gap: 10px">
+                <span class="tabular" th:text="#{coach.goal.progress(${@fmt.money0(g.saved())}, ${@fmt.money0(g.target())})}">$1,200 of $3,400</span>
+                <span class="small muted tabular" th:text="${g.percent() + '%'}">35%</span>
+            </div>
+            <p class="small muted" th:if="${g.suggestedMonthly() != null}"
+               th:text="${g.monthsLeft() > 0} ? #{coach.goal.pace(${@fmt.money0(g.remaining())}, ${@fmt.money0(g.suggestedMonthly())}, ${@fmt.monthYear(g.targetMonth(), loc)})}
+                       : #{coach.goal.paceDue(${@fmt.money0(g.remaining())}, ${@fmt.monthYear(g.targetMonth(), loc)})}">$2,200 to go · $550 a month to make it by Mar 2027</p>
+            <p class="small muted" th:if="${g.suggestedMonthly() == null and !g.reached()}"
+               th:text="#{coach.goal.left(${@fmt.money0(g.remaining())})}">$2,200 to go</p>
+            <p class="small muted" th:if="${g.debtGone()}" th:text="#{coach.goal.goneHelp}">The debt is no longer active…</p>
+            <div class="wish-actions">
+                <button type="button" class="btn btn-tinted btn-sm" data-open-sheet="money-sheet" data-f-note=""
+                        th:attr="data-action=@{/ui/coach/goals/{id}/contributions(id=${g.goal().id})},
+                                 data-f-amount=${g.suggestedMonthly() != null ? g.suggestedMonthly() : ''}"
+                        th:text="#{coach.goal.contribute}">Put money in</button>
+                <form th:if="${g.canPayOffDebt()}" th:action="@{/ui/coach/goals/{id}/pay-off(id=${g.goal().id})}" method="post"
+                      th:attr="data-confirm=#{coach.goal.payOffConfirm(${g.goal().name}, ${@fmt.money(g.target())})}">
+                    <button type="submit" class="btn btn-tinted btn-sm" th:text="#{coach.goal.payOff}">Pay it off now</button>
+                </form>
+                <button type="button" class="btn btn-plain btn-sm" data-open-sheet="goal-sheet"
+                        th:attr="data-action=@{/ui/coach/goals/{id}(id=${g.goal().id})},
+                                 data-complete-action=@{/ui/coach/goals/{id}/complete(id=${g.goal().id})},
+                                 data-cancel-action=@{/ui/coach/goals/{id}/cancel(id=${g.goal().id})},
+                                 data-delete-action=@{/ui/coach/goals/{id}(id=${g.goal().id})},
+                                 data-f-name=${g.goal().name},
+                                 data-f-target-amount=${g.goal().targetAmount != null ? g.goal().targetAmount : ''},
+                                 data-f-target-month=${g.targetMonth() != null ? #temporals.format(g.goal().targetDate, 'yyyy-MM') : ''},
+                                 data-f-debt-id=${d != null ? d.id : ''}"
+                        th:text="#{common.edit}">Edit</button>
+            </div>
+            <details class="disclosure list" th:unless="${g.contributions().isEmpty()}" style="background: var(--bg); box-shadow: none">
+                <summary>
+                    <span class="list-row-body">
+                        <span class="list-row-title"><span th:text="#{coach.goal.history}">Movements</span></span>
+                        <span class="list-row-value" th:text="${g.contributions().size()}">3</span>
+                        <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+                    </span>
+                </summary>
+                <div>
+                    <div class="list-row" th:each="c : ${g.contributions()}">
+                        <span class="list-row-body">
+                            <span class="list-row-title">
+                                <span th:text="${c.note != null} ? ${c.note} : (${c.amount.signum() < 0} ? #{coach.goal.out} : #{coach.goal.in})">Put in</span>
+                                <span th:text="${#temporals.format(c.contributionDate, 'd MMM yyyy')}">3 Nov 2026</span>
+                            </span>
+                            <span th:class="${'list-row-value tabular ' + (c.amount.signum() < 0 ? 'text-orange' : 'text-green')}"
+                                  th:text="${@fmt.signed0(c.amount)}">+$500</span>
+                        </span>
+                        <form th:action="@{/ui/coach/contributions/{id}(id=${c.id})}" method="post" th:attr="data-confirm=#{coach.goal.deleteMoveConfirm}">
+                            <input type="hidden" name="_method" value="DELETE">
+                            <button type="submit" class="icon-btn danger" th:aria-label="#{common.delete}" th:title="#{common.delete}">
+                                <svg th:replace="~{layout/app :: icon('close', '')}"></svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </details>
+        </div>
+
+        <div class="card" th:if="${goals.isEmpty()}">
+            <div class="empty">
+                <svg th:replace="~{layout/app :: icon('target', '')}"></svg>
+                <span th:text="#{coach.goals.empty}">Put money aside to pay a debt off, or for an emergency fund.</span>
+            </div>
+        </div>
+        <div class="chips" style="margin-top: 8px" th:if="${emergencyGap != null or goals.isEmpty()}">
+            <button type="button" class="chip chip-blue" th:if="${emergencyGap != null}" data-open-sheet="goal-sheet" data-f-debt-id="" data-f-target-month=""
+                    th:attr="data-action=@{/ui/coach/goals}, data-f-name=#{coach.goal.emergencyName}, data-f-target-amount=${emergencyGap}"
+                    th:text="#{coach.goal.emergency(${@fmt.money0(emergencyGap)})}">Emergency fund ($40,000)</button>
+        </div>
+        <p class="list-footer" th:text="#{coach.goals.help}">Goals are money set apart…</p>
+
+        <details class="disclosure list" th:unless="${closedGoals.isEmpty()}">
+            <summary>
+                <span class="list-row-body">
+                    <span class="list-row-title"><span th:text="#{coach.goals.closed}">Completed or cancelled</span></span>
+                    <span class="list-row-value" th:text="${closedGoals.size()}">1</span>
+                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+                </span>
+            </summary>
+            <div>
+                <div class="list-row" th:each="g : ${closedGoals}">
+                    <span class="list-row-body">
+                        <span class="list-row-title">
+                            <span th:text="${g.goal().name}">Fridge</span>
+                            <span th:text="#{coach.goal.closedRow(${@fmt.money0(g.saved())})}">$0 left in the goal</span>
+                        </span>
+                        <span th:class="${'chip ' + (g.goal().status.name() == 'COMPLETED' ? 'chip-green' : 'chip-gray')}"
+                              th:text="#{${'coach.goal.status.' + g.goal().status.name()}}">Completed</span>
+                    </span>
+                    <form th:action="@{/ui/coach/goals/{id}/reopen(id=${g.goal().id})}" method="post">
+                        <button type="submit" class="btn btn-plain btn-sm" th:text="#{coach.goal.reopen}">Reopen</button>
+                    </form>
+                </div>
+            </div>
+        </details>
+    </section>
+</main>
+
+<!-- New / edit goal -->
+<dialog class="sheet" id="goal-sheet" th:aria-label="#{coach.goal.add}">
+    <form method="post" th:action="@{/ui/coach/goals}">
+        <div class="sheet-head">
+            <button type="button" class="btn btn-plain btn-sm" data-close-sheet th:text="#{common.cancel}">Cancel</button>
+            <strong th:text="#{coach.goal.sheet}">Savings goal</strong>
+            <button type="submit" class="btn btn-plain btn-sm" style="font-weight: 700" th:text="#{common.save}">Save</button>
+        </div>
+        <div class="sheet-body form-stack">
+            <div>
+                <label class="field-label" for="g-debt" th:text="#{coach.goal.debtField}">Pay off a debt (optional)</label>
+                <select class="field" id="g-debt" name="debtId">
+                    <option value="" th:text="#{coach.goal.noDebt}">No — a free amount</option>
+                    <option th:each="d : ${goalDebts}" th:value="${d.id}"
+                            th:text="${d.description + ' · ' + (d.debtAccount != null ? d.debtAccount.name + ' · ' : '') + @fmt.money0(debtBalances[d.id])}">TV · Visa · $3,400</option>
+                </select>
+                <p class="list-footer" style="padding: 6px 0 0" th:text="#{coach.goal.debtHelp}">The goal follows what the debt costs to pay off today.</p>
+            </div>
+            <div>
+                <label class="field-label" for="g-name" th:text="#{coach.goal.name}">Name</label>
+                <input class="field" id="g-name" name="name" autocomplete="off" th:placeholder="#{coach.goal.namePlaceholder}">
+            </div>
+            <div class="field-row">
+                <div>
+                    <label class="field-label" for="g-amount" th:text="#{coach.goal.amount}">Amount</label>
+                    <input class="field tabular" id="g-amount" name="targetAmount" type="number" inputmode="decimal" step="0.01" min="0">
+                </div>
+                <div>
+                    <label class="field-label" for="g-month" th:text="#{coach.goal.month}">By (optional)</label>
+                    <input class="field" id="g-month" name="targetMonth" type="month" th:min="${#temporals.format(currentMonth.atDay(1), 'yyyy-MM')}">
+                </div>
+            </div>
+        </div>
+    </form>
+    <div class="sheet-body" style="padding-top: 0">
+        <div class="list">
+            <form class="list-row" method="post" data-action-from="completeAction" th:attr="data-confirm=#{coach.goal.completeConfirm}">
+                <button type="submit" class="link-button list-row-body" style="color: var(--accent)" th:text="#{coach.goal.complete}">Mark as completed</button>
+            </form>
+            <form class="list-row" method="post" data-action-from="cancelAction" th:attr="data-confirm=#{coach.goal.cancelConfirm}">
+                <button type="submit" class="link-button list-row-body" style="color: var(--accent)" th:text="#{coach.goal.cancel}">Cancel goal</button>
+            </form>
+            <form class="list-row" method="post" data-action-from="deleteAction" th:attr="data-confirm=#{coach.goal.deleteConfirm}">
+                <input type="hidden" name="_method" value="DELETE">
+                <button type="submit" class="link-button list-row-body text-danger-ios" th:text="#{coach.goal.delete}">Delete goal</button>
+            </form>
+        </div>
+    </div>
+</dialog>
+
+<!-- Put money in / take it out -->
+<dialog class="sheet" id="money-sheet" th:aria-label="#{coach.goal.contribute}">
+    <form method="post">
+        <div class="sheet-head">
+            <button type="button" class="btn btn-plain btn-sm" data-close-sheet th:text="#{common.cancel}">Cancel</button>
+            <strong th:text="#{coach.goal.contribute}">Put money in</strong>
+            <button type="submit" class="btn btn-plain btn-sm" style="font-weight: 700" th:text="#{common.save}">Save</button>
+        </div>
+        <div class="sheet-body form-stack">
+            <div class="field-row">
+                <div>
+                    <label class="field-label" for="m-amount" th:text="#{coach.goal.amount}">Amount</label>
+                    <input class="field tabular" id="m-amount" name="amount" type="number" inputmode="decimal" step="0.01" min="0.01" required>
+                </div>
+                <div>
+                    <label class="field-label" for="m-date" th:text="#{coach.goal.date}">Date</label>
+                    <input class="field" id="m-date" name="date" type="date" th:value="${today}">
+                </div>
+            </div>
+            <div>
+                <label class="field-label" for="m-note" th:text="#{coach.goal.note}">Note (optional)</label>
+                <input class="field" id="m-note" name="note" autocomplete="off">
+            </div>
+            <label style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+                <span th:text="#{coach.goal.withdraw}">I’m taking money out</span>
+                <input type="checkbox" class="switch" name="withdraw" value="1">
+            </label>
+        </div>
+    </form>
+</dialog>
+
+<script th:inline="none">
+(function () {
+    // Strategy and snowball recalculate the plan right away.
+    var form = document.getElementById('planForm');
+    if (!form) return;
+    form.addEventListener('change', function (e) {
+        if (e.target.hasAttribute('data-autosubmit')) form.requestSubmit ? form.requestSubmit() : form.submit();
+    });
+})();
+</script>
+</body>
+</html>

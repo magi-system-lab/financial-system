@@ -31,7 +31,7 @@
 
 <div th:fragment="nav" class="fm-nav" data-from-cache="false"
      th:attr="data-rendered=${#dates.createNow().getTime()},data-offline-form=#{offline.formBlocked},
-              data-warm=${currentUser != null ? '/ui/insights /ui/cards /ui/upcoming-debts /ui/more /ui/receivables /ui/fixed-expenses /ui/providers /ui/ignorable-debts' : null}">
+              data-warm=${currentUser != null ? '/ui/insights /ui/cards /ui/upcoming-debts /ui/coach /ui/more /ui/receivables /ui/fixed-expenses /ui/providers /ui/ignorable-debts' : null}">
 
     <div class="fm-offline glass" role="status" hidden th:text="#{offline.banner}" th:attr="data-updated=#{offline.updated}">Offline</div>
 
@@ -67,8 +67,11 @@
             <a class="fm-side-item" th:href="@{/ui/bulk-statements}" th:aria-current="${navSection == 'import'} ? 'page'">
                 <svg th:replace="~{layout/app :: icon('import', '')}"></svg><span th:text="#{nav.import}">Import</span>
             </a>
-            <a class="fm-side-item" th:href="@{/ui/upcoming-debts}" th:aria-current="${navSection == 'plan'} ? 'page'">
+            <a class="fm-side-item" th:href="@{/ui/upcoming-debts}" th:aria-current="${navSection == 'plan' and !#strings.startsWith(currentPath, '/ui/coach')} ? 'page'">
                 <svg th:replace="~{layout/app :: icon('plan', '')}"></svg><span th:text="#{nav.plan}">Plan</span>
+            </a>
+            <a class="fm-side-item" th:href="@{/ui/coach}" th:aria-current="${#strings.startsWith(currentPath, '/ui/coach')} ? 'page'">
+                <svg th:replace="~{layout/app :: icon('target', '')}"></svg><span th:text="#{nav.coach}">Coach</span>
             </a>
         </nav>
         <span class="fm-side-label" th:text="#{nav.manage}">Manage</span>

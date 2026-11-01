@@ -1,6 +1,7 @@
 package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.web.view;
 
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllDebtsUseCase;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetCoachTipsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetDebtActivityUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetDebtProgressionUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetFinancialStatusUseCase;
@@ -22,6 +23,7 @@ import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -38,6 +40,11 @@ public class InsightsViewController {
     private final GetDebtActivityUseCase getDebtActivityUseCase;
     private final FindAllDebtsUseCase findAllDebtsUseCase;
     private final ActivityLogHelper activityLogHelper;
+    private final GetCoachTipsUseCase getCoachTipsUseCase;
+    private final UiFormat fmt;
+
+    /** Coach tips shown on Insights (the rest are on /ui/coach). */
+    static final int COACH_TIPS = 3;
 
     /** Months shown in the activity trend (current month included). */
     static final int ACTIVITY_MONTHS = 6;
@@ -47,18 +54,22 @@ public class InsightsViewController {
                                   UserRepository userRepository,
                                   GetDebtActivityUseCase getDebtActivityUseCase,
                                   FindAllDebtsUseCase findAllDebtsUseCase,
-                                  ActivityLogHelper activityLogHelper) {
+                                  ActivityLogHelper activityLogHelper,
+                                  GetCoachTipsUseCase getCoachTipsUseCase,
+                                  UiFormat fmt) {
         this.getFinancialStatusUseCase = getFinancialStatusUseCase;
         this.getDebtProgressionUseCase = getDebtProgressionUseCase;
         this.userRepository = userRepository;
         this.getDebtActivityUseCase = getDebtActivityUseCase;
         this.findAllDebtsUseCase = findAllDebtsUseCase;
         this.activityLogHelper = activityLogHelper;
+        this.getCoachTipsUseCase = getCoachTipsUseCase;
+        this.fmt = fmt;
     }
 
     @GetMapping("/insights")
     public String insights(@RequestParam(defaultValue = "12") int months,
-                           HttpSession session, HttpServletResponse response, Model model) {
+                           HttpSession session, HttpServletResponse response, Locale locale, Model model) {
         String email = (String) session.getAttribute("userEmail");
         if (email == null) return "redirect:/ui";
 
@@ -88,6 +99,8 @@ public class InsightsViewController {
                 : activity.get(activity.size() - 1));
         model.addAttribute("maxAdded", maxAdded);
         model.addAttribute("range", range);
+        var tips = CoachTipView.from(getCoachTipsUseCase.getTips(email), fmt, locale);
+        model.addAttribute("coachTips", tips.subList(0, Math.min(COACH_TIPS, tips.size())));
         return "insights/index";
     }
 
