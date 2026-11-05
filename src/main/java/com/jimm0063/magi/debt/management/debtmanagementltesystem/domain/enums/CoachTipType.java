@@ -29,10 +29,8 @@ public enum CoachTipType {
     FREED_THIS_MONTH,
     /** (first month paying less, monthly amount) */
     RELIEF_NEXT,
-    /** (debt, balance, monthly) */
-    QUICK_WIN,
-    /** (months earlier, debt-free month) */
-    SNOWBALL_ONLY,
+    /** (debts to pay off, cost, monthly payment freed, next month's payment afterwards) */
+    PAYOFF_NOW,
     /** (none) */
     NO_GOALS,
     /** (purchases ready to decide) */

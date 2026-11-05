@@ -50,7 +50,8 @@ public record CoachTipView(String type, String severity, Object[] args, String l
     static String link(CoachTipType type) {
         return switch (type) {
             case NO_SALARY, OVERSPENT, OVER_LIMIT, SAFETY_LOW -> "/ui/insights";
-            case INTEREST_FIRST, QUICK_WIN, SNOWBALL_ONLY -> "/ui/coach#plan";
+            case INTEREST_FIRST -> "/ui/coach#plan";
+            case PAYOFF_NOW -> "/ui/coach#recommendation";
             case GOAL_READY_PAYOFF, GOAL_REACHED, GOAL_BEHIND, GOAL_DEBT_GONE, FREED_THIS_MONTH, RELIEF_NEXT, NO_GOALS -> "/ui/coach#goals";
             case NEW_OUTPACING, WISH_READY -> "/ui/upcoming-debts#cooldown";
             case UPCOMING_NEXT -> "/ui/upcoming-debts";
