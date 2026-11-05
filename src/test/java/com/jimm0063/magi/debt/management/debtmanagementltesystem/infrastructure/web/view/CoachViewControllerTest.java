@@ -4,7 +4,10 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.applicat
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetCoachTipsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetFinancialStatusUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetPayoffPlanUseCase;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetPayoffRecommendationUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.ManageSavingsGoalUseCase;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.PayOffWithSavingsUseCase;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.utils.PayoffAdvisor;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.CoachTipDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.SavingsGoalStatusDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.UserStatusDashboard;
@@ -57,6 +60,8 @@ class CoachViewControllerTest {
     @MockBean FindAllDebtsUseCase findAllDebtsUseCase;
     @MockBean GetFinancialStatusUseCase getFinancialStatusUseCase;
     @MockBean ActivityLogHelper activityLogHelper;
+    @MockBean GetPayoffRecommendationUseCase getPayoffRecommendationUseCase;
+    @MockBean PayOffWithSavingsUseCase payOffWithSavingsUseCase;
 
     private final List<Debt> debts = List.of(debt(1, "Phone", "100", 10, 12), debt(2, "Laptop", "500", 8, 12));
 
@@ -86,6 +91,9 @@ class CoachViewControllerTest {
         // real simulation over the fixture debts
         when(getPayoffPlanUseCase.getPlan(eq(EMAIL), any(), any(), any(), anyBoolean())).thenAnswer(i ->
                 PayoffSimulator.simulate(debts, YearMonth.now(), i.getArgument(1), i.getArgument(2), i.getArgument(3), i.getArgument(4)));
+        // savings 2,000, safety net 3 × 3,600: nothing to pay off without touching it
+        when(getPayoffRecommendationUseCase.getRecommendation(EMAIL))
+                .thenAnswer(i -> PayoffAdvisor.recommend(debts, new BigDecimal("2000"), new BigDecimal("3000")));
         when(getCoachTipsUseCase.getTips(EMAIL)).thenReturn(List.of(
                 CoachTipDto.of(CoachTipType.SAFETY_LOW, CoachTipSeverity.WARN, 0.5, new BigDecimal("8600"))));
     }
@@ -118,8 +126,31 @@ class CoachViewControllerTest {
                 .andExpect(content().string(containsString("Ready to pay off")))
                 .andExpect(content().string(containsString("/ui/coach/goals/4/pay-off")))
                 .andExpect(content().string(containsString("Emergency fund ($8,800)")))
-                .andExpect(content().string(containsString("Goal set")));
+                .andExpect(content().string(containsString("Goal set")))
+                .andExpect(content().string(containsString("Today I wouldn’t pay anything off: your savings ($2,000) don’t go beyond your 3-month safety net ($10,800).")))
+                .andExpect(content().string(containsString("With all your savings you could pay off 1 debt ($500 less a month)")))
+                .andExpect(content().string(containsString("1. Phone")));
         verify(getPayoffPlanUseCase).getPlan(EMAIL, new BigDecimal("600"), BigDecimal.ZERO, PayoffStrategy.FLOW, true);
+    }
+
+    @Test
+    void recommends_what_to_pay_off_and_marks_it_paid_with_savings() throws Exception {
+        when(manageSavingsGoalUseCase.getByEmail(EMAIL)).thenReturn(List.of());
+        // 13,000 saved − 10,800 safety net = 2,200: exactly Phone (200) + Laptop (2,000) → −600 a month
+        when(getPayoffRecommendationUseCase.getRecommendation(EMAIL))
+                .thenAnswer(i -> PayoffAdvisor.recommend(debts, new BigDecimal("13000"), new BigDecimal("3000")));
+
+        mockMvc.perform(get("/ui/coach").param("lang", "es_MX").sessionAttr("userEmail", EMAIL))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Yo liquidaría estas 2 deudas: pagarías $600 menos cada mes.")))
+                .andExpect(content().string(containsString("en lugar de $600")))
+                .andExpect(content().string(containsString("name=\"debtId\" value=\"2\"")))
+                .andExpect(content().string(containsString("Ya las liquidé")));
+
+        when(payOffWithSavingsUseCase.payOffWithSavings(EMAIL, List.of(1, 2))).thenReturn(debts);
+        mockMvc.perform(post("/ui/coach/recommendation/paid").param("debtId", "1", "2").sessionAttr("userEmail", EMAIL))
+                .andExpect(redirectedUrl("/ui/coach#recommendation"))
+                .andExpect(flash().attribute("paidWithSavings", "Phone, Laptop"));
     }
 
     @Test

@@ -10,16 +10,16 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.applicat
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.WishItemRepository;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.CoachTipDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.DebtActivityDto;
-import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.PayoffPlanDto;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.PayoffRecommendationDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.SavingsGoalStatusDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.CoachTipSeverity;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.CoachTipType;
-import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.PayoffStrategy;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.Debt;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.DebtSysUser;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.FixedExpense;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.UpcomingDebt;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.WishItem;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.utils.PayoffAdvisor;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.utils.PayoffSimulator;
 import org.springframework.stereotype.Service;
 
@@ -150,19 +150,12 @@ public class CoachService implements GetCoachTipsUseCase {
             tips.add(CoachTipDto.of(CoachTipType.RELIEF_NEXT, CoachTipSeverity.GOOD, current.plusMonths(2), relief));
 
         // ── Paying off ──
-        BigDecimal spare = savings.subtract(safetyGoal);
-        debts.stream().filter(PayoffSimulator::worthPayingOff)
-                .min(Comparator.comparing(PayoffSimulator::payoffBalance))
-                .filter(d -> spare.compareTo(PayoffSimulator.payoffBalance(d)) >= 0)
-                .ifPresent(d -> tips.add(CoachTipDto.of(CoachTipType.QUICK_WIN, CoachTipSeverity.TIP,
-                        d.getDescription(), PayoffSimulator.payoffBalance(d), d.getMonthlyPayment())));
-        if (!debts.isEmpty()) {
-            PayoffPlanDto rollOnly = PayoffSimulator.simulate(debts, current, BigDecimal.ZERO, BigDecimal.ZERO,
-                    PayoffStrategy.LONGEST, true);
-            if (rollOnly.monthsSaved() > 0)
-                tips.add(CoachTipDto.of(CoachTipType.SNOWBALL_ONLY, CoachTipSeverity.TIP, rollOnly.monthsSaved(), rollOnly.planDebtFree()));
-            if (open.isEmpty()) tips.add(CoachTipDto.of(CoachTipType.NO_GOALS, CoachTipSeverity.TIP));
-        }
+        // what the savings above the safety net can pay off to lower next month's payment the most
+        PayoffRecommendationDto advice = PayoffAdvisor.recommend(debts, savings, s.fixedExpenses());
+        if (advice.hasPicks())
+            tips.add(CoachTipDto.of(CoachTipType.PAYOFF_NOW, CoachTipSeverity.GOOD, advice.picks().size(),
+                    advice.cost(), advice.monthlyFreed(), advice.paymentAfter()));
+        if (!debts.isEmpty() && open.isEmpty()) tips.add(CoachTipDto.of(CoachTipType.NO_GOALS, CoachTipSeverity.TIP));
 
         // ── Purchases ──
         if (s.wishesReady() > 0) tips.add(CoachTipDto.of(CoachTipType.WISH_READY, CoachTipSeverity.TIP, s.wishesReady()));

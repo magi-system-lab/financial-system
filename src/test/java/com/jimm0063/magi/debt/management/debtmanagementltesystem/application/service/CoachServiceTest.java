@@ -55,7 +55,7 @@ class CoachServiceTest {
         CoachTipDto relief = tips.stream().filter(t -> t.type() == CoachTipType.RELIEF_NEXT).findFirst().orElseThrow();
         assertThat(relief.args().get(0)).isEqualTo(YearMonth.of(2026, 12));
         assertThat((BigDecimal) relief.args().get(1)).isEqualByComparingTo("100");
-        assertThat(types(tips)).doesNotContain(CoachTipType.QUICK_WIN, CoachTipType.OVERSPENT);
+        assertThat(types(tips)).doesNotContain(CoachTipType.PAYOFF_NOW, CoachTipType.OVERSPENT);
     }
 
     @Test
@@ -67,15 +67,21 @@ class CoachServiceTest {
     }
 
     @Test
-    void quick_win_only_with_money_beyond_the_safety_net() {
+    void recommends_paying_off_only_with_money_beyond_the_safety_net() {
         // commitments 3,500 → 10,500 safety net; 12,000 saved leaves 1,500 ≥ phone's 300
         List<CoachTipDto> tips = CoachService.tips(snapshot(20000.0, 12000.0, null,
                 List.of(debt("Phone", "100", 9, 12), debt("Laptop", "400", 2, 12)), null, List.of()));
 
-        CoachTipDto win = tips.stream().filter(t -> t.type() == CoachTipType.QUICK_WIN).findFirst().orElseThrow();
-        assertThat(win.args().get(0)).isEqualTo("Phone");
-        assertThat((BigDecimal) win.args().get(1)).isEqualByComparingTo("300");
+        CoachTipDto now = tips.stream().filter(t -> t.type() == CoachTipType.PAYOFF_NOW).findFirst().orElseThrow();
+        assertThat(now.args().get(0)).isEqualTo(1);
+        assertThat((BigDecimal) now.args().get(1)).isEqualByComparingTo("300");
+        assertThat((BigDecimal) now.args().get(2)).isEqualByComparingTo("100");
+        assertThat((BigDecimal) now.args().get(3)).isEqualByComparingTo("400");
         assertThat(types(tips)).doesNotContain(CoachTipType.SAFETY_LOW);
+
+        // 9,000 saved < 9,300 safety net (3 × 3,100)
+        assertThat(types(CoachService.tips(snapshot(20000.0, 9000.0, null,
+                List.of(debt("Phone", "100", 9, 12)), null, List.of())))).doesNotContain(CoachTipType.PAYOFF_NOW);
     }
 
     @Test
@@ -104,6 +110,6 @@ class CoachServiceTest {
     @Test
     void debt_free() {
         List<CoachTipDto> tips = CoachService.tips(snapshot(20000.0, 50000.0, null, List.of(), null, List.of()));
-        assertThat(types(tips)).contains(CoachTipType.DEBT_FREE).doesNotContain(CoachTipType.NO_GOALS, CoachTipType.SNOWBALL_ONLY);
+        assertThat(types(tips)).contains(CoachTipType.DEBT_FREE).doesNotContain(CoachTipType.NO_GOALS, CoachTipType.PAYOFF_NOW);
     }
 }

@@ -159,6 +159,8 @@ DELETE /wish/{id}                            Soft-delete
 ### Coach (attack plan, savings goals, advice)
 ```
 GET    /coach/plan/{email}?extra=&lump=&strategy=FLOW|SMALLEST|LONGEST&snowball=true   Month-by-month payoff plan
+GET    /coach/recommendation/{email}         "With what you have now I'd pay off these" (PayoffRecommendationDto)
+POST   /coach/recommendation/{email}/paid?debtIds=1,2   Paid off with savings: closes them, takes their cost from savings
 GET    /coach/tips/{email}                   Rule-based advice, most urgent first (CoachTipDto: type, severity, args)
 GET    /savings/goal/all/{email}             Every goal with progress (SavingsGoalStatusDto)
 GET    /savings/goal/{id}                    One goal (header: email)
@@ -177,9 +179,16 @@ present value of the payments left (interest-free = monthly × left). FLOW = mos
 SMALLEST = snowball, LONGEST = brings the debt-free date closer. Goals linked to a debt find it by id, or by hash after a
 "rebuild from 0" re-insert; the target follows its live balance. Goal money is separate from `debt_sys_user.savings`.
 Paying off from a goal sets `currentInstallment = maxFinancingTerm`, `active = false` (so it shows as finished in the
-monthly recap) and records a negative movement. `CoachService` rules: budget (no salary, overspent, over limit),
-safety net < 3 months, interest debts, this month's activity, goals (ready / behind / debt gone), relief next month,
-quick win beyond the safety net, snowball-only gain, cool-down items ready, upcoming purchases starting next month.
+monthly recap) and records a negative movement.
+`PayoffAdvisor` (domain/utils, pure) is the proactive recommendation: every debt is treated as interest-free
+(cost = monthly × payments left) and the goal is the lowest monthly payment next month, not the debt-free date. Budget =
+savings − 3 months of (fixed expenses + next month's debt payments); a 0/1 knapsack picks the debts that free the most
+monthly payment within it (ties → cheaper set; debts with 1 payment left never picked). Without budget it shows what all
+the savings would do and the first debt of the ranking (fewest payments left first = most monthly payment per peso).
+Extra money that may come in (aguinaldo, bonus) stays manual in the attack plan calculator.
+`CoachService` rules: budget (no salary, overspent, over limit), safety net < 3 months, interest debts, this month's
+activity, goals (ready / behind / debt gone), relief next month, PAYOFF_NOW (the recommendation, shown on Insights),
+cool-down items ready, upcoming purchases starting next month.
 Texts: `coach.tip.<TYPE>.title` / `coach.tip.<TYPE>`; `CoachTipView` formats the args and picks the link.
 The statement rebuild (SOURCE_OF_TRUTH) keeps a debt's hand-typed interest rate from the matching record.
 
@@ -321,7 +330,8 @@ GET    /ui/upcoming-debts    Upcoming (deferred) purchases pile + month-by-month
                              cool-down list (POST /ui/upcoming-debts/wishes, /wishes/{id}/drop; "Still want it" opens the
                              add sheet with wishId, which marks the wish PLANNED)
 GET    /ui/bulk-statements   Bulk statement import (many files → many cards, see below)
-GET    /ui/coach             Coach (Plan tab): tips, attack plan form (?f=1&extra=&lump=&strategy=&roll=; extra defaults
+GET    /ui/coach             Coach (Plan tab): "My recommendation" (what to pay off now with savings above the safety
+                             net + recommended order; "I paid them off" → POST /ui/coach/recommendation/paid), tips, attack plan form (?f=1&extra=&lump=&strategy=&roll=; extra defaults
                              to 10% of what's left from the salary), plan chart + payoff steps ("Save for it" opens the
                              goal sheet), savings goals (put in / take out, pay off now, edit / complete / cancel / delete).
                              POST /ui/coach/goals[/{id}[/contributions|/pay-off|/complete|/cancel|/reopen]],
