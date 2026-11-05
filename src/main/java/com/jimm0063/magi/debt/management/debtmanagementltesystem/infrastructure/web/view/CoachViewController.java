@@ -4,7 +4,10 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.applicat
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetCoachTipsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetFinancialStatusUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetPayoffPlanUseCase;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetPayoffRecommendationUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.ManageSavingsGoalUseCase;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.PayOffWithSavingsUseCase;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.CoachTipType;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.PayoffPlanDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.SavingsGoalStatusDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.UserStatusDashboard;
@@ -52,11 +55,17 @@ public class CoachViewController {
     private final GetFinancialStatusUseCase getFinancialStatusUseCase;
     private final UiFormat fmt;
     private final ActivityLogHelper activityLogHelper;
+    private final GetPayoffRecommendationUseCase getPayoffRecommendationUseCase;
+    private final PayOffWithSavingsUseCase payOffWithSavingsUseCase;
 
     public CoachViewController(GetCoachTipsUseCase getCoachTipsUseCase, GetPayoffPlanUseCase getPayoffPlanUseCase,
                                ManageSavingsGoalUseCase manageSavingsGoalUseCase, FindAllDebtsUseCase findAllDebtsUseCase,
                                GetFinancialStatusUseCase getFinancialStatusUseCase, UiFormat fmt,
-                               ActivityLogHelper activityLogHelper) {
+                               ActivityLogHelper activityLogHelper,
+                               GetPayoffRecommendationUseCase getPayoffRecommendationUseCase,
+                               PayOffWithSavingsUseCase payOffWithSavingsUseCase) {
+        this.getPayoffRecommendationUseCase = getPayoffRecommendationUseCase;
+        this.payOffWithSavingsUseCase = payOffWithSavingsUseCase;
         this.getCoachTipsUseCase = getCoachTipsUseCase;
         this.getPayoffPlanUseCase = getPayoffPlanUseCase;
         this.manageSavingsGoalUseCase = manageSavingsGoalUseCase;
@@ -100,7 +109,10 @@ public class CoachViewController {
         BigDecimal emergencyGap = commitments.multiply(BigDecimal.valueOf(InsightsView.SAFETY_GOAL_MONTHS))
                 .subtract(BigDecimal.valueOf(nz(dashboard.getSavings()))).setScale(0, RoundingMode.UP);
 
-        model.addAttribute("tips", CoachTipView.from(getCoachTipsUseCase.getTips(email), fmt, locale));
+        model.addAttribute("advice", getPayoffRecommendationUseCase.getRecommendation(email));
+        // the recommendation is shown in full above the tips
+        model.addAttribute("tips", CoachTipView.from(getCoachTipsUseCase.getTips(email).stream()
+                .filter(t -> t.type() != CoachTipType.PAYOFF_NOW).toList(), fmt, locale));
         model.addAttribute("plan", plan);
         model.addAttribute("chart", plan.months().subList(0, Math.min(CHART_MONTHS, plan.months().size())));
         model.addAttribute("chartMax", plan.months().stream().limit(CHART_MONTHS)
@@ -132,6 +144,24 @@ public class CoachViewController {
         if (free.signum() <= 0) return BigDecimal.ZERO;
         return free.multiply(SUGGESTED_SHARE).divide(BigDecimal.valueOf(100), 0, RoundingMode.DOWN)
                 .multiply(BigDecimal.valueOf(100));
+    }
+
+    // ── Recommendation ──────────────────────────────────────────────────────
+
+    /** "I paid them off": closes the recommended debts and takes their cost from the savings. */
+    @PostMapping("/recommendation/paid")
+    public String paidWithSavings(@RequestParam(name = "debtId", required = false) List<Integer> debtIds,
+                                  HttpSession session, RedirectAttributes ra) {
+        String email = (String) session.getAttribute("userEmail");
+        if (email == null) return "redirect:/ui";
+        try {
+            List<Debt> paid = payOffWithSavingsUseCase.payOffWithSavings(email, debtIds);
+            activityLogHelper.log(session, "Coach: paid off with savings", paid);
+            ra.addFlashAttribute("paidWithSavings", String.join(", ", paid.stream().map(Debt::getDescription).toList()));
+        } catch (IllegalArgumentException e) {
+            ra.addFlashAttribute("formError", e.getMessage());
+        }
+        return "redirect:" + BASE + "#recommendation";
     }
 
     // ── Savings goals ───────────────────────────────────────────────────────

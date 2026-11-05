@@ -18,6 +18,81 @@
 
     <div class="notice notice-error" role="alert" th:if="${formError != null}" th:text="${formError}">Enter an amount</div>
     <div class="notice notice-info" role="status" th:if="${paidOff != null}" th:text="#{coach.goal.paidOff(${paidOff})}">Paid off: TV.</div>
+    <div class="notice notice-info" role="status" th:if="${paidWithSavings != null}" th:text="#{coach.rec.paid(${paidWithSavings})}">Paid off with your savings: TV, Phone.</div>
+
+    <!-- ── What I'd pay off now (all debts treated as interest-free: the goal is a lower monthly payment) ── -->
+    <section class="section" id="recommendation" th:if="${advice.hasCandidates()}">
+        <h2 class="section-title" th:text="#{coach.rec}">My recommendation</h2>
+        <div class="card form-stack">
+            <th:block th:if="${advice.hasPicks()}">
+                <p style="font-weight: 600; font-size: 17px"
+                   th:text="#{coach.rec.headline(${advice.picks().size()}, ${@fmt.money0(advice.monthlyFreed())})}">I’d pay off these 3 debts: you’d pay $2,340 less every month.</p>
+                <p class="small muted"
+                   th:text="#{coach.rec.budget(${@fmt.money0(advice.cost())}, ${@fmt.money0(advice.savings())}, ${@fmt.money0(advice.reserve())})}">They cost $9,800 of your $55,000 savings; your 3-month safety net ($39,870) stays untouched.</p>
+                <div class="list" style="box-shadow: none; background: var(--bg)">
+                    <div class="list-row" th:each="r : ${advice.picks()}">
+                        <span class="list-row-body">
+                            <span class="list-row-title">
+                                <span th:text="${r.description()}">Headphones</span>
+                                <span th:text="#{coach.rec.row(${r.accountName()}, ${@fmt.money0(r.monthly())}, ${r.monthsLeft()})}">Visa · $450/month · 2 left</span>
+                            </span>
+                            <span class="list-row-value tabular" th:text="${@fmt.money0(r.cost())}">$900</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="tile">
+                        <span class="tile-label" th:text="#{coach.rec.next}">Next month you pay</span>
+                        <span class="tile-value text-green" th:text="${@fmt.money0(advice.paymentAfter())}">$6,450</span>
+                        <span class="tile-sub" th:text="#{coach.rec.instead(${@fmt.money0(advice.paymentNow())})}">instead of $8,790</span>
+                    </div>
+                    <div class="tile">
+                        <span class="tile-label" th:text="#{coach.rec.drop}">Monthly payment</span>
+                        <span class="tile-value text-green" th:text="${'−' + advice.dropPercent() + '%'}">−27%</span>
+                        <span class="tile-sub" th:text="#{coach.rec.dropSub(${@fmt.money0(advice.monthlyFreed())})}">$2,340 less every month</span>
+                    </div>
+                </div>
+                <form th:action="@{/ui/coach/recommendation/paid}" method="post"
+                      th:attr="data-confirm=#{coach.rec.paidConfirm(${advice.picks().size()}, ${@fmt.money(advice.cost())})}">
+                    <input type="hidden" name="debtId" th:each="r : ${advice.picks()}" th:value="${r.debtId()}">
+                    <button type="submit" class="btn btn-tinted btn-sm" th:text="#{coach.rec.paidButton}">I paid them off</button>
+                </form>
+                <p class="small muted" th:text="#{coach.rec.paidHelp}">Tap it once you’ve paid them: they close and their cost comes off your savings.</p>
+            </th:block>
+            <th:block th:unless="${advice.hasPicks()}">
+                <p style="font-weight: 600; font-size: 17px"
+                   th:text="#{coach.rec.none(${@fmt.money0(advice.savings())}, ${@fmt.money0(advice.reserve())})}">Today I wouldn’t pay anything off: your savings ($15,000) don’t go beyond your 3-month safety net ($39,870).</p>
+                <p class="small muted" th:if="${!advice.allSavingsPicks().isEmpty()}"
+                   th:text="#{coach.rec.allSavings(${advice.allSavingsPicks().size()}, ${@fmt.money0(advice.allSavingsFreed())})}">With all your savings you could pay off 2 (−$900/month), but you’d be left without a safety net.</p>
+                <p class="small muted" th:with="first=${advice.ranking()[0]}"
+                   th:text="#{coach.rec.first(${first.description()}, ${@fmt.money0(first.cost())}, ${@fmt.money0(first.monthly())})}">First on your list: Headphones: it costs $900 and lowers your payment by $450.</p>
+            </th:block>
+            <p class="small muted" th:text="#{coach.rec.why}">Your debts are interest-free…</p>
+        </div>
+
+        <details class="disclosure list">
+            <summary>
+                <span class="list-row-body">
+                    <span class="list-row-title"><span th:text="#{coach.rec.order}">Recommended order</span></span>
+                    <span class="list-row-value" th:text="${advice.ranking().size()}">6</span>
+                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+                </span>
+            </summary>
+            <div>
+                <div class="list-row" th:each="r, st : ${advice.ranking()}">
+                    <span class="list-row-body">
+                        <span class="list-row-title">
+                            <span th:text="${(st.index + 1) + '. ' + r.description()}">1. Headphones</span>
+                            <span th:text="#{coach.rec.orderRow(${r.accountName()}, ${@fmt.money0(r.monthly())}, ${r.monthsLeft()}, ${@fmt.money0(r.perThousand())})}">Visa · $450/month · 2 left · $500/month per $1,000</span>
+                        </span>
+                        <span class="chip chip-green" th:if="${advice.picks().contains(r)}" th:text="#{coach.rec.picked}">Today</span>
+                        <span class="list-row-value tabular" th:text="${@fmt.money0(r.cost())}">$900</span>
+                    </span>
+                </div>
+            </div>
+        </details>
+        <p class="list-footer" th:text="#{coach.rec.manual}">Expecting extra money (aguinaldo, a bonus)? Try it in the attack plan below.</p>
+    </section>
 
     <!-- ── Advice ──────────────────────────────────────────────────────────── -->
     <section class="section" th:unless="${tips.isEmpty()}">
