@@ -186,6 +186,14 @@ savings − 3 months of (fixed expenses + next month's debt payments); a 0/1 kna
 monthly payment within it (ties → cheaper set; debts with 1 payment left never picked). Without budget it shows what all
 the savings would do and the first debt of the ranking (fewest payments left first = most monthly payment per peso).
 Extra money that may come in (aguinaldo, bonus) stays manual in the attack plan calculator.
+`DebtFreeAdvisor` (domain/utils, pure) drives the "your way out" slider at the top of `/ui/coach`: one option per extra
+amount from 0 to the free money (salary − fixed − next month's payments; without salary up to max(payments, 1,000)),
+≤ 50 points in round steps. Each option runs every strategy with snowball and keeps the earliest debt-free month; a
+bigger amount never shows a later date. Total paid stays at payments + extra until debt-free. Zones: ≤ 25% of the free
+money comfortable, ≤ 50% demanding, more = to the limit. Presets: 15% (first amount from there that beats +$0 is "my
+pick"), 35%, 60%. The server formats every point (`CoachViewController.SliderPoint`) and the page script only swaps
+them. The step-by-step plan / one-off money form is folded below (open when its form was used, `planOpen`).
+Tip DEBT_FREE_SOONER ("+$X a month → debt-free in Y") shows the pick on Insights.
 `CoachService` rules: budget (no salary, overspent, over limit), safety net < 3 months, interest debts, this month's
 activity, goals (ready / behind / debt gone), relief next month, PAYOFF_NOW (the recommendation, shown on Insights),
 cool-down items ready, upcoming purchases starting next month.
@@ -483,6 +491,10 @@ List<Debt> completedDebts    // Debts where currentInstallment >= maxFinancingTe
 ---
 
 ## Payment Flow
+
+`payment.backup_data` is a PostgreSQL large object (oid) written on every payment and never read back. Reads go through
+`PaymentJpaRepository.PaymentRow` (no backup_data), so a card still opens when the large object is gone (e.g. after a
+dump/restore without large objects, which made Hibernate fail with "Unable to access lob stream").
 
 `GET /payment/do/{debtAccountCode}`:
 1. Fetches all active debts for the account

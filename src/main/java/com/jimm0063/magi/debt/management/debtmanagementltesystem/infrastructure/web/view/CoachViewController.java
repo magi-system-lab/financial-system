@@ -4,7 +4,9 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.applicat
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetCoachTipsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetFinancialStatusUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetPayoffPlanUseCase;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetDebtFreeOptionsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetPayoffRecommendationUseCase;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.DebtFreeOptionsDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.ManageSavingsGoalUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.PayOffWithSavingsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.CoachTipType;
@@ -57,13 +59,16 @@ public class CoachViewController {
     private final ActivityLogHelper activityLogHelper;
     private final GetPayoffRecommendationUseCase getPayoffRecommendationUseCase;
     private final PayOffWithSavingsUseCase payOffWithSavingsUseCase;
+    private final GetDebtFreeOptionsUseCase getDebtFreeOptionsUseCase;
 
     public CoachViewController(GetCoachTipsUseCase getCoachTipsUseCase, GetPayoffPlanUseCase getPayoffPlanUseCase,
                                ManageSavingsGoalUseCase manageSavingsGoalUseCase, FindAllDebtsUseCase findAllDebtsUseCase,
                                GetFinancialStatusUseCase getFinancialStatusUseCase, UiFormat fmt,
                                ActivityLogHelper activityLogHelper,
                                GetPayoffRecommendationUseCase getPayoffRecommendationUseCase,
-                               PayOffWithSavingsUseCase payOffWithSavingsUseCase) {
+                               PayOffWithSavingsUseCase payOffWithSavingsUseCase,
+                               GetDebtFreeOptionsUseCase getDebtFreeOptionsUseCase) {
+        this.getDebtFreeOptionsUseCase = getDebtFreeOptionsUseCase;
         this.getPayoffRecommendationUseCase = getPayoffRecommendationUseCase;
         this.payOffWithSavingsUseCase = payOffWithSavingsUseCase;
         this.getCoachTipsUseCase = getCoachTipsUseCase;
@@ -109,10 +114,17 @@ public class CoachViewController {
         BigDecimal emergencyGap = commitments.multiply(BigDecimal.valueOf(InsightsView.SAFETY_GOAL_MONTHS))
                 .subtract(BigDecimal.valueOf(nz(dashboard.getSavings()))).setScale(0, RoundingMode.UP);
 
+        DebtFreeOptionsDto exit = getDebtFreeOptionsUseCase.getOptions(email);
+        model.addAttribute("exit", exit);
+        model.addAttribute("exitPoints", sliderPoints(exit, locale));
+        model.addAttribute("exitBaselineMonths", baselineMonths(exit));
+        // the detailed plan opens by itself only when its form was used
+        model.addAttribute("planOpen", f != null || extra != null || lump != null);
         model.addAttribute("advice", getPayoffRecommendationUseCase.getRecommendation(email));
-        // the recommendation is shown in full above the tips
+        // the slider and the recommendation are shown in full above the tips
         model.addAttribute("tips", CoachTipView.from(getCoachTipsUseCase.getTips(email).stream()
-                .filter(t -> t.type() != CoachTipType.PAYOFF_NOW).toList(), fmt, locale));
+                .filter(t -> t.type() != CoachTipType.PAYOFF_NOW && t.type() != CoachTipType.DEBT_FREE_SOONER)
+                .toList(), fmt, locale));
         model.addAttribute("plan", plan);
         model.addAttribute("chart", plan.months().subList(0, Math.min(CHART_MONTHS, plan.months().size())));
         model.addAttribute("chartMax", plan.months().stream().limit(CHART_MONTHS)
@@ -135,6 +147,35 @@ public class CoachViewController {
         model.addAttribute("currentMonth", YearMonth.now());
         model.addAttribute("today", LocalDate.now());
         return "coach/index";
+    }
+
+    /**
+     * One position of the "your way out" slider, already formatted for the page script.
+     *
+     * @param zone     COMFORTABLE | DEMANDING | LIMIT | NONE
+     * @param freeLeft what's left from the salary after paying the extra (empty without salary)
+     * @param first    the first payoffs, e.g. "Headphones · Dec 2026, Sneakers · Feb 2027"
+     */
+    public record SliderPoint(int extra, String extraLabel, String total, String date, int months, int saved,
+                              String zone, String freeLeft, boolean overspent, int payoffs, String first) {}
+
+    /** Months from now until debt-free when nothing changes (the timeline's full width). */
+    static int baselineMonths(DebtFreeOptionsDto exit) {
+        return exit.baselineDebtFree() == null ? 0
+                : (int) YearMonth.now().until(exit.baselineDebtFree(), java.time.temporal.ChronoUnit.MONTHS);
+    }
+
+    List<SliderPoint> sliderPoints(DebtFreeOptionsDto exit, Locale locale) {
+        YearMonth now = YearMonth.now();
+        return exit.options().stream().map(o -> {
+            BigDecimal left = exit.free() == null ? null : exit.free().subtract(o.extra());
+            String first = String.join(", ", o.firstSteps().stream()
+                    .map(s -> s.description() + " · " + fmt.monthYear(s.month(), locale)).toList());
+            return new SliderPoint(o.extra().intValue(), fmt.money0(o.extra()), fmt.money0(o.totalMonthly()),
+                    fmt.monthYear(o.debtFree(), locale), (int) now.until(o.debtFree(), java.time.temporal.ChronoUnit.MONTHS),
+                    o.monthsSaved(), o.zone().name(),
+                    left == null ? "" : fmt.money0(left.abs()), left != null && left.signum() < 0, o.payoffs(), first);
+        }).toList();
     }
 
     /** 10% of what's left from the salary after fixed expenses and debt payments, rounded down to 100. */

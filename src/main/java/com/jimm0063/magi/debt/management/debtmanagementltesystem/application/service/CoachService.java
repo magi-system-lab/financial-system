@@ -10,6 +10,7 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.applicat
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.WishItemRepository;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.CoachTipDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.DebtActivityDto;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.DebtFreeOptionsDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.PayoffRecommendationDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.SavingsGoalStatusDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.CoachTipSeverity;
@@ -19,6 +20,7 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.De
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.FixedExpense;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.UpcomingDebt;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.WishItem;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.utils.DebtFreeAdvisor;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.utils.PayoffAdvisor;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.utils.PayoffSimulator;
 import org.springframework.stereotype.Service;
@@ -155,6 +157,18 @@ public class CoachService implements GetCoachTipsUseCase {
         if (advice.hasPicks())
             tips.add(CoachTipDto.of(CoachTipType.PAYOFF_NOW, CoachTipSeverity.GOOD, advice.picks().size(),
                     advice.cost(), advice.monthlyFreed(), advice.paymentAfter()));
+        // the slider's suggestion: pay this much more and be debt-free in month X
+        if (!debts.isEmpty()) {
+            BigDecimal free = salary == null || salary.signum() <= 0 ? null
+                    : salary.subtract(s.fixedExpenses()).subtract(nextMonth);
+            DebtFreeOptionsDto exit = DebtFreeAdvisor.options(debts, current, free);
+            if (exit.hasOptions()) {
+                DebtFreeOptionsDto.Option pick = exit.recommendedOption();
+                if (pick.extra().signum() > 0 && pick.monthsSaved() > 0)
+                    tips.add(CoachTipDto.of(CoachTipType.DEBT_FREE_SOONER, CoachTipSeverity.GOOD,
+                            pick.extra(), pick.debtFree(), pick.monthsSaved()));
+            }
+        }
         if (!debts.isEmpty() && open.isEmpty()) tips.add(CoachTipDto.of(CoachTipType.NO_GOALS, CoachTipSeverity.TIP));
 
         // ── Purchases ──
