@@ -786,3 +786,22 @@ form.inline { margin: 0; display: contents; }
 .coach-step-action { align-self: flex-start; margin-top: 4px; }
 button.coach-step-action { margin-left: -14px; }
 button.chip { border: 0; font-family: inherit; cursor: pointer; }
+
+/* Coach: "your way out" slider */
+.coach-exit .exit-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.coach-exit .exit-amount, .coach-exit .exit-date {
+    font-family: var(--font-rounded); font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: -0.5px;
+    font-size: 34px; line-height: 40px;
+}
+.coach-exit .exit-amount small { font-size: 18px; color: var(--text-2); letter-spacing: 0; }
+.coach-exit .exit-date { color: var(--green-text); }
+.coach-exit .exit-arrow { width: 22px; height: 22px; color: var(--text-2); }
+.exit-track { display: block; height: 10px; border-radius: 5px; background: var(--fill); overflow: hidden; }
+.exit-fill { display: block; height: 100%; border-radius: 5px; background: var(--green); transition: width 0.2s; }
+.exit-track-labels { display: flex; justify-content: space-between; margin-top: -8px; }
+.exit-slider { width: 100%; accent-color: var(--accent); height: 32px; margin: 0; }
+.coach-plan > summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; list-style: none; }
+.coach-plan > summary::-webkit-details-marker { display: none; }
+.coach-plan > summary .chevron { transition: transform 0.2s; }
+.coach-plan[open] > summary .chevron { transform: rotate(90deg); }
+.coach-exit .exit-to { display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; }

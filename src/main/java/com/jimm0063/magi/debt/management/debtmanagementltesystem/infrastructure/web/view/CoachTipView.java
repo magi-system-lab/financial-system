@@ -52,6 +52,7 @@ public record CoachTipView(String type, String severity, Object[] args, String l
             case NO_SALARY, OVERSPENT, OVER_LIMIT, SAFETY_LOW -> "/ui/insights";
             case INTEREST_FIRST -> "/ui/coach#plan";
             case PAYOFF_NOW -> "/ui/coach#recommendation";
+            case DEBT_FREE_SOONER -> "/ui/coach#exit";
             case GOAL_READY_PAYOFF, GOAL_REACHED, GOAL_BEHIND, GOAL_DEBT_GONE, FREED_THIS_MONTH, RELIEF_NEXT, NO_GOALS -> "/ui/coach#goals";
             case NEW_OUTPACING, WISH_READY -> "/ui/upcoming-debts#cooldown";
             case UPCOMING_NEXT -> "/ui/upcoming-debts";

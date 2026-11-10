@@ -48,7 +48,11 @@ class CoachServiceTest {
                 List.of(debt("Phone", "100", 11, 12), debt("Laptop", "500", 2, 12)), null, List.of()));
 
         assertThat(types(tips)).contains(CoachTipType.OVER_LIMIT, CoachTipType.SAFETY_LOW, CoachTipType.RELIEF_NEXT,
-                CoachTipType.NO_GOALS);
+                CoachTipType.NO_GOALS, CoachTipType.DEBT_FREE_SOONER);
+        CoachTipDto sooner = tips.stream().filter(t -> t.type() == CoachTipType.DEBT_FREE_SOONER).findFirst().orElseThrow();
+        // 15% of the 6,400 left from the salary, at least
+        assertThat((BigDecimal) sooner.args().get(0)).isGreaterThanOrEqualTo(new BigDecimal("960"));
+        assertThat((int) sooner.args().get(2)).isPositive();
         assertThat(tips.get(0).severity()).isEqualTo(CoachTipSeverity.ALERT);
         CoachTipDto limit = tips.stream().filter(t -> t.type() == CoachTipType.OVER_LIMIT).findFirst().orElseThrow();
         assertThat(limit.args()).containsExactly(6, 5);

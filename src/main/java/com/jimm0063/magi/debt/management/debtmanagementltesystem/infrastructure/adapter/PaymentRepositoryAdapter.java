@@ -4,8 +4,10 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.applicat
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.exceptions.EntityNotFoundException;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.Payment;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.entity.PaymentEntity;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.mapper.DebtAccountMapper;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.mapper.PaymentMapper;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.persistence.PaymentJpaRepository;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.persistence.PaymentJpaRepository.PaymentRow;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,10 +17,13 @@ import java.util.List;
 public class PaymentRepositoryAdapter implements PaymentRepository {
     private final PaymentJpaRepository paymentJpaRepository;
     private final PaymentMapper paymentMapper;
+    private final DebtAccountMapper debtAccountMapper;
 
-    public PaymentRepositoryAdapter(PaymentJpaRepository paymentJpaRepository, PaymentMapper paymentMapper) {
+    public PaymentRepositoryAdapter(PaymentJpaRepository paymentJpaRepository, PaymentMapper paymentMapper,
+                                    DebtAccountMapper debtAccountMapper) {
         this.paymentJpaRepository = paymentJpaRepository;
         this.paymentMapper = paymentMapper;
+        this.debtAccountMapper = debtAccountMapper;
     }
 
     @Override
@@ -27,21 +32,30 @@ public class PaymentRepositoryAdapter implements PaymentRepository {
         return paymentMapper.toModel(this.paymentJpaRepository.save(paymentEntity));
     }
 
-    // backup_data is a PostgreSQL large object (oid): it can only be read inside a transaction.
+    // Reads skip backup_data (a PostgreSQL large object nothing reads back): see PaymentRow.
     @Override
     @Transactional(readOnly = true)
     public List<Payment> findByDebtAccountCode(String debtAccountCode) {
-        return paymentJpaRepository.findByDebtAccountCode(debtAccountCode)
+        return paymentJpaRepository.findRowsByDebtAccount_Code(debtAccountCode)
                 .stream()
-                .map(paymentMapper::toModel)
+                .map(this::toModel)
                 .toList();
     }
 
     @Override
     @Transactional(readOnly = true)
     public Payment findLatest(String debtAccountCode) {
-        return paymentJpaRepository.findTopByDebtAccount_CodeOrderByCreatedAtDesc(debtAccountCode)
-                .map(paymentMapper::toModel)
+        return paymentJpaRepository.findFirstRowByDebtAccount_CodeOrderByCreatedAtDesc(debtAccountCode)
+                .map(this::toModel)
                 .orElseThrow(()-> new EntityNotFoundException("There is no payments associated to " + debtAccountCode + " debt account"));
+    }
+
+    private Payment toModel(PaymentRow row) {
+        Payment payment = new Payment();
+        payment.setId(row.getId());
+        payment.setCreatedAt(row.getCreatedAt());
+        payment.setAmountPaid(row.getAmountPaid());
+        payment.setDebtAccount(row.getDebtAccount() == null ? null : debtAccountMapper.toModel(row.getDebtAccount()));
+        return payment;
     }
 }

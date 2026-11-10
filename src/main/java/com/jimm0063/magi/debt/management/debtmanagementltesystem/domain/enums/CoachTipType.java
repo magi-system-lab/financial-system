@@ -31,6 +31,8 @@ public enum CoachTipType {
     RELIEF_NEXT,
     /** (debts to pay off, cost, monthly payment freed, next month's payment afterwards) */
     PAYOFF_NOW,
+    /** (extra per month, debt-free month, months sooner) */
+    DEBT_FREE_SOONER,
     /** (none) */
     NO_GOALS,
     /** (purchases ready to decide) */

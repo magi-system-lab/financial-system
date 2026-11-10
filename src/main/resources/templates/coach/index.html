@@ -20,6 +20,94 @@
     <div class="notice notice-info" role="status" th:if="${paidOff != null}" th:text="#{coach.goal.paidOff(${paidOff})}">Paid off: TV.</div>
     <div class="notice notice-info" role="status" th:if="${paidWithSavings != null}" th:text="#{coach.rec.paid(${paidWithSavings})}">Paid off with your savings: TV, Phone.</div>
 
+    <!-- ── Your way out: pay X more → debt-free in month Y; drag to squeeze harder and finish sooner ── -->
+    <section class="card hero form-stack coach-exit" id="exit" th:if="${exit.hasOptions()}"
+             th:with="r=${exitPoints[exit.recommended()]}, full=${exitBaselineMonths > 0 ? exitBaselineMonths : 1}"
+             th:attr="data-base-months=${exitBaselineMonths}, data-recommended=${exit.recommended()},
+                      data-t-saved=#{coach.exit.saved('{0}')}, data-t-saved1=#{coach.exit.saved1}, data-t-same=#{coach.exit.same},
+                      data-t-sub=#{coach.exit.sub('{0}', '{1}')}, data-t-left=#{coach.exit.left('{0}')},
+                      data-t-short=#{coach.exit.short('{0}')}, data-t-zero=#{coach.exit.zero('{0}')},
+                      data-t-first=#{coach.exit.first('{0}')}, data-t-zone-comfortable=#{coach.exit.zone.COMFORTABLE},
+                      data-t-zone-demanding=#{coach.exit.zone.DEMANDING}, data-t-zone-limit=#{coach.exit.zone.LIMIT},
+                      data-t-pick=#{coach.exit.pick}">
+        <div class="hero-top">
+            <span class="hero-label" th:text="#{coach.exit.today(${@fmt.monthYear(exit.baselineDebtFree(), loc)})}">Today you’re debt-free in Mar 2028</span>
+            <span class="chip chip-blue" data-x="pick" th:text="#{coach.exit.pick}">My pick</span>
+        </div>
+        <div class="exit-line">
+            <span class="exit-amount"><span data-x="extra" th:text="${'+' + r.extraLabel()}">+$1,300</span><small th:text="#{coach.exit.perMonth}">/mo</small></span>
+            <span class="exit-to">
+                <svg th:replace="~{layout/app :: icon('chevron-right', 'exit-arrow')}"></svg>
+                <span class="exit-date" data-x="date" th:text="${r.date()}">Oct 2027</span>
+            </span>
+        </div>
+        <div class="chips">
+            <span th:class="${'chip ' + (r.saved() > 0 ? 'chip-green' : 'chip-gray')}" data-x="saved"
+                  th:text="${r.saved() == 0} ? #{coach.exit.same} : (${r.saved() == 1} ? #{coach.exit.saved1} : #{coach.exit.saved(${r.saved()})})">5 months sooner</span>
+            <span class="chip" data-x="zone" th:hidden="${r.zone() == 'NONE'}"
+                  th:classappend="${r.zone() == 'COMFORTABLE'} ? 'chip-green' : (${r.zone() == 'DEMANDING'} ? 'chip-orange' : 'chip-red')"
+                  th:text="${r.zone() == 'NONE'} ? '' : #{${'coach.exit.zone.' + r.zone()}}">Comfortable</span>
+        </div>
+        <div class="exit-track" aria-hidden="true">
+            <span class="exit-fill" data-x="fill" th:style="${'width:' + (r.months() * 100 / full) + '%'}"></span>
+        </div>
+        <div class="exit-track-labels small muted">
+            <span th:text="#{coach.exit.now}">Now</span>
+            <span th:text="${@fmt.monthYear(exit.baselineDebtFree(), loc)}">Mar 2028</span>
+        </div>
+        <input type="range" class="exit-slider" min="0" step="1" th:max="${exitPoints.size() - 1}" th:value="${exit.recommended()}"
+               th:aria-label="#{coach.exit.slider}">
+        <div class="seg" role="group" th:aria-label="#{coach.exit.slider}">
+            <button type="button" th:attr="data-exit-to=${exit.recommended()}" aria-pressed="true" th:text="#{coach.exit.preset.comfortable}">Comfortable</button>
+            <button type="button" th:attr="data-exit-to=${exit.demanding()}" aria-pressed="false" th:text="#{coach.exit.preset.demanding}">Demanding</button>
+            <button type="button" th:attr="data-exit-to=${exit.limit()}" aria-pressed="false" th:text="#{coach.exit.preset.limit}">To the limit</button>
+        </div>
+        <p class="small" data-x="sub"
+           th:text="(${r.extra() == 0} ? #{coach.exit.zero(${r.total()})} : #{coach.exit.sub(${r.total()}, ${r.date()})}) + (${r.freeLeft() != ''} ? ' · ' + (${r.overspent()} ? #{coach.exit.short(${r.freeLeft()})} : #{coach.exit.left(${r.freeLeft()})}) : '')">You pay $8,090 a month until Oct 2027 · $12,400 left free</p>
+        <p class="small muted" data-x="first" th:hidden="${r.first() == ''}" th:text="#{coach.exit.first(${r.first()})}">First: Headphones · Dec 2026, Sneakers · Feb 2027</p>
+        <a class="btn btn-plain btn-sm" data-x="link" style="align-self: flex-start; margin-left: -14px"
+           th:href="@{/ui/coach(extra=${r.extra()})} + '#plan'" th:text="#{coach.exit.how}">See it step by step</a>
+    </section>
+    <script th:inline="javascript">
+    (function () {
+        var box = document.getElementById('exit');
+        if (!box) return;
+        var points = /*[[${exitPoints}]]*/ [];
+        var t = box.dataset, base = +t.baseMonths || 1, rec = +t.recommended;
+        var slider = box.querySelector('.exit-slider');
+        function x(name) { return box.querySelector('[data-x="' + name + '"]'); }
+        function fill(tpl, args) { return tpl.replace(/\{(\d)\}/g, function (_, i) { return args[+i]; }); }
+        var zones = { COMFORTABLE: ['chip-green', t.tZoneComfortable], DEMANDING: ['chip-orange', t.tZoneDemanding], LIMIT: ['chip-red', t.tZoneLimit] };
+        function show(i) {
+            var p = points[i];
+            if (!p) return;
+            x('extra').textContent = '+' + p.extraLabel;
+            x('date').textContent = p.date;
+            var saved = x('saved');
+            saved.textContent = p.saved === 0 ? t.tSame : p.saved === 1 ? t.tSaved1 : fill(t.tSaved, [p.saved]);
+            saved.className = 'chip ' + (p.saved > 0 ? 'chip-green' : 'chip-gray');
+            var zone = x('zone'), z = zones[p.zone];
+            zone.hidden = !z;
+            if (z) { zone.className = 'chip ' + z[0]; zone.textContent = z[1]; }
+            x('fill').style.width = Math.min(100, p.months * 100 / base) + '%';
+            var sub = p.extra === 0 ? fill(t.tZero, [p.total]) : fill(t.tSub, [p.total, p.date]);
+            if (p.freeLeft) sub += ' · ' + fill(p.overspent ? t.tShort : t.tLeft, [p.freeLeft]);
+            x('sub').textContent = sub;
+            var first = x('first');
+            first.hidden = !p.first;
+            first.textContent = p.first ? fill(t.tFirst, [p.first]) : '';
+            x('pick').hidden = i !== rec;
+            x('link').href = x('link').href.replace(/extra=\d+/, 'extra=' + p.extra);
+            box.querySelectorAll('[data-exit-to]').forEach(function (b) { b.setAttribute('aria-pressed', String(+b.dataset.exitTo === i)); });
+        }
+        slider.addEventListener('input', function () { show(+slider.value); });
+        box.addEventListener('click', function (e) {
+            var b = e.target.closest('[data-exit-to]');
+            if (b) { slider.value = b.dataset.exitTo; show(+slider.value); }
+        });
+    })();
+    </script>
+
     <!-- ── What I'd pay off now (all debts treated as interest-free: the goal is a lower monthly payment) ── -->
     <section class="section" id="recommendation" th:if="${advice.hasCandidates()}">
         <h2 class="section-title" th:text="#{coach.rec}">My recommendation</h2>
@@ -102,9 +190,12 @@
         </div>
     </section>
 
-    <!-- ── Attack plan ─────────────────────────────────────────────────────── -->
-    <section class="section" id="plan">
-        <h2 class="section-title" th:text="#{coach.plan}">Attack plan</h2>
+    <!-- ── Attack plan (step by step, one-off money such as the aguinaldo): folded unless used ── -->
+    <details class="section coach-plan" id="plan" th:open="${planOpen}">
+        <summary class="section-title">
+            <span th:text="#{coach.plan}">Step-by-step plan</span>
+            <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+        </summary>
         <p class="list-footer" style="padding: 0 4px 4px" th:text="#{coach.plan.sub}">Put money aside every month…</p>
         <form class="card form-stack" method="get" th:action="@{/ui/coach}" id="planForm">
             <input type="hidden" name="f" value="1">
@@ -220,7 +311,7 @@
             <p class="list-footer" th:if="${plan.steps().size() > 12}" th:text="#{coach.plan.more(${plan.steps().size() - 12})}">and 4 more</p>
             <p class="list-footer" th:text="#{coach.plan.msi}">Interest-free installments cost the same paid early or late…</p>
         </th:block>
-    </section>
+    </details>
 
     <!-- ── Savings goals ───────────────────────────────────────────────────── -->
     <section class="section" id="goals">

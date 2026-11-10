@@ -4,7 +4,9 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.applicat
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetCoachTipsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetFinancialStatusUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetPayoffPlanUseCase;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetDebtFreeOptionsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.GetPayoffRecommendationUseCase;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.utils.DebtFreeAdvisor;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.ManageSavingsGoalUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.PayOffWithSavingsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.utils.PayoffAdvisor;
@@ -62,6 +64,7 @@ class CoachViewControllerTest {
     @MockBean ActivityLogHelper activityLogHelper;
     @MockBean GetPayoffRecommendationUseCase getPayoffRecommendationUseCase;
     @MockBean PayOffWithSavingsUseCase payOffWithSavingsUseCase;
+    @MockBean GetDebtFreeOptionsUseCase getDebtFreeOptionsUseCase;
 
     private final List<Debt> debts = List.of(debt(1, "Phone", "100", 10, 12), debt(2, "Laptop", "500", 8, 12));
 
@@ -94,8 +97,31 @@ class CoachViewControllerTest {
         // savings 2,000, safety net 3 × 3,600: nothing to pay off without touching it
         when(getPayoffRecommendationUseCase.getRecommendation(EMAIL))
                 .thenAnswer(i -> PayoffAdvisor.recommend(debts, new BigDecimal("2000"), new BigDecimal("3000")));
+        // free money 10,000 − 3,000 − 600 = 6,400
+        when(getDebtFreeOptionsUseCase.getOptions(EMAIL))
+                .thenAnswer(i -> DebtFreeAdvisor.options(debts, YearMonth.now(), new BigDecimal("6400")));
         when(getCoachTipsUseCase.getTips(EMAIL)).thenReturn(List.of(
                 CoachTipDto.of(CoachTipType.SAFETY_LOW, CoachTipSeverity.WARN, 0.5, new BigDecimal("8600"))));
+    }
+
+    @Test
+    void way_out_slider_speaks_the_recommended_option_and_carries_every_point() throws Exception {
+        when(manageSavingsGoalUseCase.getByEmail(EMAIL)).thenReturn(List.of());
+        var exit = DebtFreeAdvisor.options(debts, YearMonth.now(), new BigDecimal("6400"));
+        var pick = exit.recommendedOption();
+        UiFormat fmt = new UiFormat();
+
+        mockMvc.perform(get("/ui/coach").param("lang", "es_MX").sessionAttr("userEmail", EMAIL))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Hoy sales de deudas en " + fmt.monthYear(exit.baselineDebtFree(), new java.util.Locale("es", "MX")))))
+                .andExpect(content().string(containsString("+" + fmt.money0(pick.extra()))))
+                .andExpect(content().string(containsString("Pagas " + fmt.money0(pick.totalMonthly()) + " al mes hasta")))
+                .andExpect(content().string(containsString("te quedan " + fmt.money0(new BigDecimal("6400").subtract(pick.extra())) + " libres")))
+                .andExpect(content().string(containsString("Cómodo")))
+                .andExpect(content().string(containsString("type=\"range\"")))
+                .andExpect(content().string(containsString("max=\"" + (exit.options().size() - 1) + "\"")))
+                // the folded step-by-step plan is not open unless its form was used
+                .andExpect(content().string(containsString("<details class=\"section coach-plan\" id=\"plan\">")));
     }
 
     @Test
@@ -160,7 +186,8 @@ class CoachViewControllerTest {
         mockMvc.perform(get("/ui/coach").param("f", "1").param("extra", "250").param("lump", "200")
                         .param("strategy", "SMALLEST").param("lang", "es_MX").sessionAttr("userEmail", EMAIL))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Plan de ataque")))
+                .andExpect(content().string(containsString("Plan paso a paso y dinero extra")))
+                .andExpect(content().string(containsString("id=\"plan\" open=\"open\"")))
                 .andExpect(content().string(containsString("Bola de nieve: primero los saldos más chicos")))
                 .andExpect(content().string(containsString("Ahorrar para esto")));
         verify(getPayoffPlanUseCase).getPlan(EMAIL, new BigDecimal("250"), new BigDecimal("200"), PayoffStrategy.SMALLEST, false);
