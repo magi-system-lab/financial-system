@@ -2,8 +2,10 @@ package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure
 
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllFixedExpenseCatalogsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllFixedExpenseUseCase;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.MoveBetweenSectionsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.FixedExpenseCatalogRepository;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.FixedExpenseRepository;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.FixedExpenseKind;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.FixedExpense;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.mapper.FixedExpenseCatalogMapper;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.model.CreateFixedExpenseCatalogReq;
@@ -28,9 +30,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Fixed expenses and credits: the same kind of flat monthly item (same table, same page), kept in two sections so the
+ * charts can tell them apart. {@code section} is {@code fixed-expenses} or {@code credits}; items can be moved between them.
+ */
 @Controller
-@RequestMapping("/ui/fixed-expenses")
+@RequestMapping("/ui/{section:fixed-expenses|credits}")
 public class FixedExpenseViewController {
+
+    static final String CREDITS = "credits";
 
     private final FixedExpenseRepository fixedExpenseRepository;
     private final FixedExpenseCatalogRepository fixedExpenseCatalogRepository;
@@ -38,6 +46,7 @@ public class FixedExpenseViewController {
     private final FindAllFixedExpenseUseCase findAllFixedExpenseUseCase;
     private final FindAllFixedExpenseCatalogsUseCase findAllFixedExpenseCatalogsUseCase;
     private final ActivityLogHelper activityLogHelper;
+    private final MoveBetweenSectionsUseCase moveBetweenSectionsUseCase;
 
     public FixedExpenseViewController(
             FixedExpenseRepository fixedExpenseRepository,
@@ -45,20 +54,43 @@ public class FixedExpenseViewController {
             FixedExpenseCatalogMapper fixedExpenseCatalogMapper,
             FindAllFixedExpenseUseCase findAllFixedExpenseUseCase,
             FindAllFixedExpenseCatalogsUseCase findAllFixedExpenseCatalogsUseCase,
-            ActivityLogHelper activityLogHelper) {
+            ActivityLogHelper activityLogHelper,
+            MoveBetweenSectionsUseCase moveBetweenSectionsUseCase) {
         this.fixedExpenseRepository = fixedExpenseRepository;
         this.fixedExpenseCatalogRepository = fixedExpenseCatalogRepository;
         this.fixedExpenseCatalogMapper = fixedExpenseCatalogMapper;
         this.findAllFixedExpenseUseCase = findAllFixedExpenseUseCase;
         this.findAllFixedExpenseCatalogsUseCase = findAllFixedExpenseCatalogsUseCase;
         this.activityLogHelper = activityLogHelper;
+        this.moveBetweenSectionsUseCase = moveBetweenSectionsUseCase;
+    }
+
+    static FixedExpenseKind kindOf(String section) {
+        return CREDITS.equals(section) ? FixedExpenseKind.CREDIT : FixedExpenseKind.EXPENSE;
+    }
+
+    /** The section the items go to when moved from this one. */
+    static FixedExpenseKind otherKind(String section) {
+        return kindOf(section) == FixedExpenseKind.CREDIT ? FixedExpenseKind.EXPENSE : FixedExpenseKind.CREDIT;
+    }
+
+    private static String back(String section) {
+        return "redirect:/ui/" + section;
     }
 
     @GetMapping
-    public String list(HttpSession session, Model model) {
+    public String list(@PathVariable String section, HttpSession session, Model model) {
         String email = (String) session.getAttribute("userEmail");
         if (email == null) return "redirect:/ui";
-        List<FixedExpense> expenses = findAllFixedExpenseUseCase.getByEmail(email);
+        FixedExpenseKind kind = kindOf(section);
+        List<FixedExpense> all = findAllFixedExpenseUseCase.getByEmail(email);
+        List<FixedExpense> expenses = all.stream().filter(e -> (kind == FixedExpenseKind.CREDIT) == e.isCredit()).toList();
+        model.addAttribute("section", section);
+        model.addAttribute("kind", kind.name());
+        // message-key prefix: "fixed" or "credit"
+        model.addAttribute("k", kind == FixedExpenseKind.CREDIT ? "credit" : "fixed");
+        model.addAttribute("otherSection", kind == FixedExpenseKind.CREDIT ? "fixed-expenses" : CREDITS);
+        model.addAttribute("otherCount", all.size() - expenses.size());
         model.addAttribute("expenses", expenses);
         model.addAttribute("byCategory", byCategory(expenses));
         model.addAttribute("total", expenses.stream().map(FixedExpenseViewController::cost)
@@ -98,59 +130,79 @@ public class FixedExpenseViewController {
     }
 
     @PostMapping
-    public String createExpense(@ModelAttribute FixedExpenseReq req, HttpSession session) {
+    public String createExpense(@PathVariable String section, @ModelAttribute FixedExpenseReq req, HttpSession session) {
         String email = (String) session.getAttribute("userEmail");
         if (email == null) return "redirect:/ui";
         req.setUserEmail(email);
+        req.setKind(kindOf(section));
         var saved = fixedExpenseRepository.save(req, req.getCatalogId());
-        activityLogHelper.log(session, "Create Fixed Expense", saved);
-        return "redirect:/ui/fixed-expenses";
+        activityLogHelper.log(session, saved.isCredit() ? "Create Credit" : "Create Fixed Expense", saved);
+        return back(section);
     }
 
     @PutMapping("/{id}")
-    public String editExpense(@PathVariable Integer id, @ModelAttribute FixedExpenseReq req, HttpSession session) {
+    public String editExpense(@PathVariable String section, @PathVariable Integer id, @ModelAttribute FixedExpenseReq req,
+                              HttpSession session) {
         req.setId(id);
+        req.setKind(null); // moving between sections goes through /move
         var updated = fixedExpenseRepository.updateFromReq(req);
         activityLogHelper.log(session, "Edit Fixed Expense", updated);
-        return "redirect:/ui/fixed-expenses";
+        return back(section);
     }
 
     @DeleteMapping("/{id}")
-    public String deleteExpense(@PathVariable Integer id, HttpSession session) {
+    public String deleteExpense(@PathVariable String section, @PathVariable Integer id, HttpSession session) {
         fixedExpenseRepository.delete(id);
         activityLogHelper.log(session, "Delete Fixed Expense", Map.of("deleted", true, "id", id));
-        return "redirect:/ui/fixed-expenses";
+        return back(section);
+    }
+
+    /** Fixed expense → credits, or credit → fixed expenses. */
+    @PostMapping("/{id}/move")
+    public String moveExpense(@PathVariable String section, @PathVariable Integer id, HttpSession session) {
+        var moved = moveBetweenSectionsUseCase.moveFixedExpenses(List.of(id), otherKind(section));
+        activityLogHelper.log(session, "Move to " + otherKind(section), moved);
+        return back(section);
+    }
+
+    @PostMapping("/bulk-move")
+    public String bulkMoveExpenses(@PathVariable String section, @RequestParam List<Integer> ids, HttpSession session) {
+        var moved = moveBetweenSectionsUseCase.moveFixedExpenses(ids, otherKind(section));
+        activityLogHelper.log(session, "Move to " + otherKind(section), moved);
+        return back(section);
     }
 
     @PutMapping("/bulk-edit")
-    public String bulkEditExpenses(@RequestParam List<Integer> ids,
+    public String bulkEditExpenses(@PathVariable String section,
+                                    @RequestParam List<Integer> ids,
                                     @RequestParam(required = false) Integer catalogId,
                                     @RequestParam(required = false) Double monthlyCost,
                                     HttpSession session) {
         var updated = fixedExpenseRepository.bulkUpdateCategoryAndCost(
                 ids, catalogId, monthlyCost != null ? BigDecimal.valueOf(monthlyCost) : null);
         activityLogHelper.log(session, "Bulk Edit Fixed Expenses", updated);
-        return "redirect:/ui/fixed-expenses";
+        return back(section);
     }
 
     @DeleteMapping("/bulk-delete")
-    public String bulkDeleteExpenses(@RequestParam List<Integer> ids, HttpSession session) {
+    public String bulkDeleteExpenses(@PathVariable String section, @RequestParam List<Integer> ids, HttpSession session) {
         fixedExpenseRepository.deleteMultiple(ids);
         activityLogHelper.log(session, "Bulk Delete Fixed Expenses", Map.of("deleted", true, "ids", ids));
-        return "redirect:/ui/fixed-expenses";
+        return back(section);
     }
 
     @PostMapping("/catalog")
-    public String createCatalog(@ModelAttribute CreateFixedExpenseCatalogReq req, HttpSession session) {
+    public String createCatalog(@PathVariable String section, @ModelAttribute CreateFixedExpenseCatalogReq req,
+                                HttpSession session) {
         var saved = fixedExpenseCatalogRepository.save(fixedExpenseCatalogMapper.toModel(req));
         activityLogHelper.log(session, "Create Expense Catalog", saved);
-        return "redirect:/ui/fixed-expenses";
+        return back(section);
     }
 
     @DeleteMapping("/catalog/{id}")
-    public String deleteCatalog(@PathVariable Integer id, HttpSession session) {
+    public String deleteCatalog(@PathVariable String section, @PathVariable Integer id, HttpSession session) {
         fixedExpenseCatalogRepository.delete(id);
         activityLogHelper.log(session, "Delete Expense Catalog", Map.of("deleted", true, "id", id));
-        return "redirect:/ui/fixed-expenses";
+        return back(section);
     }
 }

@@ -62,7 +62,7 @@
                 <div th:class="${'hero-amount ' + (m.overspent() ? 'text-orange' : 'text-green')}" style="margin-top: 10px"><span
                      th:text="${(m.overspent() ? '−' : '') + @fmt.whole(m.leftFromSalary().abs())}">$12,300</span><small th:text="${@fmt.cents(m.leftFromSalary().abs())}">.00</small></div>
                 <div class="hero-sub">
-                    <span th:text="#{insights.freeFormula(${@fmt.money0(dashboard.salary)}, ${@fmt.money0(dashboard.monthlyFixedExpensesAmount != null ? dashboard.monthlyFixedExpensesAmount : 0)}, ${@fmt.money0(m.total())})}">Salary $48,000 − fixed $12,098 − payments $23,602</span>
+                    <span th:text="#{insights.freeFormula(${@fmt.money0(dashboard.salary)}, ${@fmt.money0(dashboard.monthlyFixedAndCreditsAmount)}, ${@fmt.money0(m.total())})}">Salary $48,000 − fixed $12,098 − payments $23,602</span>
                 </div>
             </div>
         </div>
@@ -308,7 +308,7 @@
     </section>
 
     <!-- ── Spending by category ────────────────────────────────────────────── -->
-    <section class="section" th:with="total=${dashboard.monthlyDebtPaymentAmount + dashboard.debtLoanAmount + dashboard.debtForLifePlanAmount + dashboard.monthlyFixedExpensesAmount}"
+    <section class="section" th:with="total=${dashboard.monthlyDebtPaymentAmount + dashboard.debtLoanAmount + dashboard.debtForLifePlanAmount + dashboard.monthlyFixedAndCreditsAmount}"
              th:if="${dashboard.monthlyDebtPaymentAmount != null and dashboard.debtLoanAmount != null and dashboard.debtForLifePlanAmount != null and dashboard.monthlyFixedExpensesAmount != null}">
         <h2 class="section-title" th:text="#{insights.categories}">Monthly spending</h2>
         <div class="list">
@@ -316,6 +316,7 @@
                     {'insights.cat.card', dashboard.monthlyDebtPaymentAmount, 'var(--accent)'},
                     {'insights.cat.loan', dashboard.debtLoanAmount, 'var(--purple)'},
                     {'insights.cat.lifePlan', dashboard.debtForLifePlanAmount, 'var(--green)'},
+                    {'insights.cat.credits', dashboard.monthlyCreditsAmount != null ? dashboard.monthlyCreditsAmount : 0, 'var(--credit)'},
                     {'insights.cat.fixed', dashboard.monthlyFixedExpensesAmount, 'var(--orange)'} } }"
                  th:if="${cat[1] > 0}">
                 <span class="list-row-body">

@@ -1,6 +1,7 @@
 package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.adapter;
 
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.FixedExpenseRepository;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.FixedExpenseKind;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.exceptions.EntityNotFoundException;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.DebtSysUser;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.FixedExpense;
@@ -73,6 +74,7 @@ public class FixedExpenseRepositoryAdapter implements FixedExpenseRepository {
         FixedExpenseEntity fixedExpenseEntity = fixedExpenseMapper.toEntity(fixedExpense);
         fixedExpenseEntity.setDebtSysUser(debtSysUserEntity);
         fixedExpenseEntity.setFixedExpenseCatalog(fixedExpenseCatalog);
+        fixedExpenseEntity.setKind(FixedExpenseKind.orDefault(fixedExpense.getKind()));
         fixedExpenseEntity.setActive(true);
 
         return this.fixedExpenseMapper.toModel(this.fixedExpenseJpaRepository.save(fixedExpenseEntity));
@@ -131,6 +133,19 @@ public class FixedExpenseRepositoryAdapter implements FixedExpenseRepository {
 
     @Override
     @Transactional
+    public List<FixedExpense> changeKind(List<Integer> ids, FixedExpenseKind kind) {
+        FixedExpenseKind target = FixedExpenseKind.orDefault(kind);
+        return ids.stream()
+                .map(id -> fixedExpenseJpaRepository.findById(id)
+                        .orElseThrow(() -> new EntityNotFoundException("FixedExpense with id " + id + " not found")))
+                .peek(entity -> entity.setKind(target))
+                .map(fixedExpenseJpaRepository::save)
+                .map(fixedExpenseMapper::toModel)
+                .toList();
+    }
+
+    @Override
+    @Transactional
     public void deleteMultiple(List<Integer> ids) {
         ids.forEach(this::delete);
     }
@@ -143,6 +158,7 @@ public class FixedExpenseRepositoryAdapter implements FixedExpenseRepository {
         if (req.getMonthlyCost() != null) fixedExpenseEntity.setMonthlyCost(BigDecimal.valueOf(req.getMonthlyCost()));
         if (req.getPaymentDay() != null) fixedExpenseEntity.setPaymentDay(req.getPaymentDay());
         if (req.getDescription() != null) fixedExpenseEntity.setDescription(req.getDescription());
+        if (req.getKind() != null) fixedExpenseEntity.setKind(req.getKind());
         if (req.getCatalogId() != null) {
             FixedExpenseCatalogEntity catalog = fixedExpenseCatalogJpaRepository.findById(req.getCatalogId())
                     .orElseThrow(() -> new EntityNotFoundException("Catalog " + req.getCatalogId() + " not found"));

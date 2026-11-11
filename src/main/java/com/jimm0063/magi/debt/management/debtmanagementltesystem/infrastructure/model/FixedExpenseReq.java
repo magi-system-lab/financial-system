@@ -1,5 +1,6 @@
 package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.model;
 
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.FixedExpenseKind;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -12,4 +13,6 @@ public class FixedExpenseReq {
     private String description;
     private String userEmail;
     private Integer catalogId;
+    /** EXPENSE (default) or CREDIT. */
+    private FixedExpenseKind kind;
 }

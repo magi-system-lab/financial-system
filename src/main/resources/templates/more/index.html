@@ -32,6 +32,13 @@
                     <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
                 </span>
             </a>
+            <a class="list-row" th:href="@{/ui/credits}">
+                <span class="row-icon bg-teal"><svg th:replace="~{layout/app :: icon('bank', '')}"></svg></span>
+                <span class="list-row-body">
+                    <span class="list-row-title"><span th:text="#{nav.credits}">Credits</span></span>
+                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+                </span>
+            </a>
         </div>
     </section>
 

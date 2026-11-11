@@ -114,6 +114,21 @@ class UpcomingDebtServiceTest {
     }
 
     @Test
+    void projection_reports_credits_apart_from_fixed_expenses_but_counts_both() {
+        FixedExpense car = fixed("3000.00");
+        car.setKind(com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.FixedExpenseKind.CREDIT);
+
+        PaymentProjectionDto p = service.buildProjection(OCT_2026, 2, 10000.0,
+                List.of(), List.of(fixed("2000.00"), car), List.of());
+
+        MonthProjectionDto first = p.getMonths().get(0);
+        assertThat(first.getFixedExpenses()).isEqualTo(2000.0);
+        assertThat(first.getCredits()).isEqualTo(3000.0);
+        assertThat(first.getTotalCommitments()).isEqualTo(5000.0);
+        assertThat(first.getAvailableIncome()).isEqualTo(5000.0);
+    }
+
+    @Test
     void projection_ignores_started_and_cancelled_items() {
         UpcomingDebt started = upcoming("Phone", "800.00", 6, OCT_2026);
         started.setStatus(UpcomingDebtStatus.STARTED);

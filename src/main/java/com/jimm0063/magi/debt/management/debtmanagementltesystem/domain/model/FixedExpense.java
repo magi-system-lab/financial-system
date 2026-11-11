@@ -1,5 +1,6 @@
 package com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model;
 
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.FixedExpenseKind;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -16,4 +17,10 @@ public class FixedExpense {
     private Boolean active;
     private DebtSysUser debtSysUser;
     private FixedExpenseCatalog fixedExpenseCatalog;
+    /** EXPENSE (default, also when null) or CREDIT. */
+    private FixedExpenseKind kind;
+
+    public boolean isCredit() {
+        return FixedExpenseKind.orDefault(kind) == FixedExpenseKind.CREDIT;
+    }
 }

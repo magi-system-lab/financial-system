@@ -1,8 +1,10 @@
 package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.web.view;
 
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.MoveBetweenSectionsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.PayOffDebtAccountUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.DebtRepository;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.DebtTypeEnum;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.FixedExpenseKind;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.Debt;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.mapper.DebtMapper;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.model.CreateDebtReq;
@@ -28,15 +30,18 @@ public class DebtViewController {
     private final DebtMapper debtMapper;
     private final PayOffDebtAccountUseCase payOffDebtAccountUseCase;
     private final ActivityLogHelper activityLogHelper;
+    private final MoveBetweenSectionsUseCase moveBetweenSectionsUseCase;
 
     public DebtViewController(DebtRepository debtRepository,
                               DebtMapper debtMapper,
                               PayOffDebtAccountUseCase payOffDebtAccountUseCase,
-                              ActivityLogHelper activityLogHelper) {
+                              ActivityLogHelper activityLogHelper,
+                              MoveBetweenSectionsUseCase moveBetweenSectionsUseCase) {
         this.debtRepository = debtRepository;
         this.debtMapper = debtMapper;
         this.payOffDebtAccountUseCase = payOffDebtAccountUseCase;
         this.activityLogHelper = activityLogHelper;
+        this.moveBetweenSectionsUseCase = moveBetweenSectionsUseCase;
     }
 
     @PostMapping("/{debtAccountCode}")
@@ -55,6 +60,20 @@ public class DebtViewController {
                              HttpSession session) {
         debtRepository.delete(debtId);
         activityLogHelper.log(session, "Delete Debt", Map.of("deleted", true, "id", debtId));
+        return "redirect:/ui/debt-accounts/" + enc(debtAccountCode);
+    }
+
+    /** A debt that is really a flat monthly charge (e.g. a credit) → Credits or Fixed expenses; it leaves the card. */
+    @PostMapping("/{debtId}/move")
+    public String moveDebt(@PathVariable Integer debtId,
+                           @RequestParam String debtAccountCode,
+                           @RequestParam FixedExpenseKind to,
+                           @RequestParam Integer catalogId,
+                           HttpSession session) {
+        String email = (String) session.getAttribute("userEmail");
+        if (email == null) return "redirect:/ui";
+        var moved = moveBetweenSectionsUseCase.moveDebt(email, debtId, to, catalogId);
+        activityLogHelper.log(session, "Move Debt " + debtId + " to " + to, moved);
         return "redirect:/ui/debt-accounts/" + enc(debtAccountCode);
     }
 

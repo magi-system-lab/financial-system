@@ -65,7 +65,8 @@ class InsightsViewControllerTest {
         dashboard.setMonthlyDebtPaymentAmount(1000.0);
         dashboard.setDebtLoanAmount(0.0);
         dashboard.setDebtForLifePlanAmount(0.0);
-        dashboard.setMonthlyFixedExpensesAmount(1500.0);
+        dashboard.setMonthlyFixedExpensesAmount(1000.0);
+        dashboard.setMonthlyCreditsAmount(500.0);   // credits count in every budget, like fixed expenses
         AccountSummaryDto visa = new AccountSummaryDto();
         visa.setCode("VISA");
         visa.setName("Visa Oro");
@@ -91,14 +92,15 @@ class InsightsViewControllerTest {
         user.setDebtLimitPercent(15);
         when(userRepository.findUserByEmail(EMAIL)).thenReturn(Optional.of(user));
 
-        // Nov: salary 5,000 − fixed 1,500 − payments 1,000 = 2,500; payments are 20% of salary
+        // Nov: salary 5,000 − (fixed 1,000 + credits 500) − payments 1,000 = 2,500; payments are 20% of salary
         mockMvc.perform(get("/ui/insights").sessionAttr("userEmail", EMAIL))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Free to spend: $2,500")))
                 .andExpect(content().string(containsString("20% of salary · limit 15%")))
-                .andExpect(content().string(containsString("Salary $5,000 − fixed $1,500 − payments $1,000")))
+                .andExpect(content().string(containsString("Salary $5,000 − fixed &amp; credits $1,500 − payments $1,000")))
                 .andExpect(content().string(containsString("8.0 mo")))     // 20,000 / (1,500 + 1,000)
-                .andExpect(content().string(containsString("Goal reached")));
+                .andExpect(content().string(containsString("Goal reached")))
+                .andExpect(content().string(containsString("background:var(--credit)")));   // own row in "Monthly spending"
     }
 
     @Test

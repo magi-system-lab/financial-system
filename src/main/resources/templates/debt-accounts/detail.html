@@ -95,6 +95,7 @@
                 <button type="button" class="list-row" th:each="d : ${entry.value}" data-open-sheet="edit-debt-sheet"
                         th:attr="data-action=@{/ui/debts/{id}/update(id=${d.id})},
                                  data-alt-action=@{/ui/debts/{id}(id=${d.id})},
+                                 data-move-action=@{/ui/debts/{id}/move(id=${d.id})},
                                  data-f-description=${d.description},
                                  data-f-operation-date=${d.operationDate},
                                  data-f-original-amount=${d.originalAmount},
@@ -246,6 +247,39 @@
                     data-alt-submit formnovalidate th:attr="data-confirm=#{debt.deleteConfirm}" th:text="#{debt.delete}">Delete debt</button>
         </div>
     </form>
+    <!-- Move it out of the card: a credit (or fixed expense) paid as a flat monthly amount -->
+    <div class="sheet-body" style="padding-top: 0" th:unless="${catalogs == null or catalogs.isEmpty()}">
+        <details class="disclosure list">
+            <summary>
+                <span class="list-row-body">
+                    <span class="list-row-title"><span th:text="#{debt.moveTitle}">Move out of this card</span></span>
+                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+                </span>
+            </summary>
+            <form method="post" data-action-from="moveAction" class="form-stack" style="padding: 4px 16px 16px"
+                  th:attr="data-confirm=#{debt.moveConfirm}">
+                <input type="hidden" name="debtAccountCode" th:value="${debtAccountCode}">
+                <p class="small muted" style="margin: 0" th:text="#{debt.moveHelp}">Turns it into a flat monthly item…</p>
+                <div class="field-row">
+                    <div>
+                        <label class="field-label" for="move-to" th:text="#{debt.moveTo}">Move to</label>
+                        <select class="field" id="move-to" name="to">
+                            <option value="CREDIT" th:text="#{debt.moveToCredit}">Credits</option>
+                            <option value="EXPENSE" th:text="#{debt.moveToExpense}">Fixed expenses</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label" for="move-cat" th:text="#{fixed.category}">Category</label>
+                        <select class="field" id="move-cat" name="catalogId" required>
+                            <option value="" th:text="#{fixed.chooseCategory}">Choose a category…</option>
+                            <option th:each="c : ${catalogs}" th:value="${c.id}" th:text="${c.name}">Car</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-tinted btn-block" th:text="#{debt.moveSubmit}">Move</button>
+            </form>
+        </details>
+    </div>
 </dialog>
 </body>
 </html>

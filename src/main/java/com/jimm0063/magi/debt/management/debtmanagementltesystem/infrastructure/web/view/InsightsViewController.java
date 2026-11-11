@@ -91,7 +91,7 @@ public class InsightsViewController {
                 .max(Comparator.naturalOrder()).orElse(BigDecimal.ZERO);
         model.addAttribute("dashboard", dashboard);
         model.addAttribute("insights", InsightsView.from(progression, range,
-                dashboard.getSalary(), dashboard.getMonthlyFixedExpensesAmount(), dashboard.getSavings(), debtLimit));
+                dashboard.getSalary(), dashboard.getMonthlyFixedAndCreditsAmount(), dashboard.getSavings(), debtLimit));
         model.addAttribute("activity", activity);
         model.addAttribute("payoffOptions", InsightsView.payoffOptions(findAllDebtsUseCase.getActiveByUser(email)));
         model.addAttribute("thisMonth", activity.isEmpty()

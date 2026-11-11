@@ -98,7 +98,7 @@ public class CoachViewController {
         List<Debt> debts = findAllDebtsUseCase.getActiveByUser(email);
         BigDecimal nextMonth = debts.stream().filter(d -> PayoffSimulator.monthsLeft(d) > 0 && d.getMonthlyPayment() != null)
                 .map(Debt::getMonthlyPayment).reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal fixed = BigDecimal.valueOf(nz(dashboard.getMonthlyFixedExpensesAmount()));
+        BigDecimal fixed = BigDecimal.valueOf(nz(dashboard.getMonthlyFixedAndCreditsAmount()));
         BigDecimal suggested = suggestedExtra(dashboard.getSalary(), fixed, nextMonth);
 
         boolean snowball = f == null || roll != null;

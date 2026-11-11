@@ -4,6 +4,7 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.De
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.DebtAccount;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface DebtRepository {
     List<Debt> findAllDebtsByDebtAccountAndActiveTrue(String debtAccountCode);
@@ -14,5 +15,6 @@ public interface DebtRepository {
     List<Debt> saveAll(List<Debt> debt);
     Debt save(Debt debt, String debtAccountCode);
     Debt update(Debt debt);
+    Optional<Debt> findActiveById(Integer debtId);
     void delete(Integer debtId);
 }

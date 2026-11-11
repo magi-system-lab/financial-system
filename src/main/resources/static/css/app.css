@@ -39,6 +39,8 @@
     --up-dim: #FFD699;
     --fixed: #8E8E93;
     --fixed-dim: #D1D1D6;
+    --credit: #30B0C7;
+    --credit-dim: #A6DEE8;
     --seg-shadow: 0 3px 8px rgba(0, 0, 0, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
 
     --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, system-ui, sans-serif;
@@ -86,6 +88,8 @@
         --up-dim: #6B4A12;
         --fixed: #8E8E93;
         --fixed-dim: #48484A;
+        --credit: #40C8E0;
+        --credit-dim: #1D5560;
         --seg-shadow: none;
     }
 }
@@ -723,6 +727,8 @@ form.inline { margin: 0; display: contents; }
 .bar-rest { flex: 1; }
 .bar-fix { flex: none; background: var(--fixed-dim); }
 .bar-btn[aria-pressed="true"] .bar-fix { background: var(--fixed); }
+.bar-credit { flex: none; background: var(--credit-dim); }
+.bar-btn[aria-pressed="true"] .bar-credit { background: var(--credit); }
 .plan-breakdown { display: flex; flex-direction: column; gap: 6px; font-size: 15px; }
 .plan-breakdown > span { display: grid; grid-template-columns: 10px 1fr auto; align-items: center; gap: 10px; }
 .plan-breakdown .tabular { font-weight: 600; }
@@ -760,6 +766,14 @@ form.inline { margin: 0; display: contents; }
     box-shadow: var(--shadow); backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%);
 }
 .sel-bar > span { flex: 1; font-weight: 600; }
+.sel-bar .btn { white-space: nowrap; }
+@media (max-width: 599px) {
+    /* phones: the count on its own line, the actions share the row below */
+    .sel-bar { flex-wrap: wrap; padding: 10px 12px 12px; }
+    .sel-bar > span { flex-basis: 100%; padding-left: 6px; }
+    .sel-bar > .btn, .sel-bar > form { flex: 1 1 0; }
+    .sel-bar > form > .btn { width: 100%; }
+}
 @media (min-width: 1024px) {
     .sel-bar { bottom: 24px; left: calc(50% + var(--sidebar-w) / 2); }
 }

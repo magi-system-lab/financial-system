@@ -15,6 +15,7 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Component
@@ -106,6 +107,13 @@ public class DebtRepositoryAdapter implements DebtRepository {
         existing.setAnnualInterestRate(debt.getAnnualInterestRate());
         existing.setActive(debt.getActive());
         return debtMapper.toModel(debtJpaRepository.save(existing));
+    }
+
+    @Override
+    public Optional<Debt> findActiveById(Integer debtId) {
+        return debtJpaRepository.findById(debtId)
+                .filter(d -> Boolean.TRUE.equals(d.getActive()))
+                .map(debtMapper::toModel);
     }
 
     @Override

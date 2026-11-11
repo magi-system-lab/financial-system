@@ -19,7 +19,10 @@ public class MonthProjectionDto implements Serializable {
     private double currentDebts;
     /** Installments of pending upcoming debts charged that month. */
     private double upcomingDebts;
+    /** Fixed expenses (credits excluded). */
     private double fixedExpenses;
+    /** Credits paid as a flat monthly amount (fixed_expense rows of kind CREDIT). */
+    private double credits;
     private double totalCommitments;
     /** salary - totalCommitments (null when no salary is set). */
     private Double availableIncome;

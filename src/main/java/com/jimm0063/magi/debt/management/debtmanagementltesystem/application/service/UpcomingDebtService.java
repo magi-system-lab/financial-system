@@ -167,7 +167,11 @@ public class UpcomingDebtService implements FindAllUpcomingDebtsUseCase, ManageU
                                          List<UpcomingDebt> upcoming) {
         int horizon = Math.max(1, Math.min(months, 60));
         double fixed = fixedExpenses.stream()
-                .filter(e -> e.getMonthlyCost() != null)
+                .filter(e -> e.getMonthlyCost() != null && !e.isCredit())
+                .mapToDouble(e -> e.getMonthlyCost().doubleValue())
+                .sum();
+        double credits = fixedExpenses.stream()
+                .filter(e -> e.getMonthlyCost() != null && e.isCredit())
                 .mapToDouble(e -> e.getMonthlyCost().doubleValue())
                 .sum();
         List<Debt> countedDebts = debts.stream()
@@ -198,8 +202,9 @@ public class UpcomingDebtService implements FindAllUpcomingDebtsUseCase, ManageU
             dto.setCurrentDebts(round(current));
             dto.setUpcomingDebts(round(upcomingAmount));
             dto.setFixedExpenses(round(fixed));
-            dto.setTotalCommitments(round(current + upcomingAmount + fixed));
-            dto.setAvailableIncome(salary != null ? round(salary - current - upcomingAmount - fixed) : null);
+            dto.setCredits(round(credits));
+            dto.setTotalCommitments(round(current + upcomingAmount + fixed + credits));
+            dto.setAvailableIncome(salary != null ? round(salary - current - upcomingAmount - fixed - credits) : null);
             dto.setRelief(previousCurrent != null ? round(Math.max(previousCurrent - current, 0)) : 0);
             dto.setStartingThisMonth(pending.stream()
                     .filter(u -> month.equals(u.firstPaymentMonth()))
