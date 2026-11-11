@@ -50,6 +50,7 @@ class DebtAccountViewControllerTest {
     @MockBean DebtAccountStatusUseCase debtAccountStatusUseCase;
     @MockBean PaymentRepository paymentRepository;
     @MockBean UpcomingDebtRepository upcomingDebtRepository;
+    @MockBean com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllFixedExpenseCatalogsUseCase findAllFixedExpenseCatalogsUseCase;
     @MockBean ActivityLogHelper activityLogHelper;
 
     @BeforeEach

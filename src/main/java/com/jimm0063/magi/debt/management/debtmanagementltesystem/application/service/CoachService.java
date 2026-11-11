@@ -76,8 +76,8 @@ public class CoachService implements GetCoachTipsUseCase {
         DebtSysUser user = userRepository.findUserByEmail(email).orElse(null);
         LocalDate today = LocalDate.now();
         List<DebtActivityDto> activity = getDebtActivityUseCase.getActivity(email, 1);
-        BigDecimal fixed = fixedExpenseRepository.findAllFixedExpenseByEmailAndActiveTrue(email).stream()
-                .map(FixedExpense::getMonthlyCost).filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal fixed = FixedExpense.monthlyTotal(
+                fixedExpenseRepository.findAllFixedExpenseByEmailAndActiveTrue(email), YearMonth.from(today));
         long wishesReady = wishItemRepository.findAllActiveByUser(email).stream()
                 .filter(w -> w.isWaiting() && w.daysLeft(today, ZoneId.systemDefault()) == 0).count();
         return tips(new Snapshot(today,

@@ -48,6 +48,7 @@
             <div class="plan-breakdown">
                 <span><span class="dot dot-lg" style="background: var(--accent)"></span><span th:text="#{plan.debts}">Current debts</span><span class="tabular" th:text="${@fmt.money(m.currentDebts)}">$18,000.00</span></span>
                 <span th:if="${m.upcomingDebts > 0}"><span class="dot dot-lg" style="background: var(--orange)"></span><span th:text="#{plan.upcoming}">Upcoming purchases</span><span class="tabular" th:text="${@fmt.money(m.upcomingDebts)}">$1,000.00</span></span>
+                <span th:if="${m.credits > 0}"><span class="dot dot-lg" style="background: var(--credit)"></span><span th:text="#{plan.credits}">Credits</span><span class="tabular" th:text="${@fmt.money(m.credits)}">$3,200.00</span></span>
                 <span th:if="${m.fixedExpenses > 0}"><span class="dot dot-lg" style="background: var(--fixed)"></span><span th:text="#{plan.fixed}">Fixed expenses</span><span class="tabular" th:text="${@fmt.money(m.fixedExpenses)}">$4,500.00</span></span>
                 <span data-wi-row hidden><span class="dot dot-lg" style="background: var(--purple)"></span><span th:text="#{plan.whatIf}">What-if purchase</span><span class="tabular" data-wi-add></span></span>
                 <span class="plan-left" th:if="${m.availableIncome != null}" data-wi-left th:attr="data-base=${m.availableIncome}">
@@ -66,13 +67,14 @@
             <button type="button" class="bar-btn" th:each="m, st : ${projection.months}"
                     data-select="pm" th:attr="data-value=${st.index}, aria-pressed=${st.index == 0},
                         data-month=${#temporals.format(m.month.atDay(1), 'yyyy-MM')}, data-label=${@fmt.monthShort(m.month, loc) + ' ' + m.month.year},
-                        data-debts=${m.currentDebts}, data-up=${m.upcomingDebts}, data-fix=${m.fixedExpenses}"
+                        data-debts=${m.currentDebts}, data-up=${m.upcomingDebts}, data-fix=${m.fixedExpenses}, data-credit=${m.credits}"
                     th:aria-label="${@fmt.month(m.month, loc) + ': ' + @fmt.money(m.totalCommitments)}">
                 <span class="bar-track">
                     <span class="bar" th:style="${'height:' + (scale > 0 ? #numbers.formatDecimal(m.totalCommitments / scale * 100, 1, 'NONE', 1, 'POINT') : '0') + '%'}">
                         <span class="bar-new"></span>
                         <span class="bar-up" th:style="${'height:' + (m.totalCommitments > 0 ? #numbers.formatDecimal(m.upcomingDebts / m.totalCommitments * 100, 1, 'NONE', 1, 'POINT') : '0') + '%'}"></span>
                         <span class="bar-rest"></span>
+                        <span class="bar-credit" th:style="${'height:' + (m.totalCommitments > 0 ? #numbers.formatDecimal(m.credits / m.totalCommitments * 100, 1, 'NONE', 1, 'POINT') : '0') + '%'}"></span>
                         <span class="bar-fix" th:style="${'height:' + (m.totalCommitments > 0 ? #numbers.formatDecimal(m.fixedExpenses / m.totalCommitments * 100, 1, 'NONE', 1, 'POINT') : '0') + '%'}"></span>
                     </span>
                 </span>
@@ -83,6 +85,7 @@
         <div class="legend">
             <span><span class="dot" style="background: var(--accent)"></span><span th:text="#{plan.debts}">Current debts</span></span>
             <span><span class="dot" style="background: var(--orange)"></span><span th:text="#{plan.upcoming}">Upcoming</span></span>
+            <span th:if="${projection.months[0].credits > 0}"><span class="dot" style="background: var(--credit)"></span><span th:text="#{plan.credits}">Credits</span></span>
             <span><span class="dot" style="background: var(--fixed)"></span><span th:text="#{plan.fixed}">Fixed</span></span>
             <span data-wi-legend hidden><span class="dot" style="background: var(--purple)"></span><span th:text="#{plan.whatIf}">What-if</span></span>
             <nav class="seg seg-inline" style="margin-left: auto" th:aria-label="#{plan.months}">
@@ -336,10 +339,10 @@
         var start = on ? idx(first) : 0;
 
         var rows = bars.map(function (b) {
-            var debts = +b.dataset.debts, up = +b.dataset.up, fix = +b.dataset.fix;
+            var debts = +b.dataset.debts, up = +b.dataset.up, fix = +b.dataset.fix, credit = +(b.dataset.credit || 0);
             var i = idx(b.dataset.month);
             var add = on && i >= start && i < start + n ? monthly : 0;
-            return { b: b, debts: debts, up: up, fix: fix, add: add, total: debts + up + fix + add, label: b.dataset.label };
+            return { b: b, debts: debts, up: up, fix: fix, credit: credit, add: add, total: debts + up + fix + credit + add, label: b.dataset.label };
         });
         var peakTotal = Math.max.apply(null, rows.map(function (r) { return r.total; }).concat([0]));
         var line = chart && chart.querySelector('.salary-line');
@@ -352,6 +355,7 @@
             bar.querySelector('.bar-new').style.height = part(r.add);
             bar.querySelector('.bar-up').style.height = part(r.up);
             bar.querySelector('.bar-fix').style.height = part(r.fix);
+            bar.querySelector('.bar-credit').style.height = part(r.credit);
             var panel = panels[k];
             if (!panel) return;
             var tot = panel.querySelector('[data-wi-total]');

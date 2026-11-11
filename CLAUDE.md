@@ -261,8 +261,27 @@ DELETE /fixed/expense/catalog/{id}           Delete catalog
 POST   /fixed/expense                        Create expense
 PUT    /fixed/expense                        Update expense
 DELETE /fixed/expense/{id}                   Delete expense
-GET    /fixed/expense/all/{email}            List user's expenses
+GET    /fixed/expense/all/{email}?kind=EXPENSE|CREDIT   List user's expenses and credits (kind optional)
+PATCH  /fixed/expense/{id}/move?to=CREDIT|EXPENSE      Move between Fixed expenses and Credits
+PATCH  /fixed/expense/bulk/move?to=                    Same for many (body: ids)
+POST   /fixed/expense/from-debt/{debtId}?to=&catalogId=   Debt → credit / fixed expense (header: email)
 ```
+
+### Credits (flat monthly loans: car, mortgage, personal…)
+Credits are `fixed_expense` rows with `kind = CREDIT` (`FixedExpenseKind`; null/EXPENSE = fixed expense). They count
+exactly like fixed expenses in every budget (free money, safety net, coach, payoff advisor — all read the whole table),
+but are reported apart: `UserStatusDashboard.monthlyFixedExpensesAmount` / breakdown / count are fixed expenses only,
+`monthlyCreditsAmount` / `userCredits` the credits, `getMonthlyFixedAndCreditsAmount()` the sum budgets use;
+`MonthProjectionDto.credits` is its own bar segment on `/ui/upcoming-debts`; Insights' "Monthly spending" has a Credits row.
+`MoveBetweenSectionsService` moves items: fixed ↔ credit (only `kind` changes), and a card debt → credit / fixed
+expense (monthly payment → cost, card pay day → day, card name → description; the debt is soft-deleted and its hash
+saved as ignorable so the next statement import does not bring it back; a debt with a term gets its last payment
+month from the installments left, same rule as the projection: c of n → this month + (n − c)).
+Optional `end_date` ("Last payment", 1st of the month; form field `endMonth` "yyyy-MM", "" clears it) on any fixed expense
+or credit: `FixedExpense.chargedIn(month)` / `monthlyTotal(items, month)`. Current totals (dashboard, coach, plan,
+recommendation) only count items charged this month; the projection and Insights' month-by-month "free to spend"
+(`InsightsViewController.fixedByMonth`) drop them after their last month, and the projection's `relief` includes them.
+The list shows "Last payment Mar 2027 · 5 left" and puts finished ones in a "Finished" group outside the total.
 
 ### Receivables (money lent out, e.g. to relatives)
 ```
@@ -322,6 +341,11 @@ GET    /ui/dashboard         Old dashboard URL → redirects to /ui/insights
 GET    /ui/more              "More" tab: secondary sections + settings (language, switch user)
 GET    /ui/activity          Activity log of the current session
 GET    /ui/fixed-expenses    Fixed expenses management
+GET    /ui/credits           Credits: same page/controller as fixed expenses (`FixedExpenseViewController`,
+                             `/ui/{section:fixed-expenses|credits}`), segmented switch between both; "Move to credits /
+                             fixed expenses" in the edit sheet (POST /ui/{section}/{id}/move) and in select mode
+                             (POST /ui/{section}/bulk-move). A card's edit-debt sheet has "Move out of this card"
+                             (POST /ui/debts/{id}/move?to=&catalogId=)
 GET    /ui/cards             Cards tab: Wallet-style stack of every card (?provider=code filters one provider);
                              "Add card" sheet (provider, name, pay day, credit, statement type, colour)
 GET    /ui/debt-accounts/{code}  One card: totals, record payment, import statement, debts (add/edit/delete sheets),
@@ -419,7 +443,7 @@ debt_sys_user (PK: email; salary, savings, debt_limit_percent)
 │         └── 1:N → debt_account
 │                   ├── 1:N → debt (annual_interest_rate optional; null = interest-free installments)
 │                   └── 1:N → payment
-├── 1:N → fixed_expense
+├── 1:N → fixed_expense (kind EXPENSE | CREDIT; null = EXPENSE; end_date optional = last payment month)
 ├── 1:N → wish_item (status WAITING | PLANNED | DROPPED; cool-down list)
 ├── 1:N → savings_goal (debt_id + debt_hash optional; status ACTIVE | COMPLETED | CANCELLED)
 │         └── 1:N → savings_goal_contribution (signed amount, contribution_date)

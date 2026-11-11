@@ -8,6 +8,7 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.applicat
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.UserRepository;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.DebtActivityDto;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.dto.UserStatusDashboard;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.FixedExpense;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.exceptions.EntityNotFoundException;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.DebtSysUser;
 import jakarta.servlet.http.HttpServletResponse;
@@ -91,7 +92,7 @@ public class InsightsViewController {
                 .max(Comparator.naturalOrder()).orElse(BigDecimal.ZERO);
         model.addAttribute("dashboard", dashboard);
         model.addAttribute("insights", InsightsView.from(progression, range,
-                dashboard.getSalary(), dashboard.getMonthlyFixedExpensesAmount(), dashboard.getSavings(), debtLimit));
+                dashboard.getSalary(), fixedByMonth(dashboard), dashboard.getSavings(), debtLimit));
         model.addAttribute("activity", activity);
         model.addAttribute("payoffOptions", InsightsView.payoffOptions(findAllDebtsUseCase.getActiveByUser(email)));
         model.addAttribute("thisMonth", activity.isEmpty()
@@ -115,5 +116,17 @@ public class InsightsViewController {
         if (debtLimitPercent != null) updated = userRepository.updateDebtLimit(email, debtLimitPercent);
         activityLogHelper.log(session, "Update Salary & Savings", updated);
         return "redirect:/ui/insights";
+    }
+
+    /** Fixed expenses + credits paid in each month (a credit with an end month stops after its last payment). */
+    static java.util.function.Function<YearMonth, BigDecimal> fixedByMonth(UserStatusDashboard dashboard) {
+        if (dashboard.getUserFixedExpenses() == null && dashboard.getUserCredits() == null) {
+            BigDecimal constant = BigDecimal.valueOf(dashboard.getMonthlyFixedAndCreditsAmount());
+            return month -> constant;
+        }
+        List<FixedExpense> items = new java.util.ArrayList<>();
+        if (dashboard.getUserFixedExpenses() != null) items.addAll(dashboard.getUserFixedExpenses());
+        if (dashboard.getUserCredits() != null) items.addAll(dashboard.getUserCredits());
+        return month -> FixedExpense.monthlyTotal(items, month);
     }
 }

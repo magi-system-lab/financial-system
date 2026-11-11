@@ -22,7 +22,12 @@ public class UserStatusDashboard {
     private List<Double> chartAccountAmounts;
     private List<DebtAccount> userDebtAccounts;
     private List<AlmostCompletedDebtsDto> almostCompletedDebts;
+    /** Fixed expenses only (credits are in {@link #userCredits}). */
     private List<FixedExpense> userFixedExpenses;
+    /** Credits paid as a flat monthly amount (fixed_expense rows of kind CREDIT). */
+    private List<FixedExpense> userCredits;
+    private Double monthlyCreditsAmount;
+    private Integer creditCount;
 
     // Insight fields
     private Double debtToIncomeRatio;
@@ -48,4 +53,11 @@ public class UserStatusDashboard {
     private Double upcomingMonthlyTotal;
     private String nextUpcomingStart;
     private Integer dueUpcomingCount;
+
+    /** Fixed expenses + credits: the monthly money that goes out besides debt payments (what every budget subtracts). */
+    public Double getMonthlyFixedAndCreditsAmount() {
+        double fixed = monthlyFixedExpensesAmount == null ? 0 : monthlyFixedExpensesAmount;
+        double credits = monthlyCreditsAmount == null ? 0 : monthlyCreditsAmount;
+        return fixed + credits;
+    }
 }

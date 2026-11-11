@@ -83,7 +83,13 @@ public class FinancialStatusService implements GetFinancialStatusUseCase {
                 .toList();
 
         //Getting Fixed Expenses
-        List<FixedExpense> userFixedExpenses = fixedExpenseRepository.findAllFixedExpenseBySystemUserAndActiveTrue(user);
+        // Credits live in the same table: they count in every budget below, but are reported apart from fixed expenses
+        // Items whose last payment month has passed no longer count anywhere
+        List<FixedExpense> allMonthlyItems = fixedExpenseRepository.findAllFixedExpenseBySystemUserAndActiveTrue(user).stream()
+                .filter(e -> e.chargedIn(YearMonth.now()))
+                .toList();
+        List<FixedExpense> userFixedExpenses = allMonthlyItems.stream().filter(e -> !e.isCredit()).toList();
+        List<FixedExpense> userCredits = allMonthlyItems.stream().filter(FixedExpense::isCredit).toList();
 
         // calculate amount — guard against null debtType or null monthlyPayment
         Double debtMonthAmount = userDebts.stream()
@@ -107,9 +113,14 @@ public class FinancialStatusService implements GetFinancialStatusUseCase {
                 .mapToDouble(fixedExpense -> fixedExpense.getMonthlyCost().doubleValue())
                 .sum();
 
+        Double creditsMonthAmount = userCredits.stream()
+                .filter(e -> e.getMonthlyCost() != null)
+                .mapToDouble(credit -> credit.getMonthlyCost().doubleValue())
+                .sum();
+
         Double totalMonthlyDebt = debtMonthAmount + debtLoanAmount + debtForLifePlanAmount;
         Double availableIncome = (user.getSalary() != null ? user.getSalary() : 0.0)
-                - totalMonthlyDebt - fixedExpensesMonthAmount;
+                - totalMonthlyDebt - fixedExpensesMonthAmount - creditsMonthAmount;
 
         // per-account chart data
         Map<String, Double> paymentByCode = userDebts.stream()
@@ -194,7 +205,7 @@ public class FinancialStatusService implements GetFinancialStatusUseCase {
                 .toList();
 
         double salary = user.getSalary() != null ? user.getSalary() : 0.0;
-        double totalCommitments = totalMonthlyDebt + fixedExpensesMonthAmount;
+        double totalCommitments = totalMonthlyDebt + fixedExpensesMonthAmount + creditsMonthAmount;
         Double fixedExpensePercentOfIncome = salary > 0
                 ? Math.round((fixedExpensesMonthAmount / salary) * 10000.0) / 100.0
                 : null;
@@ -257,6 +268,9 @@ public class FinancialStatusService implements GetFinancialStatusUseCase {
         response.setDebtForLifePlanAmount(debtForLifePlanAmount);
         response.setDebtLoanAmount(debtLoanAmount);
         response.setMonthlyFixedExpensesAmount(fixedExpensesMonthAmount);
+        response.setUserCredits(userCredits);
+        response.setMonthlyCreditsAmount(creditsMonthAmount);
+        response.setCreditCount(userCredits.size());
         response.setTotalMonthlyDebt(totalMonthlyDebt);
         response.setAvailableIncome(availableIncome);
         response.setChartAccountLabels(chartLabels);

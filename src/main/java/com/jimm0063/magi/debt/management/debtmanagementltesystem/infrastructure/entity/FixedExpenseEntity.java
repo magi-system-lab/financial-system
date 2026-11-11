@@ -1,11 +1,13 @@
 package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.entity;
 
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.FixedExpenseKind;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Table(name = "fixed_expense")
 @Entity
@@ -28,4 +30,11 @@ public class FixedExpenseEntity implements Serializable {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "fixed_expenses_catalog", nullable = false)
     private FixedExpenseCatalogEntity fixedExpenseCatalog;
+    /** EXPENSE | CREDIT; null on rows saved before the column existed (= EXPENSE). */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 16)
+    private FixedExpenseKind kind;
+    /** Month of the last payment (1st day); null = no end. */
+    @Column(name = "end_date")
+    private LocalDate endDate;
 }

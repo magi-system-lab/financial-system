@@ -37,7 +37,15 @@ public class IgnorableDebtRepositoryAdapter implements IgnorableDebtRepository {
 
     @Override
     public IgnorableDebt save(IgnorableDebt ignorableDebt) {
-        IgnorableDebtEntity entity = mapper.toEntity(ignorableDebt);
+        // hash_sum is unique: a hash that was ignored before and then un-ignored is re-activated, not inserted again
+        IgnorableDebtEntity entity = ignorableDebt.getHashSum() == null ? null
+                : jpaRepository.findByHashSum(ignorableDebt.getHashSum()).orElse(null);
+        if (entity == null) {
+            entity = mapper.toEntity(ignorableDebt);
+        } else {
+            entity.setReason(ignorableDebt.getReason());
+            entity.setActive(ignorableDebt.getActive());
+        }
         return mapper.toModel(jpaRepository.save(entity));
     }
 

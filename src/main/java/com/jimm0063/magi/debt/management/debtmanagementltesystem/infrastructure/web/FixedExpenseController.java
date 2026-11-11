@@ -2,8 +2,10 @@ package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure
 
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllFixedExpenseCatalogsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllFixedExpenseUseCase;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.MoveBetweenSectionsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.FixedExpenseCatalogRepository;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.FixedExpenseRepository;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.enums.FixedExpenseKind;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.FixedExpense;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.model.FixedExpenseCatalog;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.mapper.FixedExpenseCatalogMapper;
@@ -22,17 +24,20 @@ public class FixedExpenseController {
     private final FixedExpenseCatalogMapper fixedExpenseCatalogMapper;
     private final FindAllFixedExpenseUseCase findAllFixedExpenseUseCase;
     private final FindAllFixedExpenseCatalogsUseCase findAllFixedExpenseCatalogsUseCase;
+    private final MoveBetweenSectionsUseCase moveBetweenSectionsUseCase;
 
     public FixedExpenseController(FixedExpenseCatalogRepository fixedExpenseCatalogRepository,
                                   FixedExpenseRepository fixedExpenseRepository,
                                   FixedExpenseCatalogMapper fixedExpenseCatalogMapper,
                                   FindAllFixedExpenseUseCase findAllFixedExpenseUseCase,
-                                  FindAllFixedExpenseCatalogsUseCase findAllFixedExpenseCatalogsUseCase) {
+                                  FindAllFixedExpenseCatalogsUseCase findAllFixedExpenseCatalogsUseCase,
+                                  MoveBetweenSectionsUseCase moveBetweenSectionsUseCase) {
         this.fixedExpenseCatalogRepository = fixedExpenseCatalogRepository;
         this.fixedExpenseRepository = fixedExpenseRepository;
         this.fixedExpenseCatalogMapper = fixedExpenseCatalogMapper;
         this.findAllFixedExpenseUseCase = findAllFixedExpenseUseCase;
         this.findAllFixedExpenseCatalogsUseCase = findAllFixedExpenseCatalogsUseCase;
+        this.moveBetweenSectionsUseCase = moveBetweenSectionsUseCase;
     }
 
     @GetMapping("/catalog/all")
@@ -84,8 +89,30 @@ public class FixedExpenseController {
         return ResponseEntity.ok().build();
     }
 
+    /** Every fixed expense and credit of the user; {@code ?kind=EXPENSE|CREDIT} keeps one section only. */
     @GetMapping("/all/{userEmail}")
-    public ResponseEntity<List<FixedExpense>> deleteFixedExpense(@PathVariable String userEmail) {
-        return ResponseEntity.ok(findAllFixedExpenseUseCase.getByEmail(userEmail));
+    public ResponseEntity<List<FixedExpense>> getFixedExpenses(@PathVariable String userEmail,
+                                                               @RequestParam(required = false) FixedExpenseKind kind) {
+        List<FixedExpense> all = findAllFixedExpenseUseCase.getByEmail(userEmail);
+        if (kind == null) return ResponseEntity.ok(all);
+        return ResponseEntity.ok(all.stream().filter(e -> FixedExpenseKind.orDefault(e.getKind()) == kind).toList());
+    }
+
+    /** Fixed expense → credit or back. */
+    @PatchMapping("/{fixedExpenseId}/move")
+    public ResponseEntity<List<FixedExpense>> move(@PathVariable Integer fixedExpenseId, @RequestParam FixedExpenseKind to) {
+        return ResponseEntity.ok(moveBetweenSectionsUseCase.moveFixedExpenses(List.of(fixedExpenseId), to));
+    }
+
+    @PatchMapping("/bulk/move")
+    public ResponseEntity<List<FixedExpense>> moveMany(@RequestBody List<Integer> fixedExpenseIds, @RequestParam FixedExpenseKind to) {
+        return ResponseEntity.ok(moveBetweenSectionsUseCase.moveFixedExpenses(fixedExpenseIds, to));
+    }
+
+    /** A debt → credit / fixed expense (the debt is soft-deleted and ignored on future statements). */
+    @PostMapping("/from-debt/{debtId}")
+    public ResponseEntity<FixedExpense> fromDebt(@PathVariable Integer debtId, @RequestHeader String email,
+                                                 @RequestParam FixedExpenseKind to, @RequestParam Integer catalogId) {
+        return ResponseEntity.ok(moveBetweenSectionsUseCase.moveDebt(email, debtId, to, catalogId));
     }
 }

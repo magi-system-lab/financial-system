@@ -3,6 +3,7 @@ package com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.DebtAccountStatusUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllDebtAccountUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllDebtsUseCase;
+import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.in.FindAllFixedExpenseCatalogsUseCase;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.DebtAccountRepository;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.PaymentRepository;
 import com.jimm0063.magi.debt.management.debtmanagementltesystem.domain.application.port.out.UpcomingDebtRepository;
@@ -54,6 +55,8 @@ public class DebtAccountViewController {
     private final UpcomingDebtRepository upcomingDebtRepository;
     private final CardColors cardColors;
 
+    private final FindAllFixedExpenseCatalogsUseCase findAllFixedExpenseCatalogsUseCase;
+
     public DebtAccountViewController(
             DebtAccountRepository debtAccountRepository,
             DebtAccountMapper debtAccountMapper,
@@ -63,7 +66,8 @@ public class DebtAccountViewController {
             ActivityLogHelper activityLogHelper,
             PaymentRepository paymentRepository,
             UpcomingDebtRepository upcomingDebtRepository,
-            CardColors cardColors) {
+            CardColors cardColors,
+            FindAllFixedExpenseCatalogsUseCase findAllFixedExpenseCatalogsUseCase) {
         this.debtAccountRepository = debtAccountRepository;
         this.debtAccountMapper = debtAccountMapper;
         this.findAllDebtAccountUseCase = findAllDebtAccountUseCase;
@@ -73,6 +77,7 @@ public class DebtAccountViewController {
         this.paymentRepository = paymentRepository;
         this.upcomingDebtRepository = upcomingDebtRepository;
         this.cardColors = cardColors;
+        this.findAllFixedExpenseCatalogsUseCase = findAllFixedExpenseCatalogsUseCase;
     }
 
     /** Old per-provider list: the Cards tab now filters by provider. */
@@ -164,6 +169,7 @@ public class DebtAccountViewController {
         model.addAttribute("debtAccountCode", code);
         model.addAttribute("debtTypes", DebtTypeEnum.values());
         model.addAttribute("statementTypes", AccountStatementType.values());
+        model.addAttribute("catalogs", findAllFixedExpenseCatalogsUseCase.getCatalogList()); // "move to credits" sheet
         model.addAttribute("email", email);
         return "debt-accounts/detail";
     }

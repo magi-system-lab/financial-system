@@ -19,13 +19,16 @@ public class MonthProjectionDto implements Serializable {
     private double currentDebts;
     /** Installments of pending upcoming debts charged that month. */
     private double upcomingDebts;
+    /** Fixed expenses (credits excluded). */
     private double fixedExpenses;
+    /** Credits paid as a flat monthly amount (fixed_expense rows of kind CREDIT). */
+    private double credits;
     private double totalCommitments;
     /** salary - totalCommitments (null when no salary is set). */
     private Double availableIncome;
     /** Upcoming debts whose FIRST installment lands in this month. */
     private List<String> startingThisMonth = new ArrayList<>();
-    /** Monthly amount freed this month by current debts that finished the month before. */
+    /** Monthly amount freed this month by debts / credits / fixed expenses whose last payment was the month before. */
     private double relief;
 
     public String getLabel() {

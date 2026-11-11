@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
-<head th:replace="~{layout/app :: head(#{fixed.title})}"></head>
+<head th:replace="~{layout/app :: head(#{__${k}__.title})}"></head>
 <body class="app">
 <div th:replace="~{layout/app :: nav}"></div>
 <main class="app-main" id="fixedMain"
@@ -13,20 +13,25 @@
         <span style="display: flex; gap: 8px">
             <button type="button" class="btn btn-glass btn-sm" id="selectToggle" th:unless="${expenses.isEmpty()}"
                     th:attr="data-t-select=#{fixed.select}, data-t-done=#{fixed.done}" th:text="#{fixed.select}">Select</button>
-            <button type="button" class="btn btn-glass btn-icon" data-open-sheet="add-sheet" th:aria-label="#{fixed.add}">
+            <button type="button" class="btn btn-glass btn-icon" data-open-sheet="add-sheet" th:aria-label="#{__${k}__.add}">
                 <svg th:replace="~{layout/app :: icon('plus', '')}"></svg>
             </button>
         </span>
     </div>
     <div class="title-block">
-        <h1 class="large-title" th:text="#{fixed.title}">Fixed expenses</h1>
+        <h1 class="large-title" th:text="#{__${k}__.title}">Fixed expenses</h1>
     </div>
+    <nav class="seg" style="margin-bottom: 16px" th:aria-label="#{credit.sections}">
+        <a th:href="@{/ui/fixed-expenses}" th:aria-current="${kind != 'CREDIT'} ? 'true'" th:text="#{nav.fixedExpenses}">Fixed expenses</a>
+        <a th:href="@{/ui/credits}" th:aria-current="${kind == 'CREDIT'} ? 'true'" th:text="#{nav.credits}">Credits</a>
+    </nav>
+    <p class="list-footer" style="padding: 0 4px 12px" th:if="${kind == 'CREDIT'}" th:text="#{credit.help}">Loans you pay as a flat monthly amount…</p>
 
     <!-- Total + breakdown by category -->
     <section class="card hero" th:unless="${expenses.isEmpty()}">
         <div class="hero-top">
-            <span class="hero-label" th:text="#{fixed.perMonth}">per month</span>
-            <span class="small muted" th:text="#{fixed.count(${expenses.size()})}">8 expenses</span>
+            <span class="hero-label" th:text="#{__${k}__.perMonth}">per month</span>
+            <span class="small muted" th:text="#{__${k}__.count(${expenses.size()})}">8 expenses</span>
         </div>
         <div class="hero-amount"><span th:text="${@fmt.whole(total)}">$9,850</span><small th:text="${@fmt.cents(total)}">.00</small></div>
         <div class="split-bar" role="img" th:aria-label="#{fixed.byCategory}">
@@ -41,11 +46,11 @@
         </div>
     </section>
 
-    <div class="card" th:if="${expenses.isEmpty()}">
+    <div class="card" th:if="${expenses.isEmpty() and finished.isEmpty()}">
         <div class="empty">
             <svg th:replace="~{layout/app :: icon('receipt', '')}"></svg>
-            <span th:text="#{fixed.empty}">No fixed expenses yet.</span>
-            <button type="button" class="btn btn-tinted btn-sm" data-open-sheet="add-sheet" th:text="#{fixed.add}">Add expense</button>
+            <span th:text="#{__${k}__.empty}">No fixed expenses yet.</span>
+            <button type="button" class="btn btn-tinted btn-sm" data-open-sheet="add-sheet" th:text="#{__${k}__.add}">Add expense</button>
         </div>
     </div>
 
@@ -56,31 +61,15 @@
             <span class="tabular" th:text="${@fmt.money(g.total())}">$6,000.00</span>
         </h2>
         <div class="list">
-            <button type="button" class="list-row expense-row" th:each="e : ${g.expenses()}" data-open-sheet="edit-sheet"
-                    th:attr="data-id=${e.id},
-                             data-action=@{/ui/fixed-expenses/{id}(id=${e.id})},
-                             data-delete-action=@{/ui/fixed-expenses/{id}(id=${e.id})},
-                             data-f-name=${e.name},
-                             data-f-description=${e.description},
-                             data-f-monthly-cost=${e.monthlyCost},
-                             data-f-payment-day=${e.paymentDay},
-                             data-f-catalog-id=${e.fixedExpenseCatalog != null ? e.fixedExpenseCatalog.id : ''}">
-                <span class="select-check" aria-hidden="true"><svg th:replace="~{layout/app :: icon('check', '')}"></svg></span>
-                <span class="row-icon" th:style="${'background:' + colors[st.index % 6]}">
-                    <svg th:replace="~{layout/app :: icon('receipt', '')}"></svg>
-                </span>
-                <span class="list-row-body">
-                    <span class="list-row-title">
-                        <span th:text="${e.name}">Rent</span>
-                        <span th:if="${(e.description != null and !e.description.isBlank()) or e.paymentDay != null}"
-                              th:text="${(e.description != null and !e.description.isBlank() ? e.description : '')
-                                    + (e.description != null and !e.description.isBlank() and e.paymentDay != null ? ' · ' : '')}
-                                    + (${e.paymentDay != null} ? #{fixed.daySub(${e.paymentDay})} : '')">Apartment · Day 1</span>
-                    </span>
-                    <span class="list-row-value tabular" th:text="${@fmt.money(e.monthlyCost)}">$6,000.00</span>
-                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
-                </span>
-            </button>
+            <th:block th:each="e : ${g.expenses()}"><button th:replace="~{fixed-expenses/fragments :: row(${e}, ${colors[st.index % 6]})}"></button></th:block>
+        </div>
+    </section>
+
+    <!-- Past their last payment: out of the total; edit the month to bring one back, or delete it -->
+    <section class="section" th:unless="${finished.isEmpty()}">
+        <h2 class="list-header" th:text="#{fixed.finished}">Finished</h2>
+        <div class="list">
+            <th:block th:each="e : ${finished}"><button th:replace="~{fixed-expenses/fragments :: row(${e}, 'var(--fixed)')}"></button></th:block>
         </div>
     </section>
 
@@ -97,7 +86,7 @@
             <div class="list-row" th:each="c : ${catalogs}">
                 <span class="list-row-body">
                     <span class="list-row-title"><span th:text="${c.name}">Home</span></span>
-                    <form th:action="@{/ui/fixed-expenses/catalog/{id}(id=${c.id})}" method="post" th:attr="data-confirm=#{fixed.categoryDeleteConfirm}">
+                    <form th:action="@{/ui/{s}/catalog/{id}(s=${section},id=${c.id})}" method="post" th:attr="data-confirm=#{fixed.categoryDeleteConfirm}">
                         <input type="hidden" name="_method" value="DELETE">
                         <button type="submit" class="icon-btn danger" th:aria-label="${#messages.msg('common.delete') + ': ' + c.name}">
                             <svg th:replace="~{layout/app :: icon('close', '')}"></svg>
@@ -105,7 +94,7 @@
                     </form>
                 </span>
             </div>
-            <form class="list-row" th:action="@{/ui/fixed-expenses/catalog}" method="post">
+            <form class="list-row" th:action="@{/ui/{s}/catalog(s=${section})}" method="post">
                 <span class="list-row-body" style="gap: 8px">
                     <input class="field" name="name" required th:placeholder="#{fixed.newCategory}" th:aria-label="#{fixed.newCategory}" autocomplete="off">
                     <button type="submit" class="btn btn-tinted btn-sm" th:text="#{common.add}">Add</button>
@@ -117,20 +106,23 @@
 
 <!-- Selection toolbar -->
 <div class="sel-bar" id="selBar" hidden>
-    <span id="selCount" th:attr="data-t-0=#{fixed.selected(0)}, data-t-1=#{fixed.selected(1)}, data-t-n=#{fixed.selected(2)}"></span>
+    <span id="selCount" th:attr="data-t-0=#{__${k}__.selected(0)}, data-t-1=#{__${k}__.selected(1)}, data-t-n=#{__${k}__.selected(2)}"></span>
     <button type="button" class="btn btn-tinted btn-sm" id="bulkEditBtn" data-open-sheet="bulk-sheet" disabled th:text="#{fixed.bulkEdit}">Edit selected</button>
-    <form th:action="@{/ui/fixed-expenses/bulk-delete}" method="post" id="bulkDeleteForm" th:attr="data-confirm=#{fixed.bulkDeleteConfirm}">
+    <form th:action="@{/ui/{s}/bulk-move(s=${section})}" method="post" id="bulkMoveForm">
+        <button type="submit" class="btn btn-tinted btn-sm" id="bulkMoveBtn" disabled th:text="#{__${k}__.bulkMove}">Move to credits</button>
+    </form>
+    <form th:action="@{/ui/{s}/bulk-delete(s=${section})}" method="post" id="bulkDeleteForm" th:attr="data-confirm=#{__${k}__.bulkDeleteConfirm}">
         <input type="hidden" name="_method" value="DELETE">
         <button type="submit" class="btn btn-danger btn-sm" id="bulkDeleteBtn" disabled th:text="#{fixed.bulkDelete}">Delete</button>
     </form>
 </div>
 
 <!-- Add -->
-<dialog class="sheet" id="add-sheet" th:aria-label="#{fixed.add}">
-    <form th:action="@{/ui/fixed-expenses}" method="post">
+<dialog class="sheet" id="add-sheet" th:aria-label="#{__${k}__.add}">
+    <form th:action="@{/ui/{s}(s=${section})}" method="post">
         <div class="sheet-head">
             <button type="button" class="btn btn-plain btn-sm" data-close-sheet th:text="#{common.cancel}">Cancel</button>
-            <strong th:text="#{fixed.add}">Add expense</strong>
+            <strong th:text="#{__${k}__.add}">Add expense</strong>
             <button type="submit" class="btn btn-plain btn-sm" style="font-weight: 700" th:text="#{common.add}">Add</button>
         </div>
         <div class="sheet-body"><th:block th:replace="~{fixed-expenses/fragments :: fields('add')}"></th:block></div>
@@ -138,19 +130,22 @@
 </dialog>
 
 <!-- Edit (+ delete) -->
-<dialog class="sheet" id="edit-sheet" th:aria-label="#{fixed.edit}">
+<dialog class="sheet" id="edit-sheet" th:aria-label="#{__${k}__.edit}">
     <form method="post">
         <input type="hidden" name="_method" value="PUT">
         <div class="sheet-head">
             <button type="button" class="btn btn-plain btn-sm" data-close-sheet th:text="#{common.cancel}">Cancel</button>
-            <strong th:text="#{fixed.edit}">Edit expense</strong>
+            <strong th:text="#{__${k}__.edit}">Edit expense</strong>
             <button type="submit" class="btn btn-plain btn-sm" style="font-weight: 700" th:text="#{common.save}">Save</button>
         </div>
         <div class="sheet-body"><th:block th:replace="~{fixed-expenses/fragments :: fields('edit')}"></th:block></div>
     </form>
     <div class="sheet-body" style="padding-top: 0">
         <div class="list">
-            <form class="list-row" method="post" data-action-from="deleteAction" th:attr="data-confirm=#{fixed.deleteConfirm}">
+            <form class="list-row" method="post" data-action-from="moveAction">
+                <button type="submit" class="link-button list-row-body" th:text="#{__${k}__.moveTo}">Move to credits</button>
+            </form>
+            <form class="list-row" method="post" data-action-from="deleteAction" th:attr="data-confirm=#{__${k}__.deleteConfirm}">
                 <input type="hidden" name="_method" value="DELETE">
                 <button type="submit" class="link-button list-row-body text-danger-ios" th:text="#{common.delete}">Delete</button>
             </form>
@@ -160,7 +155,7 @@
 
 <!-- Bulk edit -->
 <dialog class="sheet" id="bulk-sheet" th:aria-label="#{fixed.bulkEdit}">
-    <form th:action="@{/ui/fixed-expenses/bulk-edit}" method="post" id="bulkEditForm">
+    <form th:action="@{/ui/{s}/bulk-edit(s=${section})}" method="post" id="bulkEditForm">
         <input type="hidden" name="_method" value="PUT">
         <div class="sheet-head">
             <button type="button" class="btn btn-plain btn-sm" data-close-sheet th:text="#{common.cancel}">Cancel</button>
@@ -198,6 +193,7 @@
         count.textContent = n === 0 ? count.dataset.t0 : (n === 1 ? count.dataset.t1 : count.dataset.tN.replace('2', n));
         document.getElementById('bulkEditBtn').disabled = n === 0;
         document.getElementById('bulkDeleteBtn').disabled = n === 0;
+        document.getElementById('bulkMoveBtn').disabled = n === 0;
     }
     function setMode(on) {
         main.classList.toggle('selecting', on);
@@ -224,7 +220,7 @@
             form.appendChild(input);
         });
     }
-    ['bulkEditForm', 'bulkDeleteForm'].forEach(function (id) {
+    ['bulkEditForm', 'bulkDeleteForm', 'bulkMoveForm'].forEach(function (id) {
         var form = document.getElementById(id);
         form.addEventListener('submit', function () { addIds(form); }, true);
     });

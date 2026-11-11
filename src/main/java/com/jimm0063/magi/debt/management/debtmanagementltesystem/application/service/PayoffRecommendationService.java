@@ -34,8 +34,8 @@ public class PayoffRecommendationService implements GetPayoffRecommendationUseCa
     @Override
     public PayoffRecommendationDto getRecommendation(String email) {
         Double savings = userRepository.findUserByEmail(email).map(DebtSysUser::getSavings).orElse(null);
-        BigDecimal fixed = fixedExpenseRepository.findAllFixedExpenseByEmailAndActiveTrue(email).stream()
-                .map(FixedExpense::getMonthlyCost).filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal fixed = FixedExpense.monthlyTotal(
+                fixedExpenseRepository.findAllFixedExpenseByEmailAndActiveTrue(email), java.time.YearMonth.now());
         return PayoffAdvisor.recommend(debtRepository.findAllDebtsByUser(email),
                 savings == null ? BigDecimal.ZERO : BigDecimal.valueOf(savings), fixed);
     }

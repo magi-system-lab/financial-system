@@ -166,10 +166,8 @@ public class UpcomingDebtService implements FindAllUpcomingDebtsUseCase, ManageU
                                          List<Debt> debts, List<FixedExpense> fixedExpenses,
                                          List<UpcomingDebt> upcoming) {
         int horizon = Math.max(1, Math.min(months, 60));
-        double fixed = fixedExpenses.stream()
-                .filter(e -> e.getMonthlyCost() != null)
-                .mapToDouble(e -> e.getMonthlyCost().doubleValue())
-                .sum();
+        List<FixedExpense> onlyFixed = fixedExpenses.stream().filter(e -> !e.isCredit()).toList();
+        List<FixedExpense> onlyCredits = fixedExpenses.stream().filter(FixedExpense::isCredit).toList();
         List<Debt> countedDebts = debts.stream()
                 .filter(d -> d.getDebtType() != null && d.getMonthlyPayment() != null)
                 .toList();
@@ -188,6 +186,9 @@ public class UpcomingDebtService implements FindAllUpcomingDebtsUseCase, ManageU
                     .filter(d -> stillRunning(d, offset))
                     .mapToDouble(d -> d.getMonthlyPayment().doubleValue())
                     .sum();
+            // credits / fixed expenses with an end month stop after their last payment
+            double fixed = FixedExpense.monthlyTotal(onlyFixed, month).doubleValue();
+            double credits = FixedExpense.monthlyTotal(onlyCredits, month).doubleValue();
             double upcomingAmount = pending.stream()
                     .filter(u -> u.chargedIn(month))
                     .mapToDouble(u -> u.getMonthlyPayment().doubleValue())
@@ -198,15 +199,16 @@ public class UpcomingDebtService implements FindAllUpcomingDebtsUseCase, ManageU
             dto.setCurrentDebts(round(current));
             dto.setUpcomingDebts(round(upcomingAmount));
             dto.setFixedExpenses(round(fixed));
-            dto.setTotalCommitments(round(current + upcomingAmount + fixed));
-            dto.setAvailableIncome(salary != null ? round(salary - current - upcomingAmount - fixed) : null);
-            dto.setRelief(previousCurrent != null ? round(Math.max(previousCurrent - current, 0)) : 0);
+            dto.setCredits(round(credits));
+            dto.setTotalCommitments(round(current + upcomingAmount + fixed + credits));
+            dto.setAvailableIncome(salary != null ? round(salary - current - upcomingAmount - fixed - credits) : null);
+            dto.setRelief(previousCurrent != null ? round(Math.max(previousCurrent - (current + fixed + credits), 0)) : 0);
             dto.setStartingThisMonth(pending.stream()
                     .filter(u -> month.equals(u.firstPaymentMonth()))
                     .map(UpcomingDebt::getDescription)
                     .toList());
             result.add(dto);
-            previousCurrent = current;
+            previousCurrent = current + fixed + credits;   // a debt or a credit that finished frees money
         }
 
         PaymentProjectionDto projection = new PaymentProjectionDto();
