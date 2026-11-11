@@ -18,6 +18,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 
@@ -75,6 +77,7 @@ public class FixedExpenseRepositoryAdapter implements FixedExpenseRepository {
         fixedExpenseEntity.setDebtSysUser(debtSysUserEntity);
         fixedExpenseEntity.setFixedExpenseCatalog(fixedExpenseCatalog);
         fixedExpenseEntity.setKind(FixedExpenseKind.orDefault(fixedExpense.getKind()));
+        fixedExpenseEntity.setEndDate(endDate(fixedExpense.getEndMonth()));
         fixedExpenseEntity.setActive(true);
 
         return this.fixedExpenseMapper.toModel(this.fixedExpenseJpaRepository.save(fixedExpenseEntity));
@@ -159,11 +162,18 @@ public class FixedExpenseRepositoryAdapter implements FixedExpenseRepository {
         if (req.getPaymentDay() != null) fixedExpenseEntity.setPaymentDay(req.getPaymentDay());
         if (req.getDescription() != null) fixedExpenseEntity.setDescription(req.getDescription());
         if (req.getKind() != null) fixedExpenseEntity.setKind(req.getKind());
+        if (req.getEndMonth() != null) fixedExpenseEntity.setEndDate(endDate(req.getEndMonth()));
         if (req.getCatalogId() != null) {
             FixedExpenseCatalogEntity catalog = fixedExpenseCatalogJpaRepository.findById(req.getCatalogId())
                     .orElseThrow(() -> new EntityNotFoundException("Catalog " + req.getCatalogId() + " not found"));
             fixedExpenseEntity.setFixedExpenseCatalog(catalog);
         }
         return fixedExpenseEntity;
+    }
+
+    /** "yyyy-MM" → 1st day of that month; blank → null (no end). */
+    static LocalDate endDate(String endMonth) {
+        if (endMonth == null || endMonth.isBlank()) return null;
+        return YearMonth.parse(endMonth.trim()).atDay(1);
     }
 }

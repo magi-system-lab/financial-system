@@ -15,4 +15,6 @@ public class FixedExpenseReq {
     private Integer catalogId;
     /** EXPENSE (default) or CREDIT. */
     private FixedExpenseKind kind;
+    /** Month of the last payment "yyyy-MM" (optional). On update: null = keep, "" = remove the end month. */
+    private String endMonth;
 }

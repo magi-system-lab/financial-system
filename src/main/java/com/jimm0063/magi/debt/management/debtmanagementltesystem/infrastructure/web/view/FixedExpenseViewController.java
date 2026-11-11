@@ -84,13 +84,19 @@ public class FixedExpenseViewController {
         if (email == null) return "redirect:/ui";
         FixedExpenseKind kind = kindOf(section);
         List<FixedExpense> all = findAllFixedExpenseUseCase.getByEmail(email);
-        List<FixedExpense> expenses = all.stream().filter(e -> (kind == FixedExpenseKind.CREDIT) == e.isCredit()).toList();
+        java.time.YearMonth now = java.time.YearMonth.now();
+        List<FixedExpense> inSection = all.stream().filter(e -> (kind == FixedExpenseKind.CREDIT) == e.isCredit()).toList();
+        // past their last payment month: listed apart, out of the total and the breakdown
+        List<FixedExpense> expenses = inSection.stream().filter(e -> e.chargedIn(now)).toList();
+        List<FixedExpense> finished = inSection.stream().filter(e -> !e.chargedIn(now)).toList();
+        model.addAttribute("finished", finished);
+        model.addAttribute("now", now);
         model.addAttribute("section", section);
         model.addAttribute("kind", kind.name());
         // message-key prefix: "fixed" or "credit"
         model.addAttribute("k", kind == FixedExpenseKind.CREDIT ? "credit" : "fixed");
         model.addAttribute("otherSection", kind == FixedExpenseKind.CREDIT ? "fixed-expenses" : CREDITS);
-        model.addAttribute("otherCount", all.size() - expenses.size());
+        model.addAttribute("otherCount", all.size() - inSection.size());
         model.addAttribute("expenses", expenses);
         model.addAttribute("byCategory", byCategory(expenses));
         model.addAttribute("total", expenses.stream().map(FixedExpenseViewController::cost)

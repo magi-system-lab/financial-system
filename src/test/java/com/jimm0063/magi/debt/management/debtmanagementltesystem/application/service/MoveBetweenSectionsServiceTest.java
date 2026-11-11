@@ -49,6 +49,8 @@ class MoveBetweenSectionsServiceTest {
         d.setMonthlyPayment(new BigDecimal("4200.50"));
         d.setDebtAccount(account);
         d.setHashSum(hash);
+        d.setCurrentInstallment(10);
+        d.setMaxFinancingTerm(12);
         d.setActive(true);
         return d;
     }
@@ -88,6 +90,8 @@ class MoveBetweenSectionsServiceTest {
         assertThat(req.getValue().getDescription()).isEqualTo("BBVA Auto");
         assertThat(req.getValue().getUserEmail()).isEqualTo("me@test.com");
         assertThat(req.getValue().getKind()).isEqualTo(FixedExpenseKind.CREDIT);
+        // 10 of 12: paid this month and the next 2
+        assertThat(req.getValue().getEndMonth()).isEqualTo(java.time.YearMonth.now().plusMonths(2).toString());
         assertThat(result.isCredit()).isTrue();
         verify(debtRepository).delete(7);
 
@@ -116,5 +120,16 @@ class MoveBetweenSectionsServiceTest {
                 .isInstanceOf(EntityNotFoundException.class);
         verifyNoInteractions(fixedExpenseRepository);
         verify(debtRepository, never()).delete(any());
+    }
+
+    @Test
+    void last_payment_month_follows_the_projection_rule() {
+        java.time.YearMonth nov = java.time.YearMonth.of(2026, 11);
+        Debt d = carLoan("x");
+        assertThat(MoveBetweenSectionsService.lastPaymentMonth(d, nov)).isEqualTo("2027-01");
+        d.setCurrentInstallment(12);
+        assertThat(MoveBetweenSectionsService.lastPaymentMonth(d, nov)).isEqualTo("2026-11");
+        d.setMaxFinancingTerm(null);
+        assertThat(MoveBetweenSectionsService.lastPaymentMonth(d, nov)).isNull();
     }
 }

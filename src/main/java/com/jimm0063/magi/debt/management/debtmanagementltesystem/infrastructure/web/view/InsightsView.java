@@ -116,13 +116,23 @@ public record InsightsView(
 
     public static InsightsView from(List<MonthProgressionDto> progression, int visibleMonths,
                                     Double salary, Double fixedExpenses, Double savings, Integer debtLimitPercent) {
+        BigDecimal constant = BigDecimal.valueOf(fixedExpenses == null ? 0 : fixedExpenses);
+        return from(progression, visibleMonths, salary, month -> constant, savings, debtLimitPercent);
+    }
+
+    /**
+     * {@code fixedFor} gives the fixed expenses + credits paid in a month, so a credit with an end month stops lowering
+     * "free to spend" after its last payment.
+     */
+    public static InsightsView from(List<MonthProgressionDto> progression, int visibleMonths, Double salary,
+                                    java.util.function.Function<YearMonth, BigDecimal> fixedFor,
+                                    Double savings, Integer debtLimitPercent) {
         List<MonthProgressionDto> visible = progression.subList(0, Math.min(visibleMonths, progression.size()));
         BigDecimal max = visible.stream().map(MonthProgressionDto::totalPayment)
                 .max(Comparator.naturalOrder()).orElse(BigDecimal.ZERO);
 
-        BigDecimal fixed = BigDecimal.valueOf(fixedExpenses == null ? 0 : fixedExpenses);
         BigDecimal maxFree = salary == null ? BigDecimal.ZERO : visible.stream()
-                .map(m -> BigDecimal.valueOf(salary).subtract(fixed).subtract(m.totalPayment()).abs())
+                .map(m -> BigDecimal.valueOf(salary).subtract(fixedFor.apply(m.month())).subtract(m.totalPayment()).abs())
                 .max(Comparator.naturalOrder()).orElse(BigDecimal.ZERO);
 
         List<Month> months = new ArrayList<>();
@@ -134,7 +144,7 @@ public record InsightsView(
                     : progression.get(i - 1).totalPayment();
             BigDecimal change = vsNext ? other.subtract(m.totalPayment()) : m.totalPayment().subtract(other);
             BigDecimal left = salary == null ? null
-                    : BigDecimal.valueOf(salary).subtract(fixed).subtract(m.totalPayment());
+                    : BigDecimal.valueOf(salary).subtract(fixedFor.apply(m.month())).subtract(m.totalPayment());
             Integer share = salary == null || salary <= 0 ? null
                     : percent(m.totalPayment(), BigDecimal.valueOf(salary));
             boolean overLimit = share != null && debtLimitPercent != null && share > debtLimitPercent;
@@ -154,6 +164,7 @@ public record InsightsView(
         YearMonth reliefMonth = progression.size() > 3 ? progression.get(3).month() : null;
         BigDecimal relief = reliefMonth == null ? BigDecimal.ZERO
                 : progression.get(0).totalPayment().subtract(progression.get(3).totalPayment());
+        BigDecimal fixed = fixedFor.apply(progression.isEmpty() ? YearMonth.now() : progression.get(0).month());
         BigDecimal commitments = progression.isEmpty() ? fixed : fixed.add(progression.get(0).totalPayment());
         Double safety = savings == null || commitments.signum() <= 0 ? null
                 : savings / commitments.doubleValue();

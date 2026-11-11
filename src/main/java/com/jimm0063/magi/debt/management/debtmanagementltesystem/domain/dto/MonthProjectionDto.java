@@ -28,7 +28,7 @@ public class MonthProjectionDto implements Serializable {
     private Double availableIncome;
     /** Upcoming debts whose FIRST installment lands in this month. */
     private List<String> startingThisMonth = new ArrayList<>();
-    /** Monthly amount freed this month by current debts that finished the month before. */
+    /** Monthly amount freed this month by debts / credits / fixed expenses whose last payment was the month before. */
     private double relief;
 
     public String getLabel() {

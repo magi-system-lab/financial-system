@@ -176,4 +176,24 @@ class FixedExpenseViewControllerTest {
         mockMvc.perform(get("/ui/loans").sessionAttr("userEmail", "user@test.com"))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void credits_show_their_last_payment_and_finished_ones_apart() throws Exception {
+        java.time.YearMonth now = java.time.YearMonth.now();
+        FixedExpense car = credit(9, "Car loan", "4200");
+        car.setEndDate(now.plusMonths(4).atDay(1));
+        FixedExpense old = credit(10, "Old phone plan", "999");
+        old.setEndDate(now.minusMonths(1).atDay(1));
+        when(findAllFixedExpenseUseCase.getByEmail("user@test.com")).thenReturn(List.of(car, old));
+        when(findAllFixedExpenseCatalogsUseCase.getCatalogList()).thenReturn(List.of(HOME));
+
+        mockMvc.perform(get("/ui/credits").sessionAttr("userEmail", "user@test.com"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("5 left")))
+                .andExpect(content().string(containsString("Finished")))
+                .andExpect(content().string(containsString("Old phone plan")))
+                .andExpect(content().string(containsString("data-f-end-month=\"" + now.plusMonths(4) + "\"")))
+                .andExpect(content().string(containsString("$4,200.00")))
+                .andExpect(content().string(containsString("name=\"endMonth\"")));
+    }
 }

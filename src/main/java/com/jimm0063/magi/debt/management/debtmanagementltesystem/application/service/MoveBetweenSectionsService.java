@@ -13,6 +13,7 @@ import com.jimm0063.magi.debt.management.debtmanagementltesystem.infrastructure.
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.YearMonth;
 import java.util.List;
 
 @Service
@@ -50,11 +51,23 @@ public class MoveBetweenSectionsService implements MoveBetweenSectionsUseCase {
         req.setDescription(debt.getDebtAccount() != null ? debt.getDebtAccount().getName() : null);
         req.setCatalogId(catalogId);
         req.setKind(FixedExpenseKind.orDefault(to));
+        req.setEndMonth(lastPaymentMonth(debt, YearMonth.now()));
 
         FixedExpense saved = fixedExpenseRepository.save(req, catalogId);
         debtRepository.delete(debtId);
         ignoreOnFutureStatements(debt, saved);
         return saved;
+    }
+
+    /**
+     * "yyyy-MM" of the last payment, same rule as the projection: at installment c of n it is still paid this month and
+     * the next (n − c) months. Null for debts without a term (they keep going).
+     */
+    static String lastPaymentMonth(Debt debt, YearMonth now) {
+        if (debt.getCurrentInstallment() == null || debt.getMaxFinancingTerm() == null || debt.getMaxFinancingTerm() <= 0) {
+            return null;
+        }
+        return now.plusMonths(Math.max(0, debt.getMaxFinancingTerm() - debt.getCurrentInstallment())).toString();
     }
 
     /** The statement still lists the purchase: without this the next import would bring it back as a new debt. */

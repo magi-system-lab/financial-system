@@ -7,6 +7,7 @@ import lombok.Setter;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Table(name = "fixed_expense")
 @Entity
@@ -33,4 +34,7 @@ public class FixedExpenseEntity implements Serializable {
     @Enumerated(EnumType.STRING)
     @Column(length = 16)
     private FixedExpenseKind kind;
+    /** Month of the last payment (1st day); null = no end. */
+    @Column(name = "end_date")
+    private LocalDate endDate;
 }

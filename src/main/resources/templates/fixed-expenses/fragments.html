@@ -23,6 +23,11 @@
             </div>
         </div>
         <div>
+            <label class="field-label" th:for="${prefix + '-end'}" th:text="#{fixed.endMonth}">Last payment (optional)</label>
+            <input class="field tabular" th:id="${prefix + '-end'}" name="endMonth" type="month" placeholder="yyyy-mm">
+            <p class="small muted" style="margin: 4px 2px 0" th:text="#{fixed.endHelp}">Month of the last payment…</p>
+        </div>
+        <div>
             <label class="field-label" th:for="${prefix + '-cat'}" th:text="#{fixed.category}">Category</label>
             <select class="field" th:id="${prefix + '-cat'}" name="catalogId" required>
                 <option value="" th:text="#{fixed.chooseCategory}">Choose a category…</option>
@@ -31,5 +36,39 @@
         </div>
     </div>
 </th:block>
+
+<!-- One expense / credit row; opens the edit sheet (or toggles in select mode). -->
+            <button type="button" class="list-row expense-row" th:fragment="row(e, color)" data-open-sheet="edit-sheet"
+                    th:attr="data-id=${e.id},
+                             data-action=@{/ui/{s}/{id}(s=${section},id=${e.id})},
+                             data-delete-action=@{/ui/{s}/{id}(s=${section},id=${e.id})},
+                             data-move-action=@{/ui/{s}/{id}/move(s=${section},id=${e.id})},
+                             data-f-name=${e.name},
+                             data-f-description=${e.description},
+                             data-f-monthly-cost=${e.monthlyCost},
+                             data-f-payment-day=${e.paymentDay},
+                             data-f-catalog-id=${e.fixedExpenseCatalog != null ? e.fixedExpenseCatalog.id : ''},
+                             data-f-end-month=${e.endDate != null ? #temporals.format(e.endDate, 'yyyy-MM') : ''}">
+                <span class="select-check" aria-hidden="true"><svg th:replace="~{layout/app :: icon('check', '')}"></svg></span>
+                <span class="row-icon" th:style="${'background:' + color}">
+                    <svg th:replace="~{layout/app :: icon(${kind == 'CREDIT' ? 'bank' : 'receipt'}, '')}"></svg>
+                </span>
+                <span class="list-row-body">
+                    <span class="list-row-title">
+                        <span th:text="${e.name}">Rent</span>
+                        <span th:if="${(e.description != null and !e.description.isBlank()) or e.paymentDay != null}"
+                              th:text="${(e.description != null and !e.description.isBlank() ? e.description : '')
+                                    + (e.description != null and !e.description.isBlank() and e.paymentDay != null ? ' · ' : '')}
+                                    + (${e.paymentDay != null} ? #{fixed.daySub(${e.paymentDay})} : '')">Apartment · Day 1</span>
+                        <span th:if="${e.endDate != null}"
+                              th:with="left=${e.paymentsLeft(now)}"
+                              th:class="${left != null and left <= 1 ? 'text-green' : ''}"
+                              th:text="${left == 0} ? #{fixed.endedSub(${@fmt.monthYear(e.lastMonth(), #locale)})}
+                                     : #{fixed.endsSub(${@fmt.monthYear(e.lastMonth(), #locale)}, ${left})}">Last payment Mar 2027 · 5 left</span>
+                    </span>
+                    <span class="list-row-value tabular" th:text="${@fmt.money(e.monthlyCost)}">$6,000.00</span>
+                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
+                </span>
+            </button>
 </body>
 </html>

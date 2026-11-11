@@ -84,7 +84,10 @@ public class FinancialStatusService implements GetFinancialStatusUseCase {
 
         //Getting Fixed Expenses
         // Credits live in the same table: they count in every budget below, but are reported apart from fixed expenses
-        List<FixedExpense> allMonthlyItems = fixedExpenseRepository.findAllFixedExpenseBySystemUserAndActiveTrue(user);
+        // Items whose last payment month has passed no longer count anywhere
+        List<FixedExpense> allMonthlyItems = fixedExpenseRepository.findAllFixedExpenseBySystemUserAndActiveTrue(user).stream()
+                .filter(e -> e.chargedIn(YearMonth.now()))
+                .toList();
         List<FixedExpense> userFixedExpenses = allMonthlyItems.stream().filter(e -> !e.isCredit()).toList();
         List<FixedExpense> userCredits = allMonthlyItems.stream().filter(FixedExpense::isCredit).toList();
 

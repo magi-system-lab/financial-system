@@ -44,8 +44,8 @@ public class PayoffPlanService implements GetPayoffPlanUseCase, GetDebtFreeOptio
     public DebtFreeOptionsDto getOptions(String email) {
         List<Debt> debts = debtRepository.findAllDebtsByUser(email);
         Double salary = userRepository.findUserByEmail(email).map(DebtSysUser::getSalary).orElse(null);
-        BigDecimal fixed = fixedExpenseRepository.findAllFixedExpenseByEmailAndActiveTrue(email).stream()
-                .map(FixedExpense::getMonthlyCost).filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal fixed = FixedExpense.monthlyTotal(
+                fixedExpenseRepository.findAllFixedExpenseByEmailAndActiveTrue(email), java.time.YearMonth.now());
         return DebtFreeAdvisor.options(debts, YearMonth.now(), freeMoney(salary, fixed, debts));
     }
 

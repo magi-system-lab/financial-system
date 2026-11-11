@@ -46,7 +46,7 @@
         </div>
     </section>
 
-    <div class="card" th:if="${expenses.isEmpty()}">
+    <div class="card" th:if="${expenses.isEmpty() and finished.isEmpty()}">
         <div class="empty">
             <svg th:replace="~{layout/app :: icon('receipt', '')}"></svg>
             <span th:text="#{__${k}__.empty}">No fixed expenses yet.</span>
@@ -61,32 +61,15 @@
             <span class="tabular" th:text="${@fmt.money(g.total())}">$6,000.00</span>
         </h2>
         <div class="list">
-            <button type="button" class="list-row expense-row" th:each="e : ${g.expenses()}" data-open-sheet="edit-sheet"
-                    th:attr="data-id=${e.id},
-                             data-action=@{/ui/{s}/{id}(s=${section},id=${e.id})},
-                             data-delete-action=@{/ui/{s}/{id}(s=${section},id=${e.id})},
-                             data-move-action=@{/ui/{s}/{id}/move(s=${section},id=${e.id})},
-                             data-f-name=${e.name},
-                             data-f-description=${e.description},
-                             data-f-monthly-cost=${e.monthlyCost},
-                             data-f-payment-day=${e.paymentDay},
-                             data-f-catalog-id=${e.fixedExpenseCatalog != null ? e.fixedExpenseCatalog.id : ''}">
-                <span class="select-check" aria-hidden="true"><svg th:replace="~{layout/app :: icon('check', '')}"></svg></span>
-                <span class="row-icon" th:style="${'background:' + colors[st.index % 6]}">
-                    <svg th:replace="~{layout/app :: icon(${kind == 'CREDIT' ? 'bank' : 'receipt'}, '')}"></svg>
-                </span>
-                <span class="list-row-body">
-                    <span class="list-row-title">
-                        <span th:text="${e.name}">Rent</span>
-                        <span th:if="${(e.description != null and !e.description.isBlank()) or e.paymentDay != null}"
-                              th:text="${(e.description != null and !e.description.isBlank() ? e.description : '')
-                                    + (e.description != null and !e.description.isBlank() and e.paymentDay != null ? ' · ' : '')}
-                                    + (${e.paymentDay != null} ? #{fixed.daySub(${e.paymentDay})} : '')">Apartment · Day 1</span>
-                    </span>
-                    <span class="list-row-value tabular" th:text="${@fmt.money(e.monthlyCost)}">$6,000.00</span>
-                    <svg th:replace="~{layout/app :: icon('chevron-right', 'chevron')}"></svg>
-                </span>
-            </button>
+            <th:block th:each="e : ${g.expenses()}"><button th:replace="~{fixed-expenses/fragments :: row(${e}, ${colors[st.index % 6]})}"></button></th:block>
+        </div>
+    </section>
+
+    <!-- Past their last payment: out of the total; edit the month to bring one back, or delete it -->
+    <section class="section" th:unless="${finished.isEmpty()}">
+        <h2 class="list-header" th:text="#{fixed.finished}">Finished</h2>
+        <div class="list">
+            <th:block th:each="e : ${finished}"><button th:replace="~{fixed-expenses/fragments :: row(${e}, 'var(--fixed)')}"></button></th:block>
         </div>
     </section>
 

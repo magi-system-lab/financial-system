@@ -275,7 +275,13 @@ but are reported apart: `UserStatusDashboard.monthlyFixedExpensesAmount` / break
 `MonthProjectionDto.credits` is its own bar segment on `/ui/upcoming-debts`; Insights' "Monthly spending" has a Credits row.
 `MoveBetweenSectionsService` moves items: fixed ↔ credit (only `kind` changes), and a card debt → credit / fixed
 expense (monthly payment → cost, card pay day → day, card name → description; the debt is soft-deleted and its hash
-saved as ignorable so the next statement import does not bring it back).
+saved as ignorable so the next statement import does not bring it back; a debt with a term gets its last payment
+month from the installments left, same rule as the projection: c of n → this month + (n − c)).
+Optional `end_date` ("Last payment", 1st of the month; form field `endMonth` "yyyy-MM", "" clears it) on any fixed expense
+or credit: `FixedExpense.chargedIn(month)` / `monthlyTotal(items, month)`. Current totals (dashboard, coach, plan,
+recommendation) only count items charged this month; the projection and Insights' month-by-month "free to spend"
+(`InsightsViewController.fixedByMonth`) drop them after their last month, and the projection's `relief` includes them.
+The list shows "Last payment Mar 2027 · 5 left" and puts finished ones in a "Finished" group outside the total.
 
 ### Receivables (money lent out, e.g. to relatives)
 ```
@@ -437,7 +443,7 @@ debt_sys_user (PK: email; salary, savings, debt_limit_percent)
 │         └── 1:N → debt_account
 │                   ├── 1:N → debt (annual_interest_rate optional; null = interest-free installments)
 │                   └── 1:N → payment
-├── 1:N → fixed_expense (kind EXPENSE | CREDIT; null = EXPENSE)
+├── 1:N → fixed_expense (kind EXPENSE | CREDIT; null = EXPENSE; end_date optional = last payment month)
 ├── 1:N → wish_item (status WAITING | PLANNED | DROPPED; cool-down list)
 ├── 1:N → savings_goal (debt_id + debt_hash optional; status ACTIVE | COMPLETED | CANCELLED)
 │         └── 1:N → savings_goal_contribution (signed amount, contribution_date)
