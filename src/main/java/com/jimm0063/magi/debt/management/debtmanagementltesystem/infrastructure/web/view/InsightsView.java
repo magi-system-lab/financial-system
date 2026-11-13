@@ -37,8 +37,8 @@ public record InsightsView(
 
     /** How far ahead the debt-free date is searched. */
     static final int HORIZON_MONTHS = 120;
-    /** Finishing soon = the selected month and the next two. */
-    static final int FINISHING_WINDOW = 3;
+    /** Finishing soon = only the debts whose last installment is the selected month's. */
+    static final int FINISHING_WINDOW = 1;
 
     public record Month(
             int index,
@@ -183,7 +183,10 @@ public record InsightsView(
                 .toList();
     }
 
-    /** Debts whose last payment falls in month {@code index} or the following window. */
+    /**
+     * Debts whose last payment falls in month {@code index}: the next update finishes them. Shown as they stand before
+     * that payment (11/12), not after it (12/12, which read as already finished).
+     */
     private static List<Finishing> finishing(List<MonthProgressionDto> progression, int index) {
         List<Finishing> rows = new ArrayList<>();
         for (int k = index; k < Math.min(progression.size(), index + FINISHING_WINDOW); k++) {
@@ -191,8 +194,8 @@ public record InsightsView(
             for (CardProgressionDto card : m.cards()) {
                 for (Debt d : card.closingDebts()) {
                     int term = d.getMaxFinancingTerm();
-                    // installments paid once the selected month's payment is made
-                    int paid = Math.min(term, d.getCurrentInstallment() + index + 1);
+                    // installments paid before the selected month's payment (term − 1 for the closing month)
+                    int paid = Math.min(term, d.getCurrentInstallment() + index);
                     double ratio = term == 0 ? 1 : (double) paid / term;
                     rows.add(new Finishing(d.getDescription(), card.accountName(), d.getMonthlyPayment(),
                             m.month(), paid, term, String.format(java.util.Locale.ROOT, "%.1f 88", ratio * 87.96)));

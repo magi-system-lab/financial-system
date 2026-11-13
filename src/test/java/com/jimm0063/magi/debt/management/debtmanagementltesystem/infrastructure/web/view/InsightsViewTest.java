@@ -71,14 +71,17 @@ class InsightsViewTest {
     }
 
     @Test
-    void finishing_soon_covers_the_selected_month_and_the_next_two() {
+    void finishing_soon_lists_only_the_debts_the_selected_month_finishes_before_their_last_payment() {
         InsightsView view = InsightsView.from(progression(), 6, null, null);
-        List<InsightsView.Finishing> nov = view.months().get(0).finishing();
-        assertThat(nov).hasSize(1);
-        assertThat(nov.get(0).description()).isEqualTo("Phone");
-        assertThat(nov.get(0).lastPayment()).isEqualTo(NOV_2026.plusMonths(1));
-        assertThat(nov.get(0).paidAtMonth()).isEqualTo(11);   // 10 paid + November's installment
-        assertThat(view.months().get(1).finishing().get(0).paidAtMonth()).isEqualTo(12);
+        // Phone (10 of 12 paid) ends in December: nothing ends in November
+        assertThat(view.months().get(0).finishing()).isEmpty();
+        List<InsightsView.Finishing> dec = view.months().get(1).finishing();
+        assertThat(dec).hasSize(1);
+        assertThat(dec.get(0).description()).isEqualTo("Phone");
+        assertThat(dec.get(0).lastPayment()).isEqualTo(NOV_2026.plusMonths(1));
+        // 10 paid + November's installment: December's payment is the last one (11/12, not 12/12)
+        assertThat(dec.get(0).paidAtMonth()).isEqualTo(11);
+        assertThat(dec.get(0).paidAtMonth() + 1).isEqualTo(dec.get(0).term());
         assertThat(view.months().get(2).finishing()).isEmpty();
     }
 

@@ -251,7 +251,7 @@
                 </span>
             </div>
             <p class="muted" style="padding: 18px; font-size: 15px" th:if="${m.finishing().isEmpty()}"
-               th:text="#{insights.finishingNone(${@fmt.monthShort(m.month(), loc)}, ${@fmt.monthShort(m.month().plusMonths(2), loc)})}">Nothing finishes…</p>
+               th:text="#{insights.finishingNone(${@fmt.monthShort(m.month(), loc)})}">Nothing finishes in Nov.</p>
         </div>
     </section>
 
